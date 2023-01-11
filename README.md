@@ -20,7 +20,7 @@ This is code and metadata repository for manuscript "Regulation of Tal1 dependen
 
 ## rV2-lineage similarity pattern between E12.5 and E13.5
 
-1. code/gaba_cross_sample_cluster_comparison_monocle3.Rmd and code/glut_cross_sample_cluster_comparison_monocle3.Rdm
+1. code/gaba_cross_sample_cluster_comparison_monocle3.Rmd and code/glut_cross_sample_cluster_comparison_monocle3.Rmd
 
 ## VIA pseudotime analysis
 
