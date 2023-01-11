@@ -621,6 +621,13 @@ saveRDS(s.data.slim,paste("../scATAC_data/",sample.name,"_DownstreamReady_nmm_sl
 ```
 
 ```{r}
+pdf(file="/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/E12.5.scATAC.UMAP.full.pdf", width = 8, height = 8)
+DimPlot(s.data) + coord_fixed()
+dev.off()
+```
+
+
+```{r}
 sessionInfo()
 ```
 
