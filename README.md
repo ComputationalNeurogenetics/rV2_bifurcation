@@ -24,6 +24,10 @@ This is code and metadata repository for manuscript "Regulation of Tal1 dependen
 
 ## VIA pseudotime analysis
 
+1. code/VIA_preparation.Rmd
+2. code/rV2_VIA_pseudotime.ipynb
+3. VIA_pseudotime_features.Rmd
+
 ## TF-footprinting
 
 ## Cut & Run data processing
