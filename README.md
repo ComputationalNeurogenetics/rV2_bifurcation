@@ -4,14 +4,12 @@ This is code and metadata repository for manuscript "Regulation of Tal1 dependen
 
 ## Processing scRNA data
 
-Done with:
 1. code/e_all_refilter_rescale_complete.Rmd 
 (TODO: clean stashed changes, all non-relevant comments and E14/E15 data handling?)
 - Datafile is stored in scRNA_data/e_all_rescaled_regress_nuisance.Rds
 
 ## Processing scATAC data
 
-Done with 
 1. code/JointFeatureSpace.Rmd (TODO: need to be cleaned and rerun based on notebook in analysis/ to generate clean Rmd and html)
 - Joined featurespace is stored in analysis/JointFeatureSpace.271021.Rds (equivalent file is joint.clade.peaks.h8.281021.Rds, TODO: clean extra)
 
@@ -21,6 +19,8 @@ Done with
 - Datafile for downstream processing is stored in scATAC_data/E12_R1_DownstreamReady_nmm_.240322.Rds
 
 ## rV2-lineage similarity pattern between E12.5 and E13.5
+
+1. code/gaba_cross_sample_cluster_comparison_monocle3.Rmd and code/glut_cross_sample_cluster_comparison_monocle3.Rdm
 
 ## VIA pseudotime analysis
 
