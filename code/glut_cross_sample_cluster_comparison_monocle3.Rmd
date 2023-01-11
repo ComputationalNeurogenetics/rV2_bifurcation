@@ -1,0 +1,1241 @@
+---
+title: "glut_cross_sample_cluster_comparison_monocle3"
+output: html_document
+---
+
+### Mouse rV2 lineage Glut branch clustering comparison between parallel data
+
+Clustering comparison of mouse E12.5, E13.5, E14.5 and E15.5 rV2 linearge scRNA-seq data. Initial subsets as created in e_all_refilter_rescale.Rmd. The aim of the document is to separately zoom into rV2 Glutamatergic sub-lineages at each time point, and study variability in cluster profiles across data sets. By doing so, detection dissimilar clusters at later stages would, optimally, give an image of how the development of the rV2 Glut lineage progresses, by distinguishing changes in marker gene expression dynamics, as the embryo develops. For example, in the heat maps, if there’s a clear ‘diagonal’ similarity between some clusters from two time points, up until some ‘cell’ of the heat map, it might tell about changes in some marker gene expression levels when we switch from, say, E13 to E14.
+
+```{r Libraries, include = F}
+.libPaths(c("/projappl/project_2001539/project_rpackages_r404", .libPaths()))
+libpath <- .libPaths()[1]
+library(Seurat, lib.loc = "/appl/soft/math/r-env/421/421-rpackages")
+library(SeuratWrappers, lib.loc = libpath)
+library(BiocGenerics, lib.loc = "/appl/soft/math/r-env/421/421-rpackages")
+library(IRanges, lib.loc = "/appl/soft/math/r-env/421/421-rpackages")
+library(monocle3, lib.loc = libpath)
+library(tidyverse, lib.loc = libpath)
+source("/scratch/project_2001045/lassi/Gradu/AuxCode/AuxFunctions.R")
+
+knitr::opts_chunk$set(fig.width=16, fig.height=8)
+
+set.seed(42)
+```
+
+```{r GLobal plotting parameters}
+# Dot size in monocle umap
+monocle.cell.size <- 1.5
+# Monocle umap label size
+monocle.label.size <- 6
+```
+
+#### Reading in the Seurat data, subsetting the Seurat objects
+
+```{r Seurat objects}
+# Read data created at e_all_refilter_rescale_complete.Rmd
+e.all.combined <- readRDS("../data/e_all_rescaled_regress_nuisance.Rds")
+```
+
+```{r}
+# VarFt computed at e_all_refilter_rescale.Rmd
+e.all.combined <- lapply(e.all.combined, function(x) {
+  RunPCA(x, features = VariableFeatures(x), verbose = F)
+})
+```
+
+```{r Clustering new projections, message=FALSE, warning=F}
+# Parameterize, PCs read from elbow plots which can be visualized by request
+pcs <- c(24, 20, 24, 28)
+# Resolutions selected by iteratively running the clustering workflow until a sufficient results were observed
+resolution.v <- c(2.1, 2.1, 1.8, 2.5)
+# UMAP spread values chosen similarly as resolutions, i.e., iteratively
+spread.list <- c(1, 1.8, 1.2, 1.5)
+
+# Running now with new selection of PCs
+e.all.combined <- lapply(1:length(e.all.combined), function(i) {
+  FindNeighbors(e.all.combined[[i]], dims = 1:pcs[i], verbose = F, graph.name = c("primary_graph", "shared_neighbors")) %>% 
+  FindClusters(method = "matrix", resolution = resolution.v[i], verbose = F, graph.name = "shared_neighbors")
+})
+```
+
+```{r}
+e.all.combined <- lapply(1:length(e.all.combined), function(i) {
+  RunUMAP(e.all.combined[[i]],
+          dims = 1:pcs[i],
+          spread = spread.list[i],
+          verbose = F)
+})
+```
+
+#### Whole data visualization of Seurat UMAPs with Seurat clustering {.tabset}
+
+##### E12.5
+
+```{r}
+DimPlot(e.all.combined[[1]], pt.size = 0.05, label = T, label.box = T, label.size = 3, repel = T) +
+  theme(legend.position = "none")  + ggtitle("E12.5 whole data")
+```
+
+
+##### E13.5
+
+```{r}
+DimPlot(e.all.combined[[2]], pt.size = 0.05, label = T, label.box = T, label.size = 3, repel = T) +
+  theme(legend.position = "none") + ggtitle("E13.5 whole data")
+```
+
+
+##### E14.5
+
+```{r}
+DimPlot(e.all.combined[[3]], pt.size = 0.05, label = T, label.box = T, label.size = 3, repel = T) +
+  theme(legend.position = "none") + ggtitle("E14.5 whole data")
+```
+
+
+##### E15.5
+
+```{r}
+DimPlot(e.all.combined[[4]], pt.size = 0.05, label = T, label.box = T, label.size = 3, repel = T) +
+  theme(legend.position = "none") + ggtitle("E15.5 whole data")
+```
+
+
+#### {-}
+
+Before going any further, let us visualize the distribution of Glutamatergic markers.
+
+#### Identification or rV2 GLUT lineages {.tabset}
+
+```{r Selection of initial markers}
+# Without loss of generality, convert symbols to ENSMUS IDs based on data in E12 RNA assay.
+
+# GLUT:
+rv2.glut.symb <- c("Hes6", "Vsx1", "Vsx2", "Nkx6-1", "Shox2", "Lhx4", "Skor1")
+rv2.glut.ids <- convert_feature_identity(e.all.combined[[1]], assay = "RNA",
+                                         features = rv2.glut.symb, feature.format = "symbol")
+
+rv2.m.sym.1 <- rv2.glut.symb[1:4]
+rv2.m.sym.2 <- rv2.glut.symb[5:7]
+```
+
+##### E12.5 {.tabset}
+
+```{r, echo=FALSE}
+e12.fp1 <- FeaturePlot(e.all.combined[[1]], features = rv2.glut.ids[1:4], combine = F, label = T)
+e12.fp2 <- FeaturePlot(e.all.combined[[1]], features = rv2.glut.ids[5:7], combine = F, label = T)
+```
+
+###### Markers 1
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e12.fp1), function(i) {
+    e12.fp1[[i]] + ggtitle(rv2.m.sym.1[i])
+  })
+)
+```
+
+###### Markers 2
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e12.fp2), function(i) {
+    e12.fp2[[i]] + ggtitle(rv2.m.sym.2[i])
+  })
+)
+```
+
+##### {-}
+
+##### E13.5 {.tabset}
+
+```{r, echo=FALSE}
+e13.fp1 <- FeaturePlot(e.all.combined[[2]], features = rv2.glut.ids[1:4], combine = F, label = T)
+e13.fp2 <- FeaturePlot(e.all.combined[[2]], features = rv2.glut.ids[5:7], combine = F, label = T)
+```
+
+###### Markers 1
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e13.fp1), function(i) {
+    e13.fp1[[i]] + ggtitle(rv2.m.sym.1[i])
+  })
+)
+```
+
+###### Markers 2
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e13.fp2), function(i) {
+    e13.fp2[[i]] + ggtitle(rv2.m.sym.2[i])
+  })
+)
+```
+
+##### {-}
+
+##### E14.5 {.tabset}
+
+```{r, echo=FALSE}
+e14.fp1 <- FeaturePlot(e.all.combined[[3]], features = rv2.glut.ids[1:4], combine = F, label = T)
+e14.fp2 <- FeaturePlot(e.all.combined[[3]], features = rv2.glut.ids[5:7], combine = F, label = T)
+```
+
+###### Markers 1
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e14.fp1), function(i) {
+    e14.fp1[[i]] + ggtitle(rv2.m.sym.1[i])
+  })
+)
+```
+
+###### Markers 2
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e14.fp2), function(i) {
+    e14.fp2[[i]] + ggtitle(rv2.m.sym.2[i])
+  })
+)
+```
+
+##### {-}
+
+##### E15.5 {.tabset}
+
+```{r, echo=FALSE}
+e15.fp1 <- FeaturePlot(e.all.combined[[4]], features = rv2.glut.ids[1:4], combine = F, label = T)
+e15.fp2 <- FeaturePlot(e.all.combined[[4]], features = rv2.glut.ids[5:7], combine = F, label = T)
+```
+
+###### Markers 1
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e15.fp1), function(i) {
+    e15.fp1[[i]] + ggtitle(rv2.m.sym.1[i])
+  })
+)
+```
+
+###### Markers 2
+
+```{r, echo=FALSE}
+patchwork::wrap_plots(
+  lapply(1:length(e15.fp2), function(i) {
+    e15.fp2[[i]] + ggtitle(rv2.m.sym.2[i])
+  })
+)
+```
+
+##### {-}
+
+#### {-}
+
+Based on markers above, we can now subset each data set into rV2 Glut.
+
+```{r}
+# Subsetting by clusters (ident numbers)
+e12.glut <- subset(e.all.combined[[1]], idents = c(5, 17, 24))
+e13.glut <- subset(e.all.combined[[2]], idents = c(2, 28, 32))
+e14.glut <- subset(e.all.combined[[3]], idents = c(2, 28))
+e15.glut <- subset(e.all.combined[[4]], idents = c(16, 20))
+```
+
+Using these clusters to subset the data objects, there are now `r length(Cells(e12.glut))` E12.5 rV2 Glutamatergic cells, `r length(Cells(e13.glut))` E13.5 rV2 Glutamatergic cells, `r length(Cells(e14.glut))` E14.5 rV2 Glutamatergic cells, `r length(Cells(e15.glut))` E15.5 rV2 Glutamatergic cells.
+
+```{r}
+# Saving for Sami for science day
+e.all.glut <- list(e12.glut, e13.glut, e14.glut, e15.glut)
+names(e.all.glut) <- c("E12", "E13", "E14", "E15")
+
+#saveRDS(e.all.glut, "../outs/e.all.gluts.281222.rds")
+```
+
+#### Conversion into monocle3 cell_data_set, dimension reduction
+
+```{r Cds conversion}
+e12.cds <- SeuratWrappers::as.cell_data_set(e12.glut)
+e13.cds <- SeuratWrappers::as.cell_data_set(e13.glut)
+e14.cds <- SeuratWrappers::as.cell_data_set(e14.glut)
+e15.cds <- SeuratWrappers::as.cell_data_set(e15.glut)
+```
+
+```{r Gene data inclusion}
+# This block is necessary for two reasons
+#   1. Inclusion of gene symbol data into the cds (SeuratWrappers does not do this automatically)
+#   2. Enables plotting gene expression by gene id (ensmus) in monocle3 functions
+
+e12.cds <- estimate_size_factors(e12.cds)
+e12.cds@rowRanges@elementMetadata@listData[["gene_short_name"]] <- e.all.combined[[1]][["RNA"]]@meta.features$feature_symbol
+
+e13.cds <- estimate_size_factors(e13.cds)
+e13.cds@rowRanges@elementMetadata@listData[["gene_short_name"]] <- e.all.combined[[2]][["RNA"]]@meta.features$feature_symbol
+
+e14.cds <- estimate_size_factors(e14.cds)
+e14.cds@rowRanges@elementMetadata@listData[["gene_short_name"]] <- e.all.combined[[3]][["RNA"]]@meta.features$feature_symbol
+
+e15.cds <- estimate_size_factors(e15.cds)
+e15.cds@rowRanges@elementMetadata@listData[["gene_short_name"]] <- e.all.combined[[4]][["RNA"]]@meta.features$feature_symbol
+
+# Stuffing cds's into a list for more convenient operating
+cds.list <- list(e12.cds, e13.cds, e14.cds, e15.cds)
+cds.list.idx <- 1:length(cds.list)
+```
+
+```{r monocle3 dimension reduction}
+# Running monocle3 UMAP dimension reduction to each sample directly
+# Running this as the first analysis step skips unnecessary double normalization and preprocessing
+cds.list <- lapply(cds.list.idx, function (idx) {
+  reduce_dimension(cds.list[[idx]],
+                   preprocess_method = "PCA",
+                   reduction_method = "UMAP")
+})
+```
+
+Drawing plots with a handful of markers just to check out we've collected Glutamatergic cells.
+
+#### Expression of rV2 Glut markers on monocle UMAP {.tabset}
+
+##### E12.5
+
+```{r E12 monocle UMAP plot, message=FALSE}
+e12.row.ids.order <- rownames(cds.list[[1]])
+e12.row_symbols <- convert_feature_identity(e12.glut, "RNA", e12.row.ids.order, "ens")
+
+rownames(cds.list[[1]]) <- e12.row_symbols
+plot_cells(cds.list[[1]], genes = rv2.glut.symb, cell_size = 0.5) + ggtitle("E12.5 rV2 glut monocle3 UMAP")
+
+rownames(cds.list[[1]]) <- e12.row.ids.order
+```
+
+##### E13.5
+
+```{r E13 monocle UMAP plot, message=F}
+e13.row.ids.order <- rownames(cds.list[[2]])
+e13.row_symbols <- convert_feature_identity(e13.glut, "RNA", e13.row.ids.order, "ens")
+
+rownames(cds.list[[2]]) <- e13.row_symbols
+plot_cells(cds.list[[2]], genes = rv2.glut.symb, cell_size = 0.5) + ggtitle("E13.5 rV2 Glut monocle3 UMAP")
+rownames(cds.list[[2]]) <- e13.row.ids.order
+```
+
+##### E14.5
+
+```{r E14 monocle UMAP plot}
+e14.row.ids.order <- rownames(cds.list[[3]])
+e14.row.ids.order[!grepl("ENS", e14.row.ids.order)] <- "ENSTDTOMATOG"
+e14.row_symbols <- convert_feature_identity(e14.glut, "RNA", e14.row.ids.order, "ens")
+e14.row_symbols[is.na(e14.row_symbols)] <- "TDTOMATOG"
+
+
+rownames(cds.list[[3]]) <- e14.row_symbols
+plot_cells(cds.list[[3]], genes = rv2.glut.symb, cell_size = 0.5) + ggtitle("E14.5 rV2 Glut monocle3 UMAP")
+rownames(cds.list[[3]]) <- e14.row.ids.order
+```
+
+##### E15.5
+
+```{r E15 monocle UMAP plot}
+e15.row.ids.order <- rownames(cds.list[[4]])
+e15.row.ids.order[!grepl("ENS", e15.row.ids.order)] <- "ENSTDTOMATOG"
+e15.row_symbols <- convert_feature_identity(e15.glut, "RNA", e15.row.ids.order, "ens")
+e15.row_symbols[is.na(e15.row_symbols)] <- "TDTOMATOG"
+
+rownames(cds.list[[4]]) <- e15.row_symbols
+plot_cells(cds.list[[4]], genes = rv2.glut.symb, cell_size = 0.5) + ggtitle("E15.5 rV2 Glut monocle3 UMAP")
+rownames(cds.list[[4]]) <- e15.row.ids.order
+```
+
+#### {-}
+
+#### Monocle3 clustering of the UMAP projections
+
+Monocle3 comes with two graph-clustering algorithms: louvain-algorithm and leiden-algorithm. Of these two, leiden-algorithm is newer and generally results in more cohesive intra-cluster structure than louvain-algorithm. However, louvain-algorithm is more sensitive and 'finds' more clusters than leiden-algorithm. Thus, when the aim is to find smaller subsets of Glutamatergic cell subsets, my decision was to continue with louvain, since at least similar results could have been found with leiden too, but with a greater degree of robustness. In numbers, sample-wise, louvain finds approx 20 to 30 clusters, where leiden finds only 3.
+
+```{r}
+# Side step: Precomputing a selection of markers required later.
+pseudotime.root.genes <- convert_feature_identity(e.all.combined[[1]],
+                                                  assay = "RNA",
+                                                  features = c("Hes6", "Vsx1"),
+                                                  feature.format = "symbol")
+```
+
+
+```{r Leiden clustering}
+cds.list <- lapply(cds.list.idx, function (idx) {
+  cluster_cells(cds.list[[idx]], cluster_method = "leiden", resolution = 3e-2)
+})
+```
+
+#### Clustering on monocle UMAP {.tabset}
+
+##### E12.5
+
+```{r E12 monocle clusters}
+plot_cells(cds.list[[1]], group_label_size = 4, cell_size = 0.7) + ggtitle("E12.5 leiden clusters")
+```
+
+##### E13.5
+
+```{r E13 monocle clusters}
+plot_cells(cds.list[[2]], group_label_size = 4, cell_size = 0.7) + ggtitle("E13.5 monocle clusters")
+```
+
+##### E14.5
+
+```{r E14 monocle clusters}
+plot_cells(cds.list[[3]], group_label_size = 4, cell_size = 0.7) + ggtitle("E14.5 monocle clusters")
+```
+
+##### E15.5
+
+```{r E15 monocle clusters}
+plot_cells(cds.list[[4]], group_label_size = 4, cell_size = 0.7) + ggtitle("E15.5 monocle clusters")
+```
+
+#### {-}
+
+```{r}
+# Save plots for science day
+run <- T
+
+if (run) {
+  plot_cells(cds.list[[1]], group_label_size = monocle.label.size, cell_size = monocle.cell.size, color_cells_by = "cluster") + 
+    ggtitle("E13.5 monocle clusters") + coord_fixed() + theme(aspect.ratio=1)
+
+  ggsave(filename = "e12_monocle_glut_umap_fixed.pdf",
+         path = "../figures/",
+         device = "pdf",
+         width = 12,
+         height = 12,
+         units = "in")
+}
+```
+
+#### rV2 Glut Trajectory graph, pseudotime
+
+To make biological inference of future heatmaps easier, monocle pseudotime has to be calculated.
+
+```{r Learn graph, results='hide'}
+# Learn monocle3 trajectory graph, not by partition, but by clusters
+cds.list <- lapply(cds.list.idx, function (idx) {
+  learn_graph(cds.list[[idx]], use_partition = F)
+})
+```
+
+To order the cells for pseudotime calculation, we need to identify the biological starting points of the lineages and pass those points as function arguments to the pseudotime function. Methods to do this include selecting cells (for example, by using a floor threshold value or by picking one maximal cell) where known lineage starting point genes are expressed maximally. However, this method relies heavily on the assumption that such cells form a homogeneous subpopulation within the UMAP space (that is, there are enough cells for UMAP to project them on an unambiguous location). If this assumption is not met, monocle fails to calculate reliable pseudotime.
+
+A safer way is to use the nodes of the graph we just computed. The process of using trajectory graphs' nodes follows an easy pipeline:
+
+* Plot the nodes
+* Plot lineage-starting-gene expression profiles
+* Collect the name of the node which overlaps with the region where these genes are expressed most actively
+
+#### Nodes {.tabset}
+
+##### E12.5 nodes
+
+```{r E12 nodes, echo=FALSE}
+patchwork::wrap_plots(
+  plot_cells(cds.list[[1]], label_principal_points = T, label_cell_groups = F, group_label_size = 4) + ggtitle("E12.5") + theme(legend.position = "none"),
+  plot_cells(cds.list[[1]], genes = pseudotime.root.genes[1], show_trajectory_graph = F, label_cell_groups = F, cell_size = 0.5) + theme(legend.position = "none") + ggtitle("Hes6")
+)
+```
+From this plot, we see that node Y_402 (was Y_336 prior to something) overlaps with the point of maximal expression
+
+##### E13.5 nodes
+
+```{r E13 nodes, echo=FALSE}
+patchwork::wrap_plots(
+  plot_cells(cds.list[[2]], label_principal_points = T, label_cell_groups = F, group_label_size = 4) + ggtitle("E13.5") + theme(legend.position = "none"),
+  plot_cells(cds.list[[2]], genes = pseudotime.root.genes[1], show_trajectory_graph = F, label_cell_groups = F, cell_size = 0.5) + theme(legend.position = "none") + ggtitle("Hes6")
+)
+```
+For E13.5, the corresponding node is Y_67 (was Y_445 prior to something)
+
+##### E14.5 nodes
+
+```{r E14 nodes, echo=FALSE}
+patchwork::wrap_plots(
+  plot_cells(cds.list[[3]], label_principal_points = T, label_cell_groups = F, group_label_size = 4) + ggtitle("E14.5") + theme(legend.position = "none"),
+  plot_cells(cds.list[[3]], genes = pseudotime.root.genes[1], show_trajectory_graph = F, label_cell_groups = F, cell_size = 0.5) + theme(legend.position = "none") + ggtitle("Hes6")
+)
+```
+For E14.5, the starting nodes appears to be around Y_65 (was Y_87)
+
+##### E15.5 nodes
+
+```{r E15 nodes, echo=FALSE}
+patchwork::wrap_plots(
+  plot_cells(cds.list[[4]], label_principal_points = T, label_cell_groups = F, group_label_size = 4) + ggtitle("E15.5") + theme(legend.position = "none"),
+  plot_cells(cds.list[[4]], genes = pseudotime.root.genes[1], show_trajectory_graph = F, label_cell_groups = F) + theme(legend.position = "none") + ggtitle("Hes6")
+)
+```
+For E15.5, we can choose two root nodes. This seems to be Y_30.
+
+#### {-}
+
+Using these nodes, we can automatize the computation of pseudotime.
+
+```{r Plot pseudotime to UMAP projection, warning=FALSE}
+# Collect the nodes to a vector
+#root.nodes <- list("Y_402", "Y_67", "Y_65", "Y_9")#list("Y_336", "Y_445", "Y_87", "Y_30")
+root.nodes <- list("Y_289", "Y_8", "Y_39", "Y_85")#list("Y_336", "Y_445", "Y_87", "Y_30")
+
+# Pass the nodes as function arguments to order_cells.
+# Now, pseudotime is set to start from these nodes.
+cds.list <- lapply(cds.list.idx, function(idx) {
+  order_cells(cds.list[[idx]], root_pr_nodes = root.nodes[[idx]])
+})
+```
+
+
+#### Pseudotime, plotted {.tabset}
+
+##### E12.5.
+
+```{r E12 only pseudotime plot}
+plot_cells(cds.list[[1]], color_cells_by = "pseudotime", show_trajectory_graph = F, cell_size = 0.7)
+```
+
+##### E13.5
+
+```{r E13 only pseudotime plot}
+plot_cells(cds.list[[2]], color_cells_by = "pseudotime", show_trajectory_graph = F, cell_size = 0.7)
+```
+
+##### E14.5
+
+```{r E14 only pseudotime plot}
+plot_cells(cds.list[[3]], color_cells_by = "pseudotime", show_trajectory_graph = F, cell_size = 0.7)
+```
+
+##### E15.5
+
+```{r E15 only pseudotime plot}
+plot_cells(cds.list[[4]], color_cells_by = "pseudotime", show_trajectory_graph = F, cell_size = 0.7)
+```
+
+#### {-}
+
+It is also convenient to visualize cluster and cell level progression of pseudotime with boxplots.
+
+```{r Pseudotime wrangle}
+# From each cds, for each cell barcode, extract cluster number and pseudotime value
+cells.pseudotime <- lapply(cds.list.idx, function(idx) {
+  df <- data.frame(clusters(cds.list[[idx]]), pseudotime(cds.list[[idx]]))
+  colnames(df) <- c("cluster", "pseudotime")
+  return(df)
+})
+```
+
+#### Cluster order in pseudotime, plotted {.tabset}
+
+##### E12.5
+
+```{r E12 rising cluster pseudotime boxplot}
+e12.cp.plot <- ggplot(cells.pseudotime[[1]], aes(x = reorder(cluster, pseudotime, mean), y = pseudotime)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0) +
+  geom_jitter(shape=16, position=position_jitter(0.2), size = 0.3, aes(color = pseudotime)) +
+  scale_color_viridis_c(option = "C") +
+  xlab("cluster") +
+  ggtitle("E12.5 pseudotime progress")
+e12.cp.plot
+```
+
+##### E13.5
+
+```{r E13 rising cluster pseudotime boxplot}
+e13.cp.plot <- ggplot(cells.pseudotime[[2]], aes(x = reorder(cluster, pseudotime, mean), y = pseudotime)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0) +
+  geom_jitter(shape=16, position=position_jitter(0.2), size = 0.3, aes(color = pseudotime)) +
+  scale_color_viridis_c(option = "C") +
+  xlab("cluster") +
+  ggtitle("E13.5 pseudotime progress")
+e13.cp.plot
+```
+
+##### E14.5
+
+```{r E14 rising cluster pseudotime boxplot}
+e14.cp.plot <- ggplot(cells.pseudotime[[3]], aes(x = reorder(cluster, pseudotime, mean), y = pseudotime)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0) +
+  geom_jitter(shape=16, position=position_jitter(0.2), size = 0.3, aes(color = pseudotime)) +
+  scale_color_viridis_c(option = "C") +
+  xlab("cluster") +
+  ggtitle("E14.5 pseudotime progress")
+e14.cp.plot
+```
+
+##### E15.5
+
+```{r E15 rising cluster pseudotime boxplot}
+e15.cp.plot <- ggplot(cells.pseudotime[[4]], aes(x = reorder(cluster, pseudotime, mean), y = pseudotime)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0) +
+  geom_jitter(shape=16, position=position_jitter(0.2), size = 0.3, aes(color = pseudotime)) +
+  scale_color_viridis_c(option = "C") +
+  xlab("cluster") +
+  ggtitle("E15.5 pseudotime progress")
+e15.cp.plot
+```
+
+#### {-}
+
+#### Cluster marker genes
+
+Performing a simple monocle3 marker gene test for each cluster in each sample. These markers will later be used in the cross-sample cluster similarity comparison. The markers will also be good indicatives of rV2 cluster identities. For selection of top markers, I will use 'marker score'.
+The lists will be provided as excel-sheets as well.
+
+```{r}
+library(parallel)
+```
+
+
+```{r Top markers, results='hide'}
+# Computing cluster-level markers instead of monocle3 'partitions'
+cds.markers <- lapply(cds.list.idx, function (idx) {
+  test.out <- top_markers(cds.list[[idx]], group_cells_by = "cluster", cores = detectCores() - 1)
+  test.out <- test.out %>% filter(marker_test_p_value < 0.05 & marker_test_q_value < 1)
+  return(test.out)
+})
+```
+
+```{r n for Top markers}
+# How many marker genes to use in results
+chosen_ns <- c(10, 15, 25)
+```
+
+```{r Filtering cds cluster markers}
+# Filtering the marker genes grouped by cluster number
+# Using, again, marker score to measure the 'goodness' of a gene.
+# Other used methods include using pseudo R^2 which can be used too if wanted.
+#
+#'*NEW on Fri 2. Jul* ~~ loops now through a wider selection of n instead of only one.
+# In short:
+# for every value of n in chosen_ns:
+#   for every e-day time point in cds.list:
+#     pick top n markers (by marker score) for every E-day cluster
+#
+ns.markers <- lapply(chosen_ns, function (n) {
+  n.cds.markers <- lapply(cds.list.idx, function (idx) {
+    cds.markers[[idx]] %>% group_by(cell_group) %>% top_n(n, marker_score)
+  })
+})
+```
+
+#### Top `r chosen_ns[1]` rV2 Glut cluster markers {.tabset}
+
+##### E12.5 rV2 Glut
+
+```{r E12 markers}
+rmarkdown::paged_table(ns.markers[[1]][[1]] %>% arrange(as.numeric(cell_group), desc(marker_score)))
+```
+
+##### E13.5 rV2 Glut
+
+```{r E13 markers}
+rmarkdown::paged_table(ns.markers[[1]][[2]] %>% arrange(as.numeric(cell_group), desc(marker_score)))
+```
+
+##### E14.5 rV2 Glut
+
+```{r E14 markers}
+rmarkdown::paged_table(ns.markers[[1]][[3]] %>% arrange(as.numeric(cell_group), desc(marker_score)))
+```
+
+##### E15.5 rV2 Glut
+
+```{r E15 markers}
+rmarkdown::paged_table(ns.markers[[1]][[4]] %>% arrange(as.numeric(cell_group), desc(marker_score)))
+```
+
+#### {-}
+
+```{r alternative cluster filtering}
+# ATM does not do anything
+
+# Negating in-operator for easy subsetting
+`%notin%` <- purrr::negate(`%in%`)
+# defined above, dummy cluster 9999 for E14
+non.Glut.clusters <- list(c(9999), c(9999), c(9999), c(9999)) # Ugly fix...
+# For each e-day in each n, remove rows with data from non-Glut clusters
+ns.markers.filt <- lapply(1:length(chosen_ns), function(n) {
+  slot.n <- lapply(cds.list.idx, function(idx) {
+    tmp.df <- ns.markers[[n]][[idx]]
+    tmp.df <- tmp.df[which(tmp.df$cell_group %notin% non.Glut.clusters[[idx]]),]
+  })
+})
+```
+
+#### Drawing the heatmaps
+
+```{r Aux functions}
+source("../aux/plotting_fns.R")
+```
+
+```{r Splitting the data into cluster-gene-sets}
+#
+#'*NEW Fri 2. Jul* ~~ Reflecting the changes in marker score filtering, now loops through the set of n values, as well.
+# Code can be hard to interpret so in pseudocode:
+# For every n in chosen_ns:
+#   for every e-day in the list of e-day cluster marker genes:
+#     factorize gene symbols
+#     split the data frame by clusters, assign cluster's marker genes into cluster's index
+#     return the genes, split into clusters
+#
+n.factored.markers.split <- lapply(1:length(chosen_ns), function (n) {
+  split.clusters <- lapply(cds.list.idx, function (idx) {
+    ns.markers.filt[[n]][[idx]]$gene_short_name <- as.factor(ns.markers.filt[[n]][[idx]]$gene_short_name)
+    return(split(ns.markers.filt[[n]][[idx]]$gene_short_name, ns.markers.filt[[n]][[idx]]$cell_group))
+  })
+})
+```
+
+```{r}
+e12.non.order <- sort(unique(ns.markers.filt[[1]][[1]]$cell_group))
+e13.non.order <- sort(unique(ns.markers.filt[[1]][[2]]$cell_group))
+e14.non.order <- sort(unique(ns.markers.filt[[1]][[3]]$cell_group))
+e15.non.order <- sort(unique(ns.markers.filt[[1]][[4]]$cell_group))
+```
+
+### Cluster similarity heatmaps {.tabset}
+
+#### Using 10 marker genes {.tabset}
+
+##### E12.5 vs. E13.5
+
+```{r Plot E12E13 unordered hypergeom n10, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[1]], n.factored.markers.split[[1]][[2]], "E12", "E13",
+  row_names = e12.non.order, col_names = e13.non.order, n_markers = chosen_ns[1]
+)
+```
+
+##### E12.5 vs. E14.5
+
+```{r Plot E12E14 unordered hypergeom, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[1]], n.factored.markers.split[[1]][[3]], "E12", "E14",
+  row_names = e12.non.order, col_names = e14.non.order, n_markers = chosen_ns[1]
+)
+```
+
+##### E13.5 vs. E14.5
+
+```{r Plot E13E14 unordered hypergeom n10, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[2]], n.factored.markers.split[[1]][[3]], "E13", "E14",
+  row_names = e13.non.order, col_names = e14.non.order, n_markers = chosen_ns[1]
+)
+```
+
+##### E13.5 vs. E15.5
+
+```{r Plot E13E15 unordered hypergeom n10, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[2]], n.factored.markers.split[[1]][[4]], "E13", "E15",
+  row_names = e13.non.order, col_names = e15.non.order, n_markers = chosen_ns[1]
+)
+```
+
+##### E14.5 vs. E15.5
+
+```{r Plot E14E15 unordered hypergeom n10, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[3]], n.factored.markers.split[[1]][[4]], "E14", "E15",
+  row_names = e14.non.order, col_names = e15.non.order, n_markers = chosen_ns[1]
+)
+```
+
+#### {-}
+
+#### Using 15 marker genes {.tabset}
+
+##### E12.5 vs. E13.5
+
+```{r Plot E12E13 unordered hypergeom n15, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[1]], n.factored.markers.split[[2]][[2]], "E12", "E13",
+  row_names = e12.non.order, col_names = e13.non.order, n_markers = chosen_ns[2]
+)
+```
+
+##### E12.5 vs. E14.5
+
+```{r Plot E12E14 unordered hypergeom n15, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[1]], n.factored.markers.split[[2]][[3]], "E12", "E14",
+  row_names = e12.non.order, col_names = e14.non.order, n_markers = chosen_ns[2]
+)
+```
+
+##### E13.5 vs. E14.5
+
+```{r Plot E13E14 unordered hypergeom n15, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[2]], n.factored.markers.split[[2]][[3]], "E13", "E14",
+  row_names = e13.non.order, col_names = e14.non.order, n_markers = chosen_ns[2]
+)
+```
+
+##### E13.5 vs. E15.5
+
+```{r Plot E13E15 unordered hypergeom n15, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[2]], n.factored.markers.split[[2]][[4]], "E13", "E15",
+  row_names = e13.non.order, col_names = e15.non.order, n_markers = chosen_ns[2]
+)
+```
+
+##### E14.5 vs. E15.5
+
+```{r Plot E14E15 unordered hypergeom n15, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[3]], n.factored.markers.split[[2]][[4]], "E14", "E15",
+  row_names = e14.non.order, col_names = e15.non.order, n_markers = chosen_ns[2]
+)
+```
+
+#### {-}
+
+#### Using 25 marker genes {.tabset}
+
+##### E12.5 vs. E13.5
+
+```{r Plot E12E13 unordered hypergeom n25, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[1]], n.factored.markers.split[[3]][[2]], "E12", "E13",
+  row_names = e12.non.order, col_names = e13.non.order, n_markers = chosen_ns[3]
+)
+```
+
+##### E12.5 vs. E14.5
+
+```{r Plot E12E14 unordered hypergeom n25, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[1]], n.factored.markers.split[[3]][[3]], "E12", "E14",
+  row_names = e12.non.order, col_names = e14.non.order, n_markers = chosen_ns[3]
+)
+```
+
+##### E13.5 vs. E14.5
+
+```{r Plot E13E14 unordered hypergeom n25, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[2]], n.factored.markers.split[[3]][[3]], "E13", "E14",
+  row_names = e13.non.order, col_names = e14.non.order, n_markers = chosen_ns[3]
+)
+```
+
+##### E13.5 vs. E15.5
+
+```{r Plot E13E15 unordered hypergeom n25, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[2]], n.factored.markers.split[[3]][[4]], "E13", "E15",
+  row_names = e13.non.order, col_names = e15.non.order, n_markers = chosen_ns[3]
+)
+```
+
+##### E14.5 vs. E15.5
+
+```{r Plot E14E15 unordered hypergeom n25, fig.keep='all', warning=FALSE}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[3]], n.factored.markers.split[[3]][[4]], "E14", "E15",
+  row_names = e14.non.order, col_names = e15.non.order, n_markers = chosen_ns[3]
+)
+```
+
+#### {-}
+
+### {-}
+
+Next, we sort the clusters in pseudotime (by cluster mean) for our next round of heatmapping.
+
+```{r Get character representation of pseudotime cluster order}
+cds.pseudotime.order <- lapply(cds.list.idx, function(idx) {
+  # For each cell, gather together info of cluster number and cell's pseudotime 
+  tmp.df <- data.frame(clusters(cds.list[[idx]]), pseudotime(cds.list[[idx]]))
+  colnames(tmp.df) <- c("cluster", "pseudotime")
+  # For each cluster, calculate mean(pseudotime) and arrange the clusters by ascending pseudotime
+  cl.ps.mean <- aggregate(pseudotime ~ cluster, tmp.df, mean) %>% arrange(pseudotime)
+  # Get character representation of the cluster numbers, as ordered above
+  return(as.character(cl.ps.mean$cluster))
+})
+```
+
+```{r cluster orders}
+e12.order <- setdiff(cds.pseudotime.order[[1]], non.Glut.clusters[[1]])
+e13.order <- setdiff(cds.pseudotime.order[[2]], non.Glut.clusters[[2]])
+e14.order <- setdiff(cds.pseudotime.order[[3]], non.Glut.clusters[[3]])
+e15.order <- cds.pseudotime.order[[4]]
+```
+
+### Clusters ordered by pseudotime {.tabset}
+
+#### 10 markers {.tabset}
+
+##### E12.5 vs. E13.5
+
+```{r Plot hypergeom heatmap pseudot E12E13 n10, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[1]], n.factored.markers.split[[1]][[2]], "E12", "E13", chosen_ns[1],
+  row_names = e12.non.order, col_names = e13.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e13.order
+)
+```
+
+##### E12.5 vs. E14.5
+
+```{r Plot hypergeom heatmap pseudot E12E14 n10, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[1]], n.factored.markers.split[[1]][[3]], "E12", "E14", chosen_ns[1],
+  row_names = e12.non.order, col_names = e14.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e14.order
+)
+```
+
+##### E13.5 vs. E14.5
+
+```{r Plot hypergeom heatmap pseudot E13E14 n10, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[2]], n.factored.markers.split[[1]][[3]], "E13", "E14", chosen_ns[1],
+  row_names = e13.non.order, col_names = e14.non.order,
+  pseudotime = TRUE, row_order = e13.order, col_order = e14.order
+)
+```
+
+##### E13.5 vs. E15.5
+
+```{r Plot hypergeom heatmap pseudot E13E15 n10, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[2]], n.factored.markers.split[[1]][[4]], "E13", "E15", chosen_ns[1],
+  row_names = e13.non.order, col_names = e15.non.order,
+  pseudotime = TRUE, row_order = e13.order, col_order = e15.order[e15.order %in% e15.non.order]
+)
+```
+
+##### E14.5 vs. E15.5
+
+```{r Plot hypergeom heatmap pseudot E14E15 n10, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[1]][[3]], n.factored.markers.split[[1]][[4]], "E14", "E15", chosen_ns[1],
+  row_names = e14.non.order, col_names = e15.non.order,
+  pseudotime = TRUE, row_order = e14.order, col_order = e15.order[e15.order %in% e15.non.order]
+)
+```
+
+#### {-}
+
+#### 15 markers {.tabset}
+
+##### E12.5 vs. E13.5
+
+```{r Plot hypergeom heatmap pseudot E12E13 n15, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[1]], n.factored.markers.split[[2]][[2]], "E12", "E13", chosen_ns[2],
+  row_names = e12.non.order, col_names = e13.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e13.order
+)
+```
+
+##### E12.5 vs. E14.5
+
+```{r Plot hypergeom heatmap pseudot E12E14 n15, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[1]], n.factored.markers.split[[2]][[3]], "E12", "E14", chosen_ns[2],
+  row_names = e12.non.order, col_names = e14.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e14.order
+)
+```
+
+##### E13.5 vs. E14.5
+
+```{r Plot hypergeom heatmap pseudot E13E14 n15, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[2]], n.factored.markers.split[[2]][[3]], "E13", "E14", chosen_ns[2],
+  row_names = e13.non.order, col_names = e14.non.order,
+  pseudotime = TRUE, row_order = e13.order, col_order = e14.order
+)
+```
+
+##### E13.5 vs. E15.5
+
+```{r Plot hypergeom heatmap pseudot E13E15 n15, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[2]], n.factored.markers.split[[2]][[4]], "E13", "E15", chosen_ns[2],
+  row_names = e13.non.order, col_names = e15.non.order,
+  pseudotime = TRUE, row_order = e13.order, col_order = e15.order[e15.order %in% e15.non.order]
+)
+```
+
+##### E14.5 vs. E15.5
+
+```{r Plot hypergeom heatmap pseudot E14E15 n15, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[2]][[3]], n.factored.markers.split[[2]][[4]], "E14", "E15", chosen_ns[2],
+  row_names = e14.non.order, col_names = e15.non.order,
+  pseudotime = TRUE, row_order = e14.order, col_order = e15.order[e15.order %in% e15.non.order]
+)
+```
+
+#### {-}
+
+#### 25 markers {.tabset}
+
+##### E12.5 vs. E13.5
+
+```{r Plot hypergeom heatmap pseudot E12E13 n25, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[1]], n.factored.markers.split[[3]][[2]], "E12", "E13", chosen_ns[3],
+  row_names = e12.non.order, col_names = e13.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e13.order
+)
+```
+
+##### E12.5 vs. E14.5
+
+```{r Plot hypergeom heatmap pseudot E12E14 n25, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[1]], n.factored.markers.split[[3]][[3]], "E12", "E14", chosen_ns[3],
+  row_names = e12.non.order, col_names = e14.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e14.order
+)
+```
+
+##### E13.5 vs. E14.5
+
+```{r Plot hypergeom heatmap pseudot E13E14 n25, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[2]], n.factored.markers.split[[3]][[3]], "E13", "E14", chosen_ns[3],
+  row_names = e13.non.order, col_names = e14.non.order,
+  pseudotime = TRUE, row_order = e13.order, col_order = e14.order
+)
+```
+
+##### E13.5 vs. E15.5
+
+```{r Plot hypergeom heatmap pseudot E13E15 n25, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[2]], n.factored.markers.split[[3]][[4]], "E13", "E15", chosen_ns[3],
+  row_names = e13.non.order, col_names = e15.non.order,
+  pseudotime = TRUE, row_order = e13.order, col_order = e15.order[e15.order %in% e15.non.order]
+)
+```
+
+##### E14.5 vs. E15.5
+
+```{r Plot hypergeom heatmap pseudot E14E15 n25, warning=FALSE, fig.keep='all'}
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[3]], n.factored.markers.split[[3]][[4]], "E14", "E15", chosen_ns[3],
+  row_names = e14.non.order, col_names = e15.non.order,
+  pseudotime = TRUE, row_order = e14.order, col_order = e15.order[e15.order %in% e15.non.order]
+)
+```
+
+#### {-}
+
+### {-}
+
+```{r}
+# Save E12E13 for science day
+pdf(file = "../figures/e12_e13_glut_hypergerom.pdf", width = 12, height = 12)
+create_hypergeom_plot(
+  n.factored.markers.split[[3]][[1]], n.factored.markers.split[[3]][[2]], "E12", "E13", chosen_ns[3],
+  row_names = e12.non.order, col_names = e13.non.order,
+  pseudotime = TRUE, row_order = e12.order, col_order = e13.order
+)
+dev.off()
+```
+
+Finally, as requested, the dot plots.
+
+```{r Dot plot genes by group, message=FALSE}
+top4.cds.markers <- lapply(cds.list.idx, function(idx) {
+  tmp.top <- ns.markers.filt[[1]][[idx]] %>%
+    filter(fraction_expressing >= 0.10) %>%
+    group_by(cell_group) %>%
+    top_n(4, marker_score)
+  
+  markers <- unique(tmp.top %>% pull(gene_id))
+  
+  row.ens.names <- rownames(cds.list[[idx]])
+  
+  row.symb.names <- convert_feature_identity(e.all.combined[[idx]], "RNA", row.ens.names, "ens")
+  markers.symbols <- convert_feature_identity(e.all.combined[[idx]], "RNA", markers, "ens")
+  
+  if (idx %in% c(3, 4)) {
+    row.symb.names[is.na(row.symb.names)] <- "zoinks"
+    rownames(cds.list[[idx]]) <- row.symb.names
+  } else {
+    rownames(cds.list[[idx]]) <- row.symb.names
+  }
+
+  p <- plot_genes_by_group(cds.list[[idx]],
+                           markers.symbols,
+                           group_cells_by = "cluster",
+                           ordering_type = "none",
+                           max.size = 3,
+                           norm_method = "size_only")
+  
+  rownames(cds.list[[idx]]) <- row.ens.names
+  
+  return(p)
+})
+```
+
+```{r Reorder dot plot axes}
+# Reorder monocle3::plot_genes_by_group x axis by cluster level mean(pseudotime) sequence computed above
+for (idx in cds.list.idx) {
+  # Extract the data frame to direct the plot
+  dp.data <- top4.cds.markers[[idx]]$data
+  # Reorder axis columns
+  dp.data <- dp.data %>% dplyr::mutate(Group = factor(Group, levels = as.numeric(cds.pseudotime.order[[idx]])))
+  #dp.data <- dp.data %>% group_by(Group) %>% arrange()
+  # Put back
+  top4.cds.markers[[idx]]$data <- dp.data
+}
+```
+
+#### Cluster marker gene tables {.tabset}
+
+##### E12.5 
+
+Using 4 top markers
+```{r Gene dot plot E12, fig.width=14, fig.height=12}
+top4.cds.markers[[1]] + ggtitle("E12.5 Glut cluster marker genes, pseudotime order")
+```
+
+##### E13.5 
+
+Using 4 top markers
+```{r Gene dot plot E13, fig.width=14, fig.height=12}
+top4.cds.markers[[2]] + ggtitle("E13.5 Glut cluster marker genes, pseudotime order")
+```
+
+##### E14.5 
+
+Using 4 top markers
+```{r Gene dot plot E14, fig.width=14, fig.height=12}
+top4.cds.markers[[3]] + ggtitle("E14.5 Glut cluster marker genes, pseudotime order")
+```
+
+##### E15.5 
+
+Using 4 top markers
+```{r Gene dot plot E15, fig.width=14, fig.height=12}
+top4.cds.markers[[4]] + ggtitle("E15.5 Glut cluster marker genes, pseudotime order")
+```
+
+#### {-}
+
+#### Extra 1. Export E12 Seurat + monocle clustering as cell type annotation data for ATAC label transfer
+
+```{r Prepare data for labeling}
+# Written Tue 29. Mar
+
+# Extract monocle clusters to a df
+mono.clusters <- data.frame(clusters(cds.list[[1]]))
+# Add monocle cluster tag
+mono.clusters.m <- data.frame(sapply(mono.clusters, function (x) {
+  paste0("m", x)
+}))
+rownames(mono.clusters.m) <- rownames(mono.clusters)
+colnames(mono.clusters.m) <- "cluster"
+
+
+# Extract seurat cluster 17 to df
+seurat.cl.20 <- Cells(subset(e.all.combined[[1]], ident = 20))
+seurat.cl.6 <- Cells(subset(e.all.combined[[1]], ident = 6))
+seurat.cl.27 <- Cells(subset(e.all.combined[[1]], ident = 27))
+seurat.cl.14 <- Cells(subset(e.all.combined[[1]], ident = 14))
+# Add seurat tag
+seurat.cl.20 <- data.frame(row.names = seurat.cl.20, rep("s20", length(seurat.cl.20)))
+seurat.cl.6 <- data.frame(row.names = seurat.cl.6, rep("s6", length(seurat.cl.6)))
+seurat.cl.27 <- data.frame(row.names = seurat.cl.27, rep("s27", length(seurat.cl.27)))
+seurat.cl.14 <- data.frame(row.names = seurat.cl.14, rep("s14", length(seurat.cl.14)))
+
+colnames(seurat.cl.20) <- "cluster"
+colnames(seurat.cl.6) <- "cluster"
+colnames(seurat.cl.27) <- "cluster"
+colnames(seurat.cl.14) <- "cluster"
+
+# Combine, uses cell barcode as row name
+merged.clusters <- rbind(mono.clusters.m, seurat.cl.20, seurat.cl.6, seurat.cl.27, seurat.cl.14)
+```
+
+```{r}
+merged.clusters$annotation <- sapply(merged.clusters$cluster, function (x) {
+  
+  if (x %in% c("m11", "m7", "m13", "m5", "m12", "m1")) {
+    "GLE"
+  } else if (x %in% c("m9", "m3", "m16", "m8", "m2", "m15")) {
+    "GLL (Skor1)"
+  } else if (x %in% c("m14", "m6", "m10", "m4")) {
+    "GLL (Pax5, Pou6f2)"
+  } else if (x %in% c("s6")) {
+    "PRO1"
+  } else if (x %in% c("s20")) {
+    "PRO2"
+  } else if (x %in% c("s14")) {
+    "SPRE"
+  } else if (x %in% c("s27")) {
+    "SPRO"
+  } else {
+    "unknown_identity"
+  }
+  
+})
+
+# Check all barcs have label
+if (length(unique(merged.clusters$annotation)) == 7) {
+  print("OK")
+} else {
+  print("fail")
+}
+```
+
+```{r Adding label transefer labels to original seurat object}
+# Pull annotations to named vector
+label_tansfer_annotation <- merged.clusters$annotation
+label_tansfer_clustering <- merged.clusters$cluster
+
+names(label_tansfer_annotation) <- rownames(merged.clusters)
+names(label_tansfer_clustering) <- rownames(merged.clusters)
+
+# Spike into E12 seurat object metadata
+e.all.combined[[1]]$labels_for_atac_transfer <- label_tansfer_annotation
+e.all.combined[[1]]$labels_for_atac_transfer <- e.all.combined[[1]]$labels_for_atac_transfer %>% replace_na("none")
+
+e.all.combined[[1]]$clusters_for_atac_transfer <- label_tansfer_clustering
+e.all.combined[[1]]$clusters_for_atac_transfer <- e.all.combined[[1]]$clusters_for_atac_transfer %>% replace_na("none")
+# Save for export
+saveRDS(e.all.combined[[1]]$labels_for_atac_transfer, "fri1apr_e12_seurat_glut_sert_annotations_for_atac.Rds")
+#saveRDS(e.all.combined[[1]]$clusters_for_atac_transfer, "wed30mar_e12_seurat_glut_sert_clusters_for_atac.Rds")
+```
+
+Saving all statistically sound marker genes for further inspection.
+
+```{r writing the csvs}
+e_points <- c("e12", "e13", "e14", "e15")
+
+for (idx in cds.list.idx) {
+  tb_out <- ns.markers.filt[[3]][[idx]] %>% arrange(as.numeric(cell_group), desc(marker_score))
+  out_file <- gsub("XXX", e_points[idx], "XXXTopGlutMarkersByMarkerScore_nYYY.csv")
+  out_file <- gsub("YYY", chosen_ns[3], out_file)
+  out_file <- paste0(Sys.Date(), out_file)
+  out_file <- paste0("/scratch/project_2001045/lassi/integration/pipeline_remodel/cluster_analysis/data_out/", out_file)
+  write.csv(tb_out, out_file)
+}
+```
+
+```{r}
+sessionInfo()
+```
+
