@@ -22,6 +22,9 @@ This is code and metadata repository for manuscript "Regulation of Tal1 dependen
 
 1. code/gaba_cross_sample_cluster_comparison_monocle3.Rmd and code/glut_cross_sample_cluster_comparison_monocle3.Rmd
 
+## rV2-lineage subsetting
+
+
 ## VIA pseudotime analysis
 
 1. code/VIA_preparation.Rmd
