@@ -39,6 +39,6 @@ This is code and metadata repository for manuscript "Regulation of Tal1 dependen
 2. MACS2 (https://github.com/macs3-project/MACS) with parameters
 macs2 callpeak [target] [control] -f BAMPE --nomodel -g mm --gsize 1.87e9 --nolambda -q 0.1 --max-gap 10 --tsize 8
 
-IgG treated sampels were used as controls.
+ IgG treated samples were used as controls. Number of replicates for consensus peaks: n(Gata2)=4, n(Gata3)=3, n(H3K4me3)=6
 
 
