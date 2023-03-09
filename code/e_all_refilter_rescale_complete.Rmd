@@ -24,26 +24,26 @@ future::plan("multisession", workers = 6)
 ```
 
 ```{r}
-e12.locs <- c("/scratch/project_2001045/kaia/E12_5_WT/Batch1_030220/Batch1_030220/count_200227_A00464_0167_BHKLYLDRXX/153-1-F/outs/filtered_feature_bc_matrix/",
-              "/scratch/project_2001045/kaia/E12_5_WT/Batch1_030220/Batch1_030220/count_200227_A00464_0167_BHKLYLDRXX/153-7-F/outs/filtered_feature_bc_matrix/",
-              "/scratch/project_2001045/kaia/E12_5_WT/Batch1_030220/Batch1_030220/count_200227_A00464_0167_BHKLYLDRXX/153-4-M/outs/filtered_feature_bc_matrix/",
-              "/scratch/project_2001045/kaia/E12_5_WT/Batch1_030220/Batch1_030220/count_200227_A00464_0167_BHKLYLDRXX/153-5-M/outs/filtered_feature_bc_matrix/")
+e12.locs <- c("../scRNA_data/153-1-F/outs/filtered_feature_bc_matrix/",
+              "../scRNA_data/153-7-F/outs/filtered_feature_bc_matrix/",
+              "../scRNA_data/153-4-M/outs/filtered_feature_bc_matrix/",
+              "../scRNA_data/153-5-M/outs/filtered_feature_bc_matrix/")
 
-e13.locs <- c("/scratch/project_2001045/sadikogl/E13_vR1/outs_r1-6/filtered_feature_bc_matrix",
-              "/scratch/project_2001045/sadikogl/E13_vR1/outs_r1-7/filtered_feature_bc_matrix",
-              "/scratch/project_2001045/sadikogl/E13_vR1/outs_r1-12/filtered_feature_bc_matrix")
+e13.locs <- c("../scRNA_data/E13_vR1/outs_r1-6/filtered_feature_bc_matrix",
+              "../scRNA_data/E13_vR1/outs_r1-7/filtered_feature_bc_matrix",
+              "../scRNA_data/E13_vR1/outs_r1-12/filtered_feature_bc_matrix")
 
-e14.locs <- c("/scratch/project_2001539/RNA_sc/RNAseq/Batch2_080819/count_190828_A00464_0092_AHLFLLDMXX/E14_vR1_1_RNA/outs/filtered_feature_bc_matrix",
-              "/scratch/project_2001539/RNA_sc/RNAseq/Batch2_080819/count_190828_A00464_0092_AHLFLLDMXX/E14_vR1_2_RNA/outs/filtered_feature_bc_matrix")
+e14.locs <- c("../scRNA_data/E14_vR1_1_RNA/outs/filtered_feature_bc_matrix",
+              "../scRNA_data/E14_vR1_2_RNA/outs/filtered_feature_bc_matrix")
 
-e15.locs <- c("/scratch/project_2001045/sadikogl/E15_tdT/E15_vR1_1_tdT/outs/filtered_feature_bc_matrix",
-              "/scratch/project_2001045/sadikogl/E15_tdT/E15_vR1_2_tdT/outs/filtered_feature_bc_matrix",
-              "/scratch/project_2001045/sadikogl/E15_tdT/E15_vR1_7_tdT/outs/filtered_feature_bc_matrix")
+e15.locs <- c("../scRNA_data/E15_vR1_1_tdT/outs/filtered_feature_bc_matrix",
+              "../scRNA_data/E15_vR1_2_tdT/outs/filtered_feature_bc_matrix",
+              "../scRNA_data/E15_vR1_7_tdT/outs/filtered_feature_bc_matrix")
 
-e12.feat.loc <- "/scratch/project_2001045/kaia/E12_5_WT/Batch1_030220/Batch1_030220/count_200227_A00464_0167_BHKLYLDRXX/153-1-F/outs/filtered_feature_bc_matrix/features.tsv.gz"
-e13.feat.loc <- "/scratch/project_2001045/sadikogl/E13_vR1/outs_r1-6/filtered_feature_bc_matrix/genes.tsv"
-e14.feat.loc <- "/scratch/project_2001539/RNA_sc/RNAseq/Batch2_080819/count_190828_A00464_0092_AHLFLLDMXX/E14_vR1_1_RNA/outs/filtered_feature_bc_matrix/features.tsv.gz"
-e15.feat.loc <- "/scratch/project_2001045/sadikogl/E15_tdT/E15_vR1_1_tdT/outs/filtered_feature_bc_matrix/features.tsv.gz"
+e12.feat.loc <- "../scRNA_data/153-1-F/outs/filtered_feature_bc_matrix/features.tsv.gz"
+e13.feat.loc <- "../scRNA_data/E13_vR1/outs_r1-6/filtered_feature_bc_matrix/genes.tsv"
+e14.feat.loc <- "../scRNA_data/E14_vR1_1_RNA/outs/filtered_feature_bc_matrix/features.tsv.gz"
+e15.feat.loc <- "../scRNA_data/E15_vR1_1_tdT/outs/filtered_feature_bc_matrix/features.tsv.gz"
 ```
 
 
@@ -265,12 +265,12 @@ for (idx in 1:length(e.all.combined)) {
 }
 ```
 
-```{r}
+```{r save intermediate result}
 run.this <- F
 
 if (run.this) {
-  # Data object saved to avoid running again
-  saveRDS(e.all.combined, "/scratch/project_2001045/lassi/integration/pipeline_remodel/Seurat_integration/data/e_all_rescaled_regress_nuisance.Rds")  
+  # Data object saved to avoid running heavy computation repetitively
+  saveRDS(e.all.combined, "../scRNA_data/e_all_rescaled_regress_nuisance.Rds")  
 }
 ```
 
