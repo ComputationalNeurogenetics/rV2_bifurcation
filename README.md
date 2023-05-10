@@ -24,6 +24,14 @@ Mistä RNA data tuli
 
 ## rV2-lineage subsetting
 
+0. label transfer https://github.com/laasov/Gradu/blob/master/code/rna_integration_atac_label_anno_transfer.Rmd (transferred labels not used) labels from document cited in code
+
+1. rV2-lineage labeling https://github.com/laasov/Gradu/blob/master/code/rV2_lineage_labeling.Rmd
+    FindSubCluster for aggregated GA/GL half-lineages, initial subset based on FindSubCluster-generated community labels
+    data object nmm_rV2_subset_relabeled_110522.Rds
+
+2.
+
 
 ## VIA pseudotime analysis
 
