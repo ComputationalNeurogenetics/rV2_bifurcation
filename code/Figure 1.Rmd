@@ -1,0 +1,92 @@
+---
+title: "R Notebook of rV2 manuscript figure 1 plots"
+output: html_notebook
+---
+
+```{r Packagies}
+library(tune)
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+source("../../generic code/AuxFunctions.R")
+```
+
+```{r}
+ExpandAxes <- function(x, y){
+  x.range <- range(x)
+  y.range <- range(y)
+  x.len <- abs(x.range[2] - x.range[1])
+  y.len <- abs(y.range[2] - y.range[1])
+  if (x.len>y.len){
+    diff <- x.len-y.len
+    y.range[1] <- y.range[1]-round(diff/2,digits = 0)
+    y.range[2] <- y.range[2]+round(diff/2,digits = 0)
+    return(list(x.range=x.range, y.range=y.range))
+  } else if (y.len>x.len){
+    diff <- y.len-x.len
+    x.range[1] <- x.range[1]-round(diff/2,digits = 0)
+    x.range[2] <- x.range[2]+round(diff/2,digits = 0)
+    return(list(x.range=x.range, y.range=y.range))
+  } else {
+    return(list(x.range=x.range, y.range=y.range))
+  }
+  
+}
+
+
+PlotRNAFeature <- function(s.data,feature){
+  new.axes <-  ExpandAxes(x=s.data@reductions$umap@cell.embeddings[,1], y=s.data@reductions$umap@cell.embeddings[,2])
+  
+  f.p <- FeaturePlot(s.data, features = convert_feature_identity(s.data, assay = "RNA", feature.format = "symbol", features = c(feature))) + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="")
+  return(f.p)
+}
+```
+
+```{r Set parameters}
+threads <- 6
+```
+
+```{r Load data, eval=FALSE, include=FALSE}
+rV2.data <- readRDS("../scATAC_data/seurat_data/nmm_rV2_subset_relabeled_110522.Rds")
+
+rV2.pseudotime <- read.csv("../scATAC_data/seurat_data/rv2_via_pseudotime_110522.csv")
+```
+
+```{r Add metadata and store as qs object, eval=FALSE, include=FALSE}
+rV2.data <- AddMetaData(rV2.data, col.name="pseudotime", metadata = rV2.pseudotime$pseudotime)
+
+qsave(rV2.data, file="../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = threads)
+```
+
+```{r Load qs object}
+rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = threads)
+DefaultAssay(rV2.data) <- "peaks"
+```
+
+```{r scATAC UMAP}
+pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP.pdf", width = 8, height = 8)
+
+new.axes <-  ExpandAxes(x=rV2.data@reductions$umap@cell.embeddings[,1], y=rV2.data@reductions$umap@cell.embeddings[,2])
+
+DimPlot(rV2.data, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) 
+dev.off()
+```
+
+```{r Marker gene feature plots}
+for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6")){
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_ATAC_UMAP.pdf",sep=""), width = 8, height = 8)
+  f.p <- PlotRNAFeature(s.data = rV2.data, feature = g)
+  print(f.p)
+  dev.off()
+}
+```
+
+```{r scATAC UMAP pseudotime}
+pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP_pseudotime.pdf", width = 8, height = 8)
+
+FeaturePlot(rV2.data, features = "pseudotime") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="") + scale_color_viridis()
+
+dev.off()
+```
+
