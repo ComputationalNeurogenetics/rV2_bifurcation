@@ -39,7 +39,7 @@ New on Jan 2022. We decided to rerun the standard analysis with more PCs in aim 
 
 ```{r Seurat objects}
 # Read data created at e_all_refilter_rescale_complete.Rmd
-e.all.combined <- readRDS("../data/e_all_rescaled_regress_nuisance.Rds")
+e.all.combined <- readRDS("../scRNA_data/e_all_rescaled_regress_nuisance.Rds")
 ```
 
 ```{r}
@@ -216,7 +216,7 @@ DimPlot(e.all.combined[[4]], pt.size = cell.size, label = T, label.box = T, labe
 #### {-}
 
 ```{r Save for science day poster session}
-run <- T
+run <- F
 
 if (run) {
   DimPlot(e.all.combined[[1]], pt.size = cell.size, label = T, label.box = T, label.size = 3, repel = T) +
@@ -247,7 +247,7 @@ Before going any further, let us visualize the distribution of GABAergic markers
 #### Identification or rV2 GABA lineages {.tabset}
 
 ```{r Selection of initial gaba markers}
-# Without loss of generality, convert symbols to ENSMUS IDs based on data in E12 RNA assay.
+# Convert symbols to ENSMUS IDs based on data in E12 (WLOG) RNA assay.
 
 # GABA:
 rv2.gaba.symb <- c("Pdzk1ip1", "Tal1", "Gata2", "Gata3", "Gad1", "Gad2", "Hes5", "Pax5", "Gsc2", "Sall3")
@@ -317,8 +317,6 @@ patchwork::wrap_plots(
 #### Identification or rV2 GLUT lineages {.tabset}
 
 ```{r Selection of initial markers}
-# Without loss of generality, convert symbols to ENSMUS IDs based on data in E12 RNA assay.
-
 # GLUT:
 rv2.glut.symb <- c("Hes6", "Vsx1", "Vsx2", "Nkx6-1", "Shox2", "Lhx4", "Skor1")
 rv2.glut.ids <- convert_feature_identity(e.all.combined[[1]], assay = "RNA",
@@ -448,27 +446,77 @@ patchwork::wrap_plots(
 )
 ```
 
+### Extra visualization:
+
+```{r}
+e12.rv2.ss <- subset(e.all.combined[[1]],
+                   idents = c(4, 12, 19, 22, 24, 25, 17, 5))
+```
+
+```{r}
+# Outlier cells to be removed
+rv2.clean <- readRDS("../data/e12_rv2_clean_subset_310323.rds")
+```
+
+```{r}
+e12.rv2.ss <- subset(e12.rv2.ss, cells = rv2.clean)
+```
+
+```{r}
+DimPlot(e12.rv2.ss, pt.size = 1.3)
+
+ggsave("e12_rv2_subset.pdf",
+       plot = last_plot(),
+       device = "pdf",
+       path = "../figures/",
+       width = 12,
+       height = 12, 
+       units = "in")
+```
+
+```{r}
+rv2.key.symb <- c("Nkx6-1", "Tal1", "Vsx2", "Gata2", "Slc17a6", "Gad1")
+rv2.key.ids <- convert_feature_identity(e.all.combined[[1]], assay = "RNA",
+                                         features = rv2.key.symb, feature.format = "symbol")
+```
+
+```{r}
+e12.fp.extra <- FeaturePlot(e12.rv2.ss, features = rv2.key.ids, combine = F,
+                       label = F, pt.size = cell.size)
+
+patchwork::wrap_plots(
+  lapply(1:length(e12.fp.extra), function(i) {
+    e12.fp.extra[[i]] + ggtitle(rv2.key.symb[i]) + coord_fixed() + theme(aspect.ratio=1)
+  }), nrow = 3
+)
+
+ggsave("e12_key_markers_310323_5.pdf",
+       plot = last_plot(),
+       device = "pdf",
+       path = "../figures/",
+       width = 12,
+       height = 12, 
+       units = "in")
+```
+
 Based on markers above, we can now subset each data set into rV2 GABA.
 
 ```{r}
 # Subsetting by clusters (ident numbers)
 e12.gaba <- subset(e.all.combined[[1]],
-                   idents = c(4, 12, 19, 24, 25, 26)) # was c(2, 7, 15, 20, 25))
+                   idents = c(4, 12, 19, 24, 25, 26))
 e13.gaba <- subset(e.all.combined[[2]],
-                   idents = c(7, 8, 10, 21, 28)) # was c(7, 8, 10, 21, 28)
+                   idents = c(7, 8, 10, 21, 28))
 e14.gaba <- subset(e.all.combined[[3]],
-                   Mixed_cells %in% c("4", "7", "9", "15", "25", "0_2")) # was c(2, 8, 10, 14, 25, 30)
+                   Mixed_cells %in% c("4", "7", "9", "15", "25", "0_2"))
 e15.gaba <- subset(e.all.combined[[4]],
-                   Mixed_cells %in% c("4", "6", "13", "18", "32", "37", "41", "44", "0_2")) # was c(10, 3, 40, 30, 15, 20, 38)
+                   Mixed_cells %in% c("4", "6", "13", "18", "32", "37", "41", "44", "0_2"))
 ```
 
 ```{r}
 names(e.all.combined) <- c("E12", "E13", "E14", "E15")
-#saveRDS(e.all.combined, file = "../outs/e.all.combined.271222.rds")
-
 e.all.gabas <- list(e12.gaba, e13.gaba, e14.gaba, e15.gaba)
 names(e.all.gabas) <- c("E12", "E13", "E14", "E15")
-#saveRDS(e.all.gabas, file = "../outs/e.all.gabas.271222.rds")
 ```
 
 
@@ -621,7 +669,7 @@ plot_cells(cds.list[[4]], group_label_size = 4, cell_size = 0.7, color_cells_by 
 ```{r}
 # Save plots for science day
 # cds.list[[1]] = E12.5, cds.list[[2]] = E13.5
-run <- T
+run <- F
 
 if (run) {
   plot_cells(cds.list[[1]], group_label_size = monocle.label.size, cell_size = monocle.cell.size, color_cells_by = "cluster") + 
@@ -830,7 +878,6 @@ chosen_ns <- c(10, 15, 25)
 # Using, again, marker score to measure the 'goodness' of a gene.
 # Other used methods include using pseudo R^2 which can be used too if wanted.
 #
-#'*NEW on Fri 2. Jul* ~~ loops now through a wider selection of n instead of only one.
 # In short:
 # for every value of n in chosen_ns:
 #   for every e-day time point in cds.list:
@@ -892,8 +939,6 @@ DT::datatable((ns.markers[[3]][[4]] %>% arrange(as.numeric(cell_group), desc(mar
 #### {-}
 
 ```{r, include = F}
-# NOT RUN. SERVERS AS A REMAINDER
-
 #### Leaving out Glut clusters
 
 #Since making inference about Glutamatergic clusters is not a part of this analysis, we need to filter them out.
@@ -937,22 +982,6 @@ patchwork::wrap_plots(
 )
 ```
 
-```{r filtering non gaba clusters, include = F}
-# NOT RUN. REMOVES CLUSTERS BUT NOT NEEDED ATM.
-
-# Negating in-operator for easy subsetting
-`%notin%` <- purrr::negate(`%in%`)
-# defined above, dummy cluster 9999 for E14
-non.gaba.clusters <- list(c(9999), c(9999), c(9999), c(9999)) # Ugly fix...
-# For each e-day in each n, remove rows with data from non-gaba clusters
-ns.markers.filt <- lapply(1:length(chosen_ns), function(n) {
-  slot.n <- lapply(cds.list.idx, function(idx) {
-    tmp.df <- ns.markers[[n]][[idx]]
-    tmp.df <- tmp.df[which(tmp.df$cell_group %notin% non.gaba.clusters[[idx]]),]
-  })
-})
-```
-
 #### Drawing the heatmaps
 
 ```{r Aux functions}
@@ -961,7 +990,7 @@ source("../aux/plotting_fns.R")
 
 ```{r Splitting the data into cluster-gene-sets}
 #
-#'*NEW Fri 2. Jul* ~~ Reflecting the changes in marker score filtering, now loops through the set of n values, as well.
+# Reflecting the changes in marker score filtering, now loops through the set of n values, as well.
 # Code can be hard to interpret so in pseudocode:
 # For every n in chosen_ns:
 #   for every e-day in the list of e-day cluster marker genes:
@@ -1322,20 +1351,6 @@ create_hypergeom_plot(
 
 ### {-}
 
-```{r}
-# Save E12E13 for science day
-pdf(file = "../figures/e12_e13_hypergerom.pdf", width = 12, height = 12)
-create_hypergeom_plot(
-  n.factored.markers.split[[3]][[1]], n.factored.markers.split[[3]][[2]], "E12", "E13", chosen_ns[3],
-  row_names = e12.non.order, col_names = e13.non.order,
-  pseudotime = TRUE, row_order = e12.order, col_order = e13.order
-)
-dev.off()
-```
-
-
-
-
 
 Finally, as requested, the dot plots.
 
@@ -1481,18 +1496,6 @@ patchwork::wrap_plots(
 #### {-}
 
 
-#### Extra 2. Plotting old E12 cluster 10 cells in new monocle3 projections
-
-```{r}
-# Barcode vector e12.old.cl10.bc imported from Nr4a2_etc_lost_signal_test.Rmd
-e12.old.cl10.bc <- readRDS("../data/Feb28_old_e12_cluster10_cells.Rds")
-patchwork::wrap_plots(
-  DimPlot(SeuratObject::as.Seurat(cds.list[[1]], assay = NULL), cells.highlight = e12.old.cl10.bc) + NoLegend(),
-  plot_cells(cds.list[[1]], genes = request.mar.ids[2], show_trajectory_graph = F),
-  plot_cells(cds.list[[1]], show_trajectory_graph = F)
-)
-```
-
 #### Extra 3. Export E12 Seurat + monocle clustering as cell type annotation data for ATAC label transfer
 
 ```{r Prepare data for labeling}
@@ -1584,7 +1587,6 @@ for (idx in cds.list.idx) {
 ```{r}
 Sys.Date()
 ```
-
 
 ```{r}
 sessionInfo()
