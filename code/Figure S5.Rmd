@@ -1,0 +1,304 @@
+---
+title: "Smoothed heatmaps for Figure S5"
+output: html_document
+date: '2023-06-20'
+---
+
+```{r}
+library(Signac)
+library(Seurat)
+library(dplyr)
+library(tidyverse)
+library(RColorBrewer)
+library(ComplexHeatmap)
+library(GenomicRanges)
+
+source("AuxFunctions.R")
+```
+
+Continue here after VIA pseudotime (associated jupyter notebook)
+
+```{r}
+dataset <- readRDS("../scATAC_data/seurat_data/nmm_rV2_subset_relabeled_110522.Rds")
+via.pseudot <- read.csv("../scATAC_data/seurat_data/rv2_via_pseudotime_110522.csv") 
+```
+
+```{r}
+via.pseudot.v <- via.pseudot$pseudotime
+names(via.pseudot.v) <- via.pseudot$barcode
+dataset$VIA_pseudotime <- via.pseudot.v
+```
+
+```{r}
+save.plots <- F
+save.feature.numIds <- F
+```
+
+```{r}
+if (save.plots) {
+  
+  pdf(file = str_interp("~/OneDrive - University of Helsinki/Gradu/Plots/${week.nr}/PDFs/rV2_VIA_pseudotime.pdf"), width = 18, height = 12)
+  FeaturePlot(dataset, features = "VIA_pseudotime") + scale_color_viridis_c(option = "viridis") + ggtitle("VIA pseudotime")
+  dev.off()
+  
+  pdf(file = str_interp("~/OneDrive - University of Helsinki/Gradu/Plots/${week.nr}/PDFs/rV2_subclustering.pdf"), width = 18, height = 12)
+  DimPlot(dataset, label = T, group.by = "rv2.lineage") + ggtitle("rV2 sub clustering")
+  dev.off()
+  
+}
+```
+
+## Scaling and smoothing for whole rV2 instead of only non-Glut or non-GABA
+
+```{r}
+DefaultAssay(dataset) <- "peaks"
+peaks.data <- FetchData(dataset, vars = rownames(dataset))
+
+DefaultAssay(dataset) <- "RNA"
+expression.data <- FetchData(dataset, vars = rownames(dataset))
+```
+# Run code below separately for each gene (Should be functionalized)
+```{r}
+all.genes <- c("Tal1", "Pdzk1ip1", "Gata2", "Gata3", "Vsx2")
+genes.to.plot <- c("Tal1")
+ids.to.plot <- convert_feature_identity(dataset, "RNA", genes.to.plot, "symbol")
+```
+
+```{r}
+eoi <- data.frame(expression.data[,colnames(expression.data) %in% ids.to.plot])
+colnames(eoi) <- genes.to.plot
+rownames(eoi) <- rownames(expression.data)
+
+eoi$pseudotime <- dataset$VIA_pseudotime
+eoi <- eoi %>% arrange(pseudotime)
+```
+
+```{r}
+DefaultAssay(dataset) <- "peaks"
+
+gene.coords <- range(Annotation(dataset)[Annotation(dataset)$gene_name %in% genes.to.plot], ignore.strand = TRUE)
+range.start <- start(gene.coords)
+range.end <- end(gene.coords)
+range.width <- 2 * 50000
+chr <- as.character(seqnames(gene.coords)@values) %>% str_remove(pattern = "[:lower:]{3}")
+interval.range <- construct_range(chr, range.start, range.end, range.width)
+```
+
+```{r}
+all.features <- rownames(dataset)
+all.features.gr <- StringToGRanges(all.features)
+features.in.region <- GRangesToString(all.features.gr[all.features.gr %over% StringToGRanges(interval.range)])
+```
+
+```{r}
+if (save.feature.numIds) {
+  feat.id.map.df <- data.frame(features.in.region, 1:length(features.in.region))
+  colnames(feat.id.map.df) <- c("Feature", "Id")
+  xlsx.loc <- str_interp("~/OneDrive - University of Helsinki/Gradu/Tables/${week.nr}/${genes.to.plot}_feature_numIds_${rundate}.csv")
+  
+  write_excel_csv(x = feat.id.map.df, file = xlsx.loc)
+}
+```
+
+```{r}
+peaks.data.ss <- peaks.data[,features.in.region]
+
+peaks.data.ss <- merge(peaks.data.ss, data.frame(dataset$VIA_pseudotime), by = "row.names")
+rownames(peaks.data.ss) <- peaks.data.ss$Row.names
+
+peaks.data.ss <- merge(peaks.data.ss, data.frame(dataset$rv2.lineage), by = "row.names") 
+
+rownames(peaks.data.ss) <- peaks.data.ss$Row.names
+
+peaks.data.ss <- peaks.data.ss[,3:ncol(peaks.data.ss)]
+
+col.names <- colnames(peaks.data.ss)
+col.names[length(col.names) - 1] <- "pseudotime"
+col.names[length(col.names)] <- "label"
+colnames(peaks.data.ss) <- col.names
+```
+
+```{r}
+if (length(genes.to.plot) > 1) {
+  
+  f1.expression <- data.frame(eoi %>% select(genes.to.plot[1]), row.names = rownames(eoi))
+  peaks.data.ss <- merge(peaks.data.ss, f1.expression, by = "row.names")
+  rownames(peaks.data.ss) <- peaks.data.ss$Row.names
+  peaks.data.ss <- peaks.data.ss[,2:ncol(peaks.data.ss)]
+
+  f2.expression <- data.frame(eoi %>% select(genes.to.plot[2]), row.names = rownames(eoi))
+  peaks.data.ss <- merge(peaks.data.ss, f2.expression, by = "row.names")
+  rownames(peaks.data.ss) <- peaks.data.ss$Row.names
+  peaks.data.ss <- peaks.data.ss[,2:ncol(peaks.data.ss)]
+  
+  colnames(peaks.data.ss)[ncol(peaks.data.ss) - 1] <- genes.to.plot[1]
+  colnames(peaks.data.ss)[ncol(peaks.data.ss)] <- genes.to.plot[2]
+  
+} else {
+  
+  f1.expression <- data.frame(eoi %>% select(genes.to.plot[1]), row.names = rownames(eoi))
+  peaks.data.ss <- merge(peaks.data.ss, f1.expression, by = "row.names")
+  rownames(peaks.data.ss) <- peaks.data.ss$Row.names
+  peaks.data.ss <- peaks.data.ss[,2:ncol(peaks.data.ss)]
+  
+}
+```
+
+```{r}
+peaks.data.ss <- peaks.data.ss %>% arrange(pseudotime, genes.to.plot[1])
+
+if (length(genes.to.plot) > 1) {
+  peaks.data.ss$f1.rolled <- zoo::rollapply(c(rep(0, 5), unname(unlist(c(peaks.data.ss %>% select(genes.to.plot[1]))))), width = 6, by = 1, FUN = mean, align = "left")
+  peaks.data.ss$f2.rolled <- zoo::rollapply(c(rep(0, 5), unname(unlist(c(peaks.data.ss %>% select(genes.to.plot[2]))))), width = 6, by = 1, FUN = mean, align = "left")
+} else {
+  peaks.data.ss$f1.rolled <- zoo::rollapply(c(rep(0, 5), unname(unlist(c(peaks.data.ss %>% select(genes.to.plot[1]))))), width = 6, by = 1, FUN = mean, align = "left")
+}
+```
+
+```{r}
+cols_pseudotime <- list(pseudotime = viridis::viridis(length(unique(peaks.data.ss$pseudotime))))
+names(cols_pseudotime$pseudotime) <- unique(peaks.data.ss$pseudotime)
+
+features.granges <- StringToGRanges(features.in.region)
+f1.range <- range(Annotation(dataset)[Annotation(dataset)$gene_name %in% genes.to.plot[1]], ignore.strand = TRUE)
+
+features.in.f1.range <- GRangesToString(features.granges[features.granges %over% f1.range])
+
+range_location <- sapply(1:length(features.granges), function (i) {
+  feature <- features.granges[i]
+  pos <- ifelse(feature %over% f1.range, 1, 0)
+})
+
+ha_row <- rowAnnotation(
+  location = as.factor(as.character(range_location)), 
+  col = list(location = c("1" = viridis::cividis(3)[3], "0" = viridis::cividis(3)[2])),
+  annotation_name_gp = grid::gpar(fontsize = 20),
+  simple_anno_size = unit(2, "cm")
+)
+
+k <- ceiling(9 / length(features.in.region)) # 9 == number of unique colors
+cols.named <- rep(RColorBrewer::brewer.pal(9, "Set1"), k)[1:length(features.in.region)]
+names(cols.named) <- features.in.region
+
+ha_right <- rowAnnotation(
+  peak = features.in.region,
+  col = list(peak = cols.named),
+  show_legend = F
+)
+```
+
+```{r}
+heatmap.data <- as.matrix(peaks.data.ss[1:(ncol(peaks.data.ss) - (2 + 2 * length(genes.to.plot)))]) # (pseudotime + label) + (gene + gene.rolled) * n(genes)
+fac.ord <- aggregate(peaks.data.ss$pseudotime, list(peaks.data.ss$label), mean) %>% arrange(x) %>% pull(Group.1)
+
+row.anno <- sapply(colnames(heatmap.data), function (id) {
+  f.start <- strsplit(id, "-")[[1]][2]
+  f.end <- strsplit(id, "-")[[1]][3]
+  
+  as.numeric(f.end) - as.numeric(f.start)
+})
+```
+
+```{r}
+data.scaled <- scale(heatmap.data, scale = T, center = T)
+
+if (any(is.nan(data.scaled))) {
+  data.scaled[is.nan(data.scaled)] <- 0
+}
+
+data.scaled <- sapply(1:ncol(data.scaled), function (i) {
+  smoo <- smooth.spline(data.scaled[,i], cv = F, penalty = 0.8)
+  smoo$y
+})
+
+rownames(data.scaled) <- rownames(heatmap.data)
+colnames(data.scaled) <- colnames(heatmap.data)
+```
+
+```{r}
+cells.non.gl <- Cells(subset(dataset, subset = rv2.lineage %notin% sapply(1:5, function(n) {paste0("GL", n)})))
+data.scaled.ga <- data.frame(data.scaled) %>% filter(rownames(data.scaled) %in% cells.non.gl)
+colnames(data.scaled.ga) <- str_replace_all(colnames(data.scaled.ga), "\\.", "-")
+
+cells.non.ga <- Cells(subset(dataset, subset = rv2.lineage %notin% sapply(1:6, function(n) {paste0("GA", n)})))
+data.scaled.gl <- data.scaled[rownames(data.scaled) %in% cells.non.ga,]
+colnames(data.scaled.gl) <- str_replace_all(colnames(data.scaled.gl), "\\.", "-")
+
+ha.bot.ga <- HeatmapAnnotation(pseudotime = peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.gl,]$pseudotime, 
+                           col = cols_pseudotime, show_legend = F, annotation_name_gp = grid::gpar(fontsize = 20),
+                           simple_anno_size = unit(2, "cm"))
+labels.ga <- factor(peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.gl,]$label, levels = fac.ord)
+
+ha.bot.gl <- HeatmapAnnotation(pseudotime = peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.ga,]$pseudotime, 
+                           col = cols_pseudotime, show_legend = F, annotation_name_gp = grid::gpar(fontsize = 20),
+                           simple_anno_size = unit(2, "cm"))
+labels.gl <- factor(peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.ga,]$label, levels = fac.ord)
+  
+```
+
+```{r}
+  if (length(genes.to.plot) > 1) {
+  ha.top.ga <- HeatmapAnnotation(Gene1 = anno_lines(peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.gl,]$f1.rolled, gp = gpar(lwd = 5)),Gene2 = anno_lines(peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.gl,]$f2.rolled, gp = gpar(lwd = 5)),
+                                 annotation_label = genes.to.plot,
+                                 simple_anno_size = unit(1, "cm"), height = unit(8, "cm"),
+                                 annotation_name_gp = grid::gpar(fontsize = 20),
+                                 gp = grid::gpar(fontsize = 20))
+  
+  ha.top.gl <- HeatmapAnnotation(Gene1 = anno_lines(peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.ga,]$f1.rolled, gp = gpar(lwd = 5)),
+                                 Gene2 = anno_lines(peaks.data.ss[rownames(peaks.data.ss) %in% cells.non.ga,]$f2.rolled, gp = gpar(lwd = 5)),
+                                 annotation_label = genes.to.plot,
+                                 simple_anno_size = unit(1, "cm"), height = unit(8, "cm"),
+                                 annotation_name_gp = grid::gpar(fontsize = 20),
+                                 gp = grid::gpar(fontsize = 20))
+    
+} else {
+  
+  ha.top <- HeatmapAnnotation(Gene = anno_lines(peaks.data.ss$f1.rolled, gp = gpar(lwd = 5)),
+                                     annotation_label = genes.to.plot,
+                                     simple_anno_size = unit(1, "cm"), height = unit(4, "cm"),
+                                     annotation_name_gp = grid::gpar(fontsize = 20))
+  
+}
+```
+
+```{r}
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS5/GA_${genes.to.plot}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+p.1 <- Heatmap(t(data.scaled.ga) + 1,
+        show_column_names = F,
+        bottom_annotation = ha.bot.ga,
+        top_annotation = ha.top.ga,
+        left_annotation = ha_row,
+        cluster_rows = F,
+        column_split = labels.ga,
+        cluster_columns = F,
+        cluster_column_slices = F,
+        col = viridis::magma(100),
+        row_labels = paste(1:length(colnames(data.scaled.ga)), ".\nLength: ", row.anno, sep = ''),
+        use_raster = T,
+        column_names_gp = grid::gpar(fontsize = 20),
+        row_names_gp = grid::gpar(fontsize = 20),
+        column_title_gp = grid::gpar(fontsize = 20))
+print(p.1)
+dev.off()
+
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS5/GL_${genes.to.plot}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+p.2 <- Heatmap(t(data.scaled.gl) + 1,
+        show_column_names = F,
+        bottom_annotation = ha.bot.gl,
+        top_annotation = ha.top.gl,
+        left_annotation = ha_row,
+        cluster_rows = F,
+        column_split = labels.gl,
+        cluster_columns = F,
+        cluster_column_slices = F,
+        col = viridis::magma(100),
+        row_labels = paste(1:length(colnames(data.scaled.ga)), ".\nLength: ", row.anno, sep = ''),
+        use_raster = T,
+        column_names_gp = grid::gpar(fontsize = 20),
+        row_names_gp = grid::gpar(fontsize = 20),
+        column_title_gp = grid::gpar(fontsize = 20))
+print(p.2)
+dev.off()
+```
+
+
