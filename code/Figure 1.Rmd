@@ -33,7 +33,7 @@ rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads 
 DefaultAssay(rV2.data) <- "peaks"
 
 rV2.barcodes <- readRDS("../scRNA_data/RNAseq/data/e12_rv2_clean_subset_310323.rds")
-e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = 6)
+e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = threads)
 
 e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
 ```
