@@ -1,0 +1,52 @@
+---
+title: "R Notebook of rV2 manuscript figure S1 plots"
+output: html_notebook
+---
+
+```{r Packagies}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+source("AuxFunctions.R")
+```
+
+```{r Set parameters}
+threads <- 6
+```
+
+```{r Load qs objects}
+e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = threads)
+rV2.barcodes <- readRDS("../scRNA_data/RNAseq/data/e12_rv2_clean_subset_310323.rds")
+e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
+```
+
+```{r scRNA UMAP}
+pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS1/scRNA_UMAP_R1.pdf", width = 8, height = 8)
+
+new.axes <-  ExpandAxes(x=e.e12.r1@reductions$umap@cell.embeddings[,1], y=e.e12.r1@reductions$umap@cell.embeddings[,2])
+
+DimPlot(e.e12.r1, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20))
+dev.off()
+```
+
+```{r Marker gene feature plots for R1}
+for(g in c("Tal1","Gad1","Nkx6-1","Slc17a6")){
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS1/",g,"_RNA_UMAP_R1.pdf",sep=""), width = 4, height = 4)
+  f.p <- PlotRNAFeature(s.data = e.e12.r1, feature = g)
+  print(f.p)
+  dev.off()
+}
+```
+
+```{r Marker gene feature plots for rV2}
+for(g in c("Neurog2","Vsx1","Vsx2","Lhx4","Ascl1","Pdzk1ip1","Gata2","Gata3")){
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS1/",g,"_RNA_UMAP_rV2.pdf",sep=""), width = 4, height = 4)
+  f.p <- PlotRNAFeature(s.data = e12.rv2.ss, feature = g)
+  print(f.p)
+  dev.off()
+}
+```
+
+
+
