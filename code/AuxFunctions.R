@@ -26,7 +26,7 @@ PlotRNAFeature <- function(s.data,feature){
   require(Seurat)
   new.axes <-  ExpandAxes(x=s.data@reductions$umap@cell.embeddings[,1], y=s.data@reductions$umap@cell.embeddings[,2])
   DefaultAssay(s.data) <- "RNA"
-  f.p <- FeaturePlot(s.data, features = convert_feature_identity(s.data, assay = "RNA", feature.format = "symbol", features = c(feature))) + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="")
+  f.p <- FeaturePlot(s.data, features = convert_feature_identity(s.data, assay = "RNA", feature.format = "symbol", features = c(feature)), pt.size = .5) + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title=feature) + xlab("") + ylab("") + theme(axis.text.x = element_blank(),axis.text.y = element_blank(), axis.ticks.x=element_blank(), axis.ticks.y = element_blank(),axis.line = element_line(colour = 'black', size = .5))
   return(f.p)
 }
 

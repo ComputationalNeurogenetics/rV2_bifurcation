@@ -28,13 +28,13 @@ pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript 
 
 new.axes <-  ExpandAxes(x=r1.data@reductions$umap@cell.embeddings[,1], y=rV2.data@reductions$umap@cell.embeddings[,2])
 
-DimPlot(r1.data, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) 
+DimPlot(r1.data, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20))
 dev.off()
 ```
 
 ```{r Marker gene feature plots for R1}
 for(g in c("Tal1","Gad1","Nkx6-1","Slc17a6")){
-  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS2/",g,"_ATAC_UMAP_R1.pdf",sep=""), width = 8, height = 8)
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS2/",g,"_ATAC_UMAP_R1.pdf",sep=""), width = 4, height = 4)
   f.p <- PlotRNAFeature(s.data = r1.data, feature = g)
   print(f.p)
   dev.off()
@@ -43,7 +43,7 @@ for(g in c("Tal1","Gad1","Nkx6-1","Slc17a6")){
 
 ```{r Marker gene feature plots for rV2}
 for(g in c("Neurog2","Vsx1","Vsx2","Lhx4","Ascl1","Pdzk1ip1","Gata2","Gata3")){
-  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS2/",g,"_ATAC_UMAP_rV2.pdf",sep=""), width = 8, height = 8)
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS2/",g,"_ATAC_UMAP_rV2.pdf",sep=""), width = 4, height = 4)
   f.p <- PlotRNAFeature(s.data = rV2.data, feature = g)
   print(f.p)
   dev.off()
