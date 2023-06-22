@@ -4,43 +4,12 @@ output: html_notebook
 ---
 
 ```{r Packagies}
-library(tune)
 library(tidyverse)
 library(Seurat)
 library(Signac)
 library(qs)
-source("../../generic code/AuxFunctions.R")
-```
-
-```{r}
-ExpandAxes <- function(x, y){
-  x.range <- range(x)
-  y.range <- range(y)
-  x.len <- abs(x.range[2] - x.range[1])
-  y.len <- abs(y.range[2] - y.range[1])
-  if (x.len>y.len){
-    diff <- x.len-y.len
-    y.range[1] <- y.range[1]-round(diff/2,digits = 0)
-    y.range[2] <- y.range[2]+round(diff/2,digits = 0)
-    return(list(x.range=x.range, y.range=y.range))
-  } else if (y.len>x.len){
-    diff <- y.len-x.len
-    x.range[1] <- x.range[1]-round(diff/2,digits = 0)
-    x.range[2] <- x.range[2]+round(diff/2,digits = 0)
-    return(list(x.range=x.range, y.range=y.range))
-  } else {
-    return(list(x.range=x.range, y.range=y.range))
-  }
-  
-}
-
-
-PlotRNAFeature <- function(s.data,feature){
-  new.axes <-  ExpandAxes(x=s.data@reductions$umap@cell.embeddings[,1], y=s.data@reductions$umap@cell.embeddings[,2])
-  
-  f.p <- FeaturePlot(s.data, features = convert_feature_identity(s.data, assay = "RNA", feature.format = "symbol", features = c(feature))) + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="")
-  return(f.p)
-}
+library(viridis)
+source("AuxFunctions.R")
 ```
 
 ```{r Set parameters}
@@ -59,23 +28,46 @@ rV2.data <- AddMetaData(rV2.data, col.name="pseudotime", metadata = rV2.pseudoti
 qsave(rV2.data, file="../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = threads)
 ```
 
-```{r Load qs object}
+```{r Load data objects}
 rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = threads)
 DefaultAssay(rV2.data) <- "peaks"
+
+rV2.barcodes <- readRDS("../scRNA_data/RNAseq/data/e12_rv2_clean_subset_310323.rds")
+e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = 6)
+
+e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
+```
+
+```{r scRNA UMAP}
+pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scRNA_UMAP_rV2.pdf", width = 8, height = 8)
+
+new.axes <-  ExpandAxes(x=e12.rv2.ss@reductions$umap@cell.embeddings[,1], y=e12.rv2.ss@reductions$umap@cell.embeddings[,2])
+
+DimPlot(e12.rv2.ss, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20))
+
+dev.off()
+```
+```{r Marker gene feature plots scRNA}
+for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6")){
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_RNA_UMAP.pdf",sep=""), width = 4, height = 4)
+  f.p <- PlotRNAFeature(s.data = e12.rv2.ss, feature = g)
+  print(f.p)
+  dev.off()
+}
 ```
 
 ```{r scATAC UMAP}
-pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP.pdf", width = 8, height = 8)
+pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP_rV2.pdf", width = 8, height = 8)
 
 new.axes <-  ExpandAxes(x=rV2.data@reductions$umap@cell.embeddings[,1], y=rV2.data@reductions$umap@cell.embeddings[,2])
 
-DimPlot(rV2.data, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) 
+DimPlot(rV2.data, reduction = "umap", label = TRUE) + theme(legend.position = "none") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20))
 dev.off()
 ```
 
-```{r Marker gene feature plots}
+```{r Marker gene feature plots scATAC}
 for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6")){
-  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_ATAC_UMAP.pdf",sep=""), width = 8, height = 8)
+  pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_ATAC_UMAP.pdf",sep=""), width = 4, height = 4)
   f.p <- PlotRNAFeature(s.data = rV2.data, feature = g)
   print(f.p)
   dev.off()
@@ -85,7 +77,7 @@ for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6")){
 ```{r scATAC UMAP pseudotime}
 pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP_pseudotime.pdf", width = 8, height = 8)
 
-FeaturePlot(rV2.data, features = "pseudotime") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="") + scale_color_viridis()
+FeaturePlot(rV2.data, features = "pseudotime") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="") + scale_color_viridis() + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20))
 
 dev.off()
 ```
