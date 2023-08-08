@@ -8,7 +8,7 @@ source("~/Workspace/generic code/AuxFunctions.R")
 
 
 ## ----Loading data-------------------------------------------------------------
-s.data <- qread("~/Workspace/NeuronalFeatureSpace/scATAC_data/E14_DownstreamReady.300922.RNA.pos.idents.qs", nthreads = 6)
+s.data <- qread("~/Workspace/rV2_bifurcation/scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = 6)
 DefaultAssay(s.data) <- "peaks"
 
 
@@ -23,9 +23,11 @@ DefaultAssay(s.data) <- "peaks"
 #ioi.r1 <- c("rV2 GABA precursors","DL GABAergic precursors (Skor1, Pax2)")
 
 
-## ----Writing E14DI barcodes out for TOBIAS calculations-----------------------
-all.barcodes <- tibble(barcodes=Cells(s.data), seurat_clusters=Idents(s.data))
+## ----Writing E12 rV2barcodes out for TOBIAS calculations-----------------------
+#all.barcodes <- tibble(barcodes=Cells(s.data), seurat_clusters=Idents(s.data))
+all.barcodes <- tibble(barcodes=colnames(s.data), identity="rV2")
+
 #di.pre.gaba <- all.barcodes %>%  filter(seurat_clusters %in% ioi.di)
 #di.pre.gaba$barcodes <- str_remove(di.pre.gaba$barcodes,pattern = "_._")
-write_tsv(all.barcodes, file = "/Volumes/ExtSSD/data/E14_BAM_merge/E14.barcodes.clusters", col_names = FALSE)
+write_tsv(all.barcodes, file = "~/Workspace/rV2_bifurcation/analysis/E12.rV2.barcodes", col_names = FALSE)
 
