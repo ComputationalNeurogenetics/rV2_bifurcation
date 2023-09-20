@@ -1,0 +1,59 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r Packages}
+library(tidyverse)
+library(Seurat)
+library(qs)
+library(RColorBrewer)
+source("AuxFunctions.R")
+```
+
+```{r Variables}
+cores <- 6
+run.date <- "200923"
+```
+
+
+```{r Read scRNA data and subset to rV2}
+rV2.barcodes <- readRDS("../scRNA_data/RNAseq/data/e12_rv2_clean_subset_310323.rds")
+e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = cores)
+e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
+```
+
+```{r}
+df.for.via <- data.frame(Cells(e12.rv2.ss), Idents(e12.rv2.ss))
+umap.for.via <- e12.rv2.ss@reductions$umap@cell.embeddings
+cell.embeddings.for.via <- e12.rv2.ss@reductions$pca@cell.embeddings[,1:30]
+colors.umap.via <- bind_rows(lapply(color.vector(Idents(e12.rv2.ss)), function (x) { col2rgb(x)[,1] / 255 }))
+```
+
+```{r}
+via.data <- data.frame(df.for.via, umap.for.via)
+colnames(via.data) <- c("barcode", "label", "UMAP_1", "UMAP_2")
+```
+
+```{r}
+embeddings.tmp <- as_tibble(rownames_to_column(cbind(cell.embeddings.for.via, colors.umap.via), "barcode"))
+
+embeddings.out <- left_join(via.data, embeddings.tmp, by = ("barcode" = "barcode"))
+
+write.csv(x = embeddings.out, row.names = FALSE, file = paste("../analysis/Cell.embeddings.rv2.scRNA.", run.date, ".csv", sep = ""))
+
+# Run VIA in jupyter notebook
+```
+
+```{r Read pseudotime from VIA}
+rv2.scRNA.pseudotime <- read.csv("../analysis/rv2_scRNA_via_pseudotime_200923.csv")
+via.pseudot.v <- rv2.scRNA.pseudotime$pseudotime
+names(via.pseudot.v) <- rv2.scRNA.pseudotime$barcode
+e12.rv2.ss$VIA_pseudotime <- via.pseudot.v
+```
+
+```{r}
+pdf(file = str_interp("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/rV2_scRNA_VIA_pseudotime.pdf"), width = 12, height = 12)
+FeaturePlot(e12.rv2.ss, features = "VIA_pseudotime", pt.size = 2) + scale_color_viridis_c(option = "viridis") + ggtitle("VIA pseudotime") + coord_fixed()
+dev.off()
+```
