@@ -19,7 +19,7 @@ region.of.interest <- "chr6-88188000-88250000"
 ```
 
 ```{r Load qs object}
-rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = cores)
+rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 ```
 
 ```{r}
@@ -60,8 +60,23 @@ cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
 ```{r Peak plot from conservation data}
 DefaultAssay(rV2.data) <- "peaks"
 cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=region.of.interest, color="darkgreen")
-cons.tr$labels$y <- "Conserved sites"
+cons.tr$labels$y <- "Conservation"
 ```
+
+```{r Annotation track}
+gene_track <- AnnotationPlot(
+  object = rV2.data,
+  region = region.of.interest
+)
+```
+
+```{r Linkpeaks track}
+link_track <- LinkPlot(
+  object = rV2.data,
+  region = region.of.interest
+)
+```
+
 
 ```{r}
 # Coloring for Gata2 features in the poster
@@ -89,13 +104,6 @@ rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], factor(feat.identifier, 
 ```
 
 
-```{r Annotation track}
-gene_track <- AnnotationPlot(
-  object = rV2.data,
-  region = region.of.interest
-)
-```
-
 ```{r Peak track}
 peak_track <- PeakPlot(object = rV2.data, region=region.of.interest,group.by = "Regulatory_elements")
 ```
@@ -117,8 +125,8 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 plot_name <- "Figure2_Gata2.pdf"
 
 combined.p <- CombineTracks(
-  plotlist = list(coverage_track, gene_track, peak_track,cons.tr),
-  heights = c(.9,0.03,0.03,0.03),
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  heights = c(.9,0.025,0.025,0.025,0.025),
   widths = c(10)
 )
 
