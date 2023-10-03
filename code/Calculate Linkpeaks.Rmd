@@ -1,0 +1,58 @@
+---
+title: "R Notebook of calculating Linkpeaks into rV2 data object"
+output: html_notebook
+---
+
+```{r Packages, echo=FALSE}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+```
+
+```{r Set parameters}
+cores <- 6
+region.of.interest <- "chr6-88188000-88250000"
+```
+
+```{r Load qs object}
+rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = cores)
+```
+
+```{r}
+# Gene annotations from EnsDb
+annotations <- readRDS("../metadata/Ensembel_Mmusculus79_annotation.Rds")
+
+# Change to UCSC style
+seqlevelsStyle(annotations) <- 'UCSC'
+genome(annotations) <- "mm10"
+
+# Add the gene information to the object
+Signac::Annotation(rV2.data) <- annotations
+```
+
+```{r Calculating LinkPeaks}
+rV2.data.links <- LinkPeaks(
+  object=rV2.data,
+  peak.assay="peaks",
+  expression.assay="RNA",
+  peak.slot = "counts",
+  expression.slot = "data",
+  method = "pearson",
+  gene.coords = NULL,
+  distance = 5e+05,
+  min.distance = NULL,
+  min.cells = 10,
+  genes.use = NULL,
+  n_sample = 200,
+  pvalue_cutoff = 0.05,
+  score_cutoff = 0.05,
+  gene.id = TRUE,
+  verbose = TRUE
+)
+```
+
+```{r Save data object with Linkpeaks included}
+qsave(rV2.data.links,"../analysis/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+```
+
