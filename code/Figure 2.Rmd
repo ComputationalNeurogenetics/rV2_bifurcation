@@ -1,0 +1,139 @@
+---
+title: "R Notebook of rV2 manuscript figure 2"
+output: html_notebook
+---
+
+```{r Packages, echo=FALSE}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+library(rtracklayer)
+library(gUtils)
+source("AuxFunctions.R")
+```
+
+```{r Set parameters}
+cores <- 6
+region.of.interest <- "chr6-88188000-88250000"
+```
+
+```{r Load qs object}
+rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = cores)
+```
+
+```{r}
+# Gene annotations from EnsDb
+annotations <- readRDS("../metadata/Ensembel_Mmusculus79_annotation.Rds")
+
+# Change to UCSC style
+seqlevelsStyle(annotations) <- 'UCSC'
+genome(annotations) <- "mm10"
+
+# Add the gene information to the object
+Signac::Annotation(rV2.data) <- annotations
+```
+
+```{r Update fragment file locations, eval=FALSE}
+frags <- Fragments(rV2.data)
+Fragments(rV2.data)<-NULL
+
+new.paths = list("/Volumes/MyBookDuo/Data/e12r1_data/scATAC/E12_R1_1/outs/fragments.filtered.tsv.gz","/Volumes/MyBookDuo/Data/e12r1_data/scATAC/E12_R1_2/outs/fragments.filtered.tsv.gz")
+
+for (i in seq_along(frags)) {
+  frags[[i]] <- UpdatePath(frags[[i]], new.path = new.paths[[i]]) # update path
+}
+
+Fragments(rV2.data)<-frags
+```
+
+```{r Read and subset conservation data, eval=FALSE}
+cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
+cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
+qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
+```
+```{r Read conservation data}
+cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
+cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
+```
+
+```{r Peak plot from conservation data}
+DefaultAssay(rV2.data) <- "peaks"
+cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=region.of.interest, color="darkgreen")
+cons.tr$labels$y <- "Conserved sites"
+```
+
+```{r}
+# Coloring for Gata2 features in the poster
+chosen.feats <- c("chr6-88189264-88191083", # Prox
+                  "chr6-88193309-88194492", # Prom
+                  "chr6-88226241-88227173", # Dist
+                  "chr6-88235391-88236757", # Dist
+                  "chr6-88215568-88216159", # Dist
+                  "chr6-88218895-88219483") # Dist
+prox <- chosen.feats[1]
+prom <- chosen.feats[2]
+dist <- chosen.feats[3:length(chosen.feats)]
+
+feat.identifier <- sapply(rownames(rV2.data[["peaks"]][[]]), function (feat) {
+  if (feat == prox) return ("Proximal")
+  if (feat == prom) return ("Promoter")
+  if (feat %in% dist) return ("Distal")
+  return (NA)
+})
+
+names(feat.identifier) <- rownames(rownames(rV2.data[["peaks"]][[]]))
+lord <- c("Promoter", "Proximal", "Distal")
+levels(feat.identifier) <- lord
+rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], factor(feat.identifier, levels = lord), "Regulatory_elements")
+```
+
+
+```{r Annotation track}
+gene_track <- AnnotationPlot(
+  object = rV2.data,
+  region = region.of.interest
+)
+```
+
+```{r Peak track}
+peak_track <- PeakPlot(object = rV2.data, region=region.of.interest,group.by = "Regulatory_elements")
+```
+
+```{r Coverage track}
+DefaultAssay(rV2.data) <- "peaks"
+coverage_track <- CoveragePlot(rV2.data, 
+                  region = region.of.interest, 
+                  annotation = F, 
+                  peaks = F, 
+                  group.by = "rv2.lineage", 
+                  downsample.rate = 1, 
+                  features = convert_feature_identity(rV2.data, "RNA", "Gata2"), 
+                  expression.assay = "RNA")
+```
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/"
+plot_name <- "Figure2_Gata2.pdf"
+
+combined.p <- CombineTracks(
+  plotlist = list(coverage_track, gene_track, peak_track,cons.tr),
+  heights = c(.9,0.03,0.03,0.03),
+  widths = c(10)
+)
+
+
+ggsave(filename = plot_name,
+         plot = combined.p,
+         path = plot_loc,
+         device = "pdf",
+         width = 15,
+         height = 15,
+         units = "in")
+
+```
+
+```{r}
+
+```
+

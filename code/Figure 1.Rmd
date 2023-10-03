@@ -18,13 +18,11 @@ threads <- 6
 
 ```{r Load data, eval=FALSE, include=FALSE}
 rV2.data <- readRDS("../scATAC_data/seurat_data/nmm_rV2_subset_relabeled_110522.Rds")
-
 rV2.pseudotime <- read.csv("../scATAC_data/seurat_data/rv2_via_pseudotime_110522.csv")
 ```
 
 ```{r Add metadata and store as qs object, eval=FALSE, include=FALSE}
 rV2.data <- AddMetaData(rV2.data, col.name="pseudotime", metadata = rV2.pseudotime$pseudotime)
-
 qsave(rV2.data, file="../scATAC_data/nmm_rV2_subset_relabeled_110522.qs", nthreads = threads)
 ```
 
@@ -48,7 +46,7 @@ DimPlot(e12.rv2.ss, reduction = "umap", label = TRUE) + theme(legend.position = 
 dev.off()
 ```
 ```{r Marker gene feature plots scRNA}
-for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6")){
+for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6","Ccnb1","Cenpa","Ube2c")){
   pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_RNA_UMAP.pdf",sep=""), width = 4, height = 4)
   f.p <- PlotRNAFeature(s.data = e12.rv2.ss, feature = g)
   print(f.p)
@@ -66,7 +64,7 @@ dev.off()
 ```
 
 ```{r Marker gene feature plots scATAC}
-for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6")){
+for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6","Ccnb1","Cenpa","Ube2c")){
   pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_ATAC_UMAP.pdf",sep=""), width = 4, height = 4)
   f.p <- PlotRNAFeature(s.data = rV2.data, feature = g)
   print(f.p)
