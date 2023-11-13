@@ -1,0 +1,116 @@
+---
+title: "Smoothed heatmaps for Figure 2B-2D, and S3B and S3D"
+output: html_document
+date: '2023-06-20'
+---
+
+```{r, include=FALSE, echo=FALSE}
+library(Signac)
+library(Seurat)
+library(dplyr)
+library(tidyverse)
+library(RColorBrewer)
+library(ComplexHeatmap)
+library(qs)
+library(circlize)
+library(magick)
+library(GenomicRanges)
+source("AuxFunctions.R")
+```
+
+Continue here after VIA pseudotime (associated jupyter notebook)
+
+```{r}
+rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs",nthreads = 6)
+via.pseudot <- read.csv("../scATAC_data/seurat_data/rv2_via_pseudotime_110522.csv")
+```
+
+```{r}
+via.pseudot.v <- via.pseudot$pseudotime
+names(via.pseudot.v) <- via.pseudot$barcode
+rV2.data$VIA_pseudotime <- via.pseudot.v
+```
+
+```{r Set genes and regions Tal1}
+covariate.genes <- c("Tal1","Vsx2","Gad1")
+gene.of.interest <- covariate.genes[1]
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r}
+plots.1 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+```
+
+```{r}
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.1[[1]])
+dev.off()
+
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.1[[2]])
+dev.off()
+```
+
+```{r Set genes and regions Vsx2}
+covariate.genes <- c("Vsx2","Tal1","Gad1")
+gene.of.interest <- covariate.genes[1]
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r}
+plots.2 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+```
+
+```{r}
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.2[[1]])
+dev.off()
+
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.2[[2]])
+dev.off()
+```
+
+```{r Set genes and regions Gata2}
+covariate.genes <- c("Gata2","Tal1","Gad1")
+gene.of.interest <- covariate.genes[1]
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r}
+plots.3 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+```
+
+```{r}
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.3[[1]])
+dev.off()
+
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.3[[2]])
+dev.off()
+```
+
+```{r Set genes and regions Gata2}
+covariate.genes <- c("Gata3","Tal1","Gad1")
+gene.of.interest <- covariate.genes[1]
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r}
+plots.4 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+```
+
+```{r}
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.4[[1]])
+dev.off()
+
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
+print(plots.4[[2]])
+dev.off()
+```

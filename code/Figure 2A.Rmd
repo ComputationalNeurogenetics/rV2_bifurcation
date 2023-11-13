@@ -15,7 +15,6 @@ source("AuxFunctions.R")
 
 ```{r Set parameters}
 cores <- 6
-gene.of.interest <- "Tal1"
 ```
 
 ```{r Load qs object}
@@ -37,6 +36,7 @@ Signac::Annotation(rV2.data) <- annotations
 ```
 
 ```{r Set gene regions}
+gene.of.interest <- "Tal1"
 f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
 f2.range <- f1.range+50000
 ```
@@ -68,7 +68,7 @@ cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
 ```{r Peak plot from conservation data}
 DefaultAssay(rV2.data) <- "peaks"
 cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
-cons.tr$labels$y <- "Conservation"
+cons.tr$labels$y <- "Cons."
 ```
 
 ```{r Annotation track}
@@ -93,21 +93,26 @@ features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "cod
 rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
 ```
 
-
 ```{r Peak track}
 peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
+peak_track$labels$y <- "Feat."
 ```
+
+```{r Expression plot}
+expression_plot_data <- ExpressionPlot(object = rV2.data, features=convert_feature_identity(rV2.data, "RNA", gene.of.interest), assay="RNA", group.by="rv2.lineage")
+```
+
 
 ```{r Coverage track}
 DefaultAssay(rV2.data) <- "peaks"
 coverage_track <- CoveragePlot(rV2.data, 
                   region = f2.range, 
-                  annotation = F, 
+                  annotation = F,
                   peaks = F,
                   links = F,
                   group.by = "rv2.lineage", 
                   downsample.rate = 1, 
-                  features = convert_feature_identity(rV2.data, "RNA", "Gata2"), 
+                  features = convert_feature_identity(rV2.data, "RNA", gene.of.interest), 
                   expression.assay = "RNA")
 ```
 
@@ -117,10 +122,10 @@ plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
 
 combined.p <- CombineTracks(
   plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
-  heights = c(.9,0.025,0.025,0.025,0.025),
-  widths = c(10)
-)
-
+  expression.plot = expression_plot_data,
+  heights = c(.8,0.05,0.05,0.05,0.05),
+  widths = c(10,5)
+) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
 
 ggsave(filename = plot_name,
          plot = combined.p,
