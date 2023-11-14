@@ -30,9 +30,6 @@ tal1.feat6 <- "chr4-115056171-115058012"
 tmp <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("CO1","CO2"), gr.filter = tal1.feat6)
 ```
 
-
-
-
 ```{r}
 dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs",nthreads = 6)
 via.pseudot <- read.csv("../scATAC_data/seurat_data/rv2_via_pseudotime_110522.csv") 
@@ -43,3 +40,4 @@ via.pseudot.v <- via.pseudot$pseudotime
 names(via.pseudot.v) <- via.pseudot$barcode
 dataset$VIA_pseudotime <- via.pseudot.v
 ```
+
