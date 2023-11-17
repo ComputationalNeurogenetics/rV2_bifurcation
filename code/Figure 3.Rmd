@@ -17,18 +17,95 @@ library(GenomicRanges)
 source("../../AuxCode/TOBIAS_tools.R")
 ```
 
+```{r REad TOBIAS H11 data}
+rV2.groups.tobias.h11.gr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_groups_200923/TFBS/")
+
+H11.metadata <- read_tsv("~/Workspace/mm10/Hocomoco.v11/HOCOMOCOv11_core_annotation_MOUSE_mono.tsv")
+```
+
+```{r}
+rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_161123_dr/")
+```
+
+```{r}
+ConstructBed_TobiasGr(rV2.groups.tobias.h12.gr.dr,group="GA1")
+```
+
+```{r}
+system.time(foot.score.GA.tal1_6_dr <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE))
+```
+
+```{r}
+plotTFfootprint.heatmap(foot.score.GA.tal1_6_dr, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
+```
+
 
 ```{r Read H12 TOBIAS data}
 rV2.groups.tobias.h12.gr <- qread("../analysis/rV2.groups.tobias.H12.gr.qs",nthreads = 6)
+H12.metadata <- readHOCOMOCO.metadata("../mm10/Hocomoco.v12/H12CORE_annotation.jsonl")
 ```
 
 ```{r}
 tal1.feat6 <- "chr4-115056171-115058012"
+gata2.feat14 <- "chr6-88193309-88194492"
+vsx2.feat17 <- "chr12-84589595-84590947"
 ```
 
 ```{r}
-tmp <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("CO1","CO2"), gr.filter = tal1.feat6)
+h11.foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h11.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
 ```
+
+```{r}
+plotTFfootprint.heatmap(h11.foot.score.GA.tal1_6, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H11.metadata,filter.no.expressed.TF=TRUE, H.version="H11")
+```
+
+
+```{r}
+foot.tmp.bin <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE)
+
+foot.score.GL.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = tal1.feat6, na.omit=TRUE, binary = FALSE)
+
+foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
+
+
+foot.score.GL.gata2_14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = gata2.feat14, na.omit=TRUE, binary = FALSE)
+
+foot.score.GA.gata2_14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = gata2.feat14, na.omit=TRUE, binary=FALSE)
+
+foot.score.GL.vsx2_17 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = vsx2.feat17, na.omit=TRUE, binary = FALSE)
+
+foot.score.GA.vsx2_17 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = vsx2.feat17, na.omit=TRUE, binary=FALSE)
+```
+
+```{r}
+foot.tmp.bin.GA.gata2.14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = gata2.feat14, na.omit=TRUE)
+
+foot.tmp.bin.GL <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = tal1.feat6, na.omit=TRUE)
+
+foot.tmp.score <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = gata2.feat14, na.omit=TRUE, binary=FALSE)
+```
+
+```{r GA Tal1_6, fig.height=12, fig.width=10}
+plotTFfootprint.heatmap(foot.score.GA.tal1_6, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
+```
+
+```{r GL Tal1_6, fig.height=12, fig.width=10}
+plotTFfootprint.heatmap(foot.score.GL.tal1_6, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
+```
+
+```{r GL Gata2_14, fig.height=12, fig.width=10}
+plotTFfootprint.heatmap(foot.score.GL.gata2_14, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
+```
+
+```{r}
+plotTFfootprint.heatmap(foot.score.GL.vsx2_17, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
+
+```
+
+```{r}
+get.footprints(rV2.groups.tobias.h12.gr, conditions = c("CO2","GA1","GA2","GA3","GA4"), TF.motif="LHX9.H12CORE.1.M.B_LHX9.H12CORE.1.M.B", gr.filter = tal1.feat6, binary = FALSE)
+```
+
 
 ```{r}
 dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs",nthreads = 6)
