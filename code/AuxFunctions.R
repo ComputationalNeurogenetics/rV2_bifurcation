@@ -92,6 +92,10 @@ convert_feature_identity <- function(object, assay, features, feature.format = "
   return (v.out)
 }
 
+construct_range <- function(chr,gene.start,gene.end, width){
+  return(paste("chr",chr,"-",gene.start-width,"-",gene.end+width,sep=""))
+}
+
 
 ATAC.QC.UMAPs <- function(s.data){
   require(patchwork)
