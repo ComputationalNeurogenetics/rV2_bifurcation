@@ -12,7 +12,8 @@ library(qs)
 
 ```{r Set parameters}
 cores <- 6
-region.of.interest <- "chr6-88188000-88250000"
+run.date <- "031023"
+genes.of.interest <- c("Tal1","Gata2","Gata3","Vsx2")
 ```
 
 ```{r Load qs object}
@@ -43,7 +44,7 @@ rV2.data.links <- LinkPeaks(
   distance = 5e+05,
   min.distance = NULL,
   min.cells = 10,
-  genes.use = NULL,
+  genes.use = convert_feature_identity(rV2.data,assay = "RNA",features=genes.of.interest),
   n_sample = 200,
   pvalue_cutoff = 0.05,
   score_cutoff = 0.05,
@@ -53,6 +54,6 @@ rV2.data.links <- LinkPeaks(
 ```
 
 ```{r Save data object with Linkpeaks included}
-qsave(rV2.data.links,"../analysis/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+qsave(rV2.data.links,paste("../scATAC_data/nmm_rV2_subset_relabeled_",run.date,"_links.qs",sep=""), nthreads = cores)
 ```
 
