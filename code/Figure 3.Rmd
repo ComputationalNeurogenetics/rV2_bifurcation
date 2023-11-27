@@ -16,11 +16,58 @@ library(GenomicRanges)
 
 source("../../AuxCode/TOBIAS_tools.R")
 ```
+```{r Setting some areas of interest}
+tal1.feat6 <- "chr4-115056171-115058012"
+gata2.feat14 <- "chr6-88193309-88194492"
+vsx2.feat17 <- "chr12-84589595-84590947"
+```
 
-```{r REad TOBIAS H11 data}
-rV2.groups.tobias.h11.gr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_groups_200923/TFBS/")
-
+```{r Reading Snakemake H11}
 H11.metadata <- read_tsv("~/Workspace/mm10/Hocomoco.v11/HOCOMOCOv11_core_annotation_MOUSE_mono.tsv")
+rV2.groups.tobias.h11.gr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_groups_200923/TFBS/", parallel = T, mc.cores = 10)
+```
+
+
+```{r}
+co2.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out_CO2/", parallel = T, mc.cores = 8)
+ga1.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out/", parallel = T, mc.cores = 8)
+
+co2.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/CO2/BINDetect_out/", parallel = T, mc.cores = 8)
+ga1.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/GA1/BINDetect_out/", parallel = T, mc.cores = 8)
+
+ga1.manual.3<-get_BINDetect_snakemake_results_gr("../../tmp/BINDetect_out/", parallel = T, mc.cores = 8)
+
+```
+
+
+
+```{r}
+filt.li <- elementMetadata(ga1.manual$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+ga1.manual$`_TAL1_MOUSE.H11MO.0.A`[filt.li]
+
+filt.li.3 <- elementMetadata(ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.3]
+
+filt.li.2 <- elementMetadata(rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.2]
+
+filt.li.4 <- elementMetadata(ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`[filt.li.4]
+
+
+```
+
+
+
+```{r}
+CO2.mat <- formFootprintMatrix.overConditions(co2.manual, "CO2", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
+GA1.mat <- formFootprintMatrix.overConditions(ga1.manual, "GA1", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
+
+manual.binded <- cbind(CO2.mat$footprint.matrix,GA1.mat$footprint.matrix)
+```
+
+```{r}
+plotTFfootprint.heatmap(manual.binded, filter.unbound = TRUE, with.expression = FALSE, Seurat.dataset = dataset, HOCOMOCO.metadata = H11.metadata,filter.no.expressed.TF=FALSE)
 ```
 
 ```{r}
@@ -45,11 +92,7 @@ rV2.groups.tobias.h12.gr <- qread("../analysis/rV2.groups.tobias.H12.gr.qs",nthr
 H12.metadata <- readHOCOMOCO.metadata("../mm10/Hocomoco.v12/H12CORE_annotation.jsonl")
 ```
 
-```{r}
-tal1.feat6 <- "chr4-115056171-115058012"
-gata2.feat14 <- "chr6-88193309-88194492"
-vsx2.feat17 <- "chr12-84589595-84590947"
-```
+
 
 ```{r}
 h11.foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h11.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
