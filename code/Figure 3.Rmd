@@ -233,14 +233,10 @@ theme_minimal() + scale_colour_gradient(low = "grey",high = "blue")
   
 ```
 
-```{r Dotplot version of the above with diminishg expression included, fig.height=18, fig.width=6}
+```{r Dotplot version of the above with diminishg expression included, fig.height=20, fig.width=6}
 ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & group=="GA" & !is.na(TF.exp.log2fc))) +
-theme_minimal() + scale_colour_gradient2(low = "blue", mid = "white",high = "red") +
-new_scale_colour() +
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1  & group=="GL" & !is.na(TF.exp.log2fc))) +
-theme_minimal() + scale_colour_gradient2(low = "blue", mid="white",high = "red")
-  
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & !is.na(TF.exp.log2fc))) +
+theme_minimal() + scale_colour_gradient2(low = "blue", mid = "white",high = "red")
 ```
 
 
