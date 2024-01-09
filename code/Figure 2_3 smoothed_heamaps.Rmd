@@ -15,7 +15,7 @@ library(qs)
 library(circlize)
 library(magick)
 library(GenomicRanges)
-source("AuxFunctions.R")
+source("../../AuxCode/AuxFunctions.R")
 ```
 
 Continue here after VIA pseudotime (associated jupyter notebook)
@@ -31,15 +31,15 @@ names(via.pseudot.v) <- via.pseudot$barcode
 rV2.data$VIA_pseudotime <- via.pseudot.v
 ```
 
-```{r Set genes and regions Tal1}
-covariate.genes <- c("Tal1","Vsx2","Gad1")
+```{r Set genes and regions Gata2}
+covariate.genes <- c("Gata2","Vsx2","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
 f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
 f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.1 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+plots.1 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
 ```
 
 ```{r}
@@ -53,14 +53,14 @@ dev.off()
 ```
 
 ```{r Set genes and regions Vsx2}
-covariate.genes <- c("Vsx2","Tal1","Gad1")
+covariate.genes <- c("Vsx2","Tal1","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
 f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
 f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.2 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+plots.2 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
 ```
 
 ```{r}
@@ -73,15 +73,15 @@ print(plots.2[[2]])
 dev.off()
 ```
 
-```{r Set genes and regions Gata2}
-covariate.genes <- c("Gata2","Tal1","Gad1")
+```{r Set genes and regions Tal1}
+covariate.genes <- c("Tal1","Gata2","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
 f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
 f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.3 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+plots.3 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
 ```
 
 ```{r}
@@ -94,15 +94,15 @@ print(plots.3[[2]])
 dev.off()
 ```
 
-```{r Set genes and regions Gata2}
-covariate.genes <- c("Gata3","Tal1","Gad1")
+```{r Set genes and regions Gata3}
+covariate.genes <- c("Gata3","Tal1","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
 f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
 f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.4 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range))
+plots.4 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
 ```
 
 ```{r}

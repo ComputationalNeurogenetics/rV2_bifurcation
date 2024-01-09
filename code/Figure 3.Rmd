@@ -3,7 +3,7 @@ title: "R Notebook of Figure 3"
 output: html_notebook
 ---
 
-```{r Packages}
+```{r Packages, message=FALSE}
 library(Signac)
 library(Seurat)
 library(dplyr)
@@ -13,102 +13,256 @@ library(ComplexHeatmap)
 library(qs)
 library(circlize)
 library(GenomicRanges)
+library(patchwork)
+library(factoextra)
 
 source("../../AuxCode/TOBIAS_tools.R")
+source("../../AuxCode/AuxFunctions.R")
 ```
+
 ```{r Setting some areas of interest}
 tal1.feat6 <- "chr4-115056171-115058012"
 gata2.feat14 <- "chr6-88193309-88194492"
 vsx2.feat17 <- "chr12-84589595-84590947"
 ```
 
-```{r Reading Snakemake H11}
-H11.metadata <- read_tsv("~/Workspace/mm10/Hocomoco.v11/HOCOMOCOv11_core_annotation_MOUSE_mono.tsv")
-rV2.groups.tobias.h11.gr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_groups_200923/TFBS/", parallel = T, mc.cores = 10)
-```
+```{r Reading Seurat dataobject}
+dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
 
-
-```{r}
-co2.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out_CO2/", parallel = T, mc.cores = 8)
-ga1.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out/", parallel = T, mc.cores = 8)
-
-co2.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/CO2/BINDetect_out/", parallel = T, mc.cores = 8)
-ga1.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/GA1/BINDetect_out/", parallel = T, mc.cores = 8)
-
-ga1.manual.3<-get_BINDetect_snakemake_results_gr("../../tmp/BINDetect_out/", parallel = T, mc.cores = 8)
-
-```
-
-
-
-```{r}
-filt.li <- elementMetadata(ga1.manual$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-ga1.manual$`_TAL1_MOUSE.H11MO.0.A`[filt.li]
-
-filt.li.3 <- elementMetadata(ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.3]
-
-filt.li.2 <- elementMetadata(rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.2]
-
-filt.li.4 <- elementMetadata(ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`[filt.li.4]
-
-
-```
-
-
-
-```{r}
-CO2.mat <- formFootprintMatrix.overConditions(co2.manual, "CO2", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
-GA1.mat <- formFootprintMatrix.overConditions(ga1.manual, "GA1", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
-
-manual.binded <- cbind(CO2.mat$footprint.matrix,GA1.mat$footprint.matrix)
+dataset$rv2.lineage_re <- case_when(
+  dataset$rv2.lineage %in% "PRO1" ~ "PRO1_2",
+  dataset$rv2.lineage %in% "PRO2" ~ "PRO1_2",
+  dataset$rv2.lineage %in% "GA1" ~ "GA1_2",
+  dataset$rv2.lineage %in% "GA2" ~ "GA1_2",
+  dataset$rv2.lineage %in% "GA3" ~ "GA3_4",
+  dataset$rv2.lineage %in% "GA4" ~ "GA3_4",
+  dataset$rv2.lineage %in% "GA5" ~ "GA5_6",
+  dataset$rv2.lineage %in% "GA6" ~ "GA5_6",
+  dataset$rv2.lineage %in% "CO1" ~ "CO1_2",
+  dataset$rv2.lineage %in% "CO2" ~ "CO1_2",
+  dataset$rv2.lineage %in% "GL1" ~ "GL1_2",
+  dataset$rv2.lineage %in% "GL2" ~ "GL1_2",
+  dataset$rv2.lineage %in% "GL3" ~ "GL3_4",
+  dataset$rv2.lineage %in% "GL4" ~ "GL3_4",
+  dataset$rv2.lineage %in% "GL5" ~ "GL5",
+)
 ```
 
 ```{r}
-plotTFfootprint.heatmap(manual.binded, filter.unbound = TRUE, with.expression = FALSE, Seurat.dataset = dataset, HOCOMOCO.metadata = H11.metadata,filter.no.expressed.TF=FALSE)
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/"
 ```
+
+# H12 Snakemake
+
+```{r Read H12 snakemake TOBIAS results}
+#rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_081223/TFBS/")
+# TODO read qs
+
+H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
+
+rV2.h12.overview_re <- read_tsv("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_081223/TFBS/bindetect_results.txt", col_names = TRUE)
+
+# Adding TF gene names and ensembl ids into the same tibble as TOBIAS overview data from H12 metadata
+rV2.h12.overview_re$TF.gene_name <- sapply(pull(rV2.h12.overview_re, motif_id), function(motif){
+  getTF.gene_symbol(TF.motif = motif,HOCOMOCO.metadata = H12.metadata, H.version = "H12")
+})
+
+rV2.h12.overview_re$ensg_id <- sapply(pull(rV2.h12.overview_re, motif_id), function(motif){
+  getTF.id(TF.motif = motif,HOCOMOCO.metadata = H12.metadata, H.version = "H12")
+})
+```
+
+```{r Plot TOBIAS overview data, fig.height=12}
+TF.expression.data.avg <- as.data.frame(AverageExpression(dataset, assays = "RNA", features = pull(rV2.h12.overview_re,ensg_id), group.by = "rv2.lineage_re")[[1]])
+colnames(TF.expression.data.avg) <- paste(colnames(TF.expression.data.avg), "_mean_expression",sep="")
+
+rV2.h12.overview_combined<-left_join(rV2.h12.overview_re, rownames_to_column(TF.expression.data.avg,var="ensg_id"))
+
+overview.fp.score.tb <- filter(rV2.h12.overview_combined, !is.na(ensg_id)) %>% select(motif_id, TF.gene_name, ends_with("_mean_score"))
+overview.expression.tb <- filter(rV2.h12.overview_combined, !is.na(ensg_id)) %>% select(motif_id, TF.gene_name, ends_with("_mean_expression"))                
+# Continue from here
+fp.overview.mat <- as.matrix(select(overview.fp.score.tb, ends_with("_score")))
+rownames(fp.overview.mat) <- filter(rV2.h12.overview_combined, !is.na(ensg_id)) %>% pull(motif_id)
+fp.overview.mat<-t(scale(t(fp.overview.mat)))[,c(1,5,6,7,3,8,2,4)]
+
+expression.overview.mat <- as.matrix(select(overview.expression.tb, ends_with("_expression")))
+rownames(expression.overview.mat) <- filter(rV2.h12.overview_combined, !is.na(ensg_id)) %>% pull(motif_id)
+expression.overview.mat<-t(scale(t(expression.overview.mat)))[,c(8,1,2,3,4,5,6,7)]
+
+na.ni <- which(apply(expression.overview.mat,1,function(r){all(is.na(r))})==TRUE)
+```
+
+```{r Expression average matrix Spearman correlation calculation}
+TF.spear <- sapply(1:nrow(fp.overview.mat[-na.ni,]),function(n){
+  cor(fp.overview.mat[-na.ni,][n,],expression.overview.mat[-na.ni,][n,], method = "spearman")
+})
+TF.motifs <- rownames(fp.overview.mat)[-na.ni]
+
+TF.shifted <- sapply(1:nrow(fp.overview.mat[-na.ni,]),function(n){
+  which.max(expression.overview.mat[-na.ni,][n,]) < which.max(fp.overview.mat[-na.ni,][n,])
+})
+
+high.cor.ni <- which(TF.spear>.5)
+shifted.cor.ni <- which(TF.shifted & TF.spear<0.5)
+no.cor.ni <- which(!TF.spear>.5 & !TF.shifted)
+```
+
+```{r Table of TF-motif classes}
+TF.motifs.out <- tibble(TF.motif=TF.motifs)
+TF.motifs.out$expression.class <- case_when(
+  TF.motifs %in% TF.motifs[high.cor.ni] ~ "Correlated",
+  TF.motifs %in% TF.motifs[shifted.cor.ni] ~ "Shifted",
+  TF.motifs %in% TF.motifs[no.cor.ni] ~ "Uncorrelated"
+)
+
+write_csv(TF.motifs.out, file = "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/TF_expression_classes.csv")
+pdf(file=paste(plot_loc,"TF_categories.pdf",sep=""), width = 10, height = 10)
+ggpubr::ggbarplot(data=as.data.frame(table(TF.motifs.out$expression.class)),x="Var1",y="Freq", fill="Var1") +xlab("Category")+ylab("Count")
+dev.off()
+```
+
+
+```{r Separate plots}
+# h.fp <- Heatmap(fp.overview.mat[-na.ni,][high.cor.ni,], cluster_columns = FALSE, show_row_names = TRUE,row_names_gp=gpar(fontsize=2))
+# 
+# row_ha = rowAnnotation(corr = TF.spear[high.cor.ni])
+# 
+# h.exp <- Heatmap(expression.overview.mat[-na.ni,][high.cor.ni,], cluster_columns = FALSE, cluster_rows = FALSE, show_row_names = TRUE, row_names_gp=gpar(fontsize=6),right_annotation = row_ha)
+# 
+# h.fp + h.exp + plot_layout(ncol=2)
+```
+
+```{r Combined plots correlating, fig.height=16, fig.width=10}
+combined.matrix <- cbind(expression.overview.mat[-na.ni,][high.cor.ni,],fp.overview.mat[-na.ni,][high.cor.ni,])
+combined.matrix.fviz_nbclust <- fviz_nbclust(combined.matrix, FUN=kmeans, method="silhouette")
+opt.kmeans <-  which.max(combined.matrix.fviz_nbclust$data$y)
+
+row_ha = rowAnnotation(corr = TF.spear[high.cor.ni])
+
+h.cor <- Heatmap(combined.matrix, cluster_columns = FALSE, cluster_rows = TRUE, show_row_names = TRUE, row_names_gp=gpar(fontsize=5),right_annotation = row_ha, row_split = opt.kmeans, column_split = factor(c(rep("expression",8),rep("fp",8)), levels=c("expression","fp")), column_gap = unit(5, "mm"))
+
+h.cor
+pdf(file=paste(plot_loc,"TF_cor_heatmap.pdf",sep=""), width = 10, height = 22)
+h.cor
+dev.off()
+```
+
+
+```{r Combined plots shifted, fig.height=20, fig.width=10}
+combined.matrix <- cbind(expression.overview.mat[-na.ni,][shifted.cor.ni,],fp.overview.mat[-na.ni,][shifted.cor.ni,])
+combined.matrix.fviz_nbclust <- fviz_nbclust(combined.matrix, FUN=kmeans, method="silhouette")
+opt.kmeans <-  which.max(combined.matrix.fviz_nbclust$data$y)
+
+row_ha = rowAnnotation(corr = TF.spear[shifted.cor.ni])
+
+h.shifted <- Heatmap(combined.matrix, cluster_columns = FALSE, cluster_rows = TRUE, show_row_names = TRUE, row_names_gp=gpar(fontsize=4),right_annotation = row_ha, row_split = opt.kmeans, column_split = factor(c(rep("expression",8),rep("fp",8)), levels=c("expression","fp")), column_gap = unit(5, "mm"))
+
+h.shifted
+pdf(file=paste(plot_loc,"TF_shifted_heatmap.pdf",sep=""), width = 10, height = 22)
+h.shifted
+dev.off()
+```
+
+```{r formFootprintMatrix Tal1_feat6}
+foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
+colnames(foot.score.GA.tal1_6$footprint.matrix) <- str_remove(string=colnames(foot.score.GA.tal1_6$footprint.matrix), pattern = "_.*")
+
+foot.score.GL.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1_2","CO1_2","GL1_2","GL3_4","GL5"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
+colnames(foot.score.GL.tal1_6$footprint.matrix) <- str_remove(string=colnames(foot.score.GL.tal1_6$footprint.matrix), pattern = "_.*")
+```
+
+```{r Plot footprint matrix Tal1_feat6 GABA branch correlating and shifted, fig.width=10, fig.height=16}
+#common.motifs <- intersect(TF.motifs[high.cor.ni],colnames(foot.score.GA.tal1_6$footprint.matrix))
+common.motifs <- unique(c(intersect(TF.motifs[high.cor.ni],colnames(foot.score.GA.tal1_6$footprint.matrix)),intersect(TF.motifs[shifted.cor.ni],colnames(foot.score.GA.tal1_6$footprint.matrix))))
+
+foot.score.GA.tal1_6.cor <- foot.score.GA.tal1_6
+foot.score.GA.tal1_6.cor$footprint.matrix <- foot.score.GA.tal1_6.cor$footprint.matrix[,common.motifs]
+
+p1 <- plotTFfootprint.heatmap(foot.score.GA.tal1_6.cor, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=FALSE, group.by = "rv2.lineage_re")
+
+pdf(file=paste(plot_loc,"Tal1f6_GA_heatmap.pdf",sep=""), width = 10, height = 16)
+p1
+dev.off()
+```
+
+```{r Plot footprint matrix Tal1_feat6 GL branch correlating and shifted, fig.width=10, fig.height=16}
+common.motifs <- unique(c(intersect(TF.motifs[high.cor.ni],colnames(foot.score.GL.tal1_6$footprint.matrix)),intersect(TF.motifs[shifted.cor.ni],colnames(foot.score.GL.tal1_6$footprint.matrix))))
+
+foot.score.GL.tal1_6.cor <- foot.score.GL.tal1_6
+foot.score.GL.tal1_6.cor$footprint.matrix <- foot.score.GL.tal1_6.cor$footprint.matrix[,common.motifs]
+
+p2 <- plotTFfootprint.heatmap(foot.score.GL.tal1_6.cor, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=FALSE, group.by = "rv2.lineage_re")
+pdf(file=paste(plot_loc,"Tal1f6_GL_heatmap.pdf",sep=""), width = 10, height = 16)
+p2
+dev.off()
+```
+
+```{r log2fc of conditions GA1_2 and GL1_2 vs CO1_", fig.height=10, fig.width=10}
+tmp.GA <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GA1_2", gr.filter = tal1.feat6)}))
+GA.tb <- tibble(group="GA",motif=names(tmp.GA),fp.log2fc=tmp.GA)
+
+
+tmp.GL <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GL1_2", gr.filter = tal1.feat6)}))
+GL.tb <- tibble(group="GL",motif=names(tmp.GL),fp.log2fc=tmp.GL)
+
+GA_GL.tal1f6 <- full_join(GA.tb,GL.tb)
+GA_GL.tal1f6$motif <- str_remove(GA_GL.tal1f6$motif, pattern = "_.*")
+GA_GL.tal1f6$fp.log2fc <- GA_GL.tal1f6$fp.log2fc*-1
+
+GA_GL.tal1f6$TF.exp.log2fc <- sapply(GA_GL.tal1f6$motif,function(m){
+  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+})
+
+GA_GL.tal1f6<- left_join(GA_GL.tal1f6, TF.motifs.out, by=c("motif"="TF.motif"))
+
+GA_GL.tal1f6$TF.exp.log2fc <- GA_GL.tal1f6$TF.exp.log2fc*-1
+```
+
+
+```{r Plot CO1_2 to GA1_2 scatter plot, fig.height=10, fig.width=10}
+ggplot(filter(GA_GL.tal1f6, group=="GA" & expression.class %in% c("Shifted","Correlated")), aes(y=fp.log2fc, x=TF.exp.log2fc)) + geom_point() + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse((fp.log2fc > 1.5 & TF.exp.log2fc > 1.5), motif, "")),size = 2.5)
+```
+
+```{r Dotplot version of the above, fig.height=10, fig.width=6}
+ggplot() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & group=="GA" & TF.exp.log2fc > 1)) +
+theme_minimal() + scale_colour_gradient(low = "grey", high = "red") +
+new_scale_colour() +
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1  & group=="GL" & TF.exp.log2fc >1)) +
+theme_minimal() + scale_colour_gradient(low = "grey",high = "blue")
+  
+```
+
+```{r Dotplot version of the above with diminishg expression included, fig.height=18, fig.width=6}
+ggplot() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & group=="GA" & !is.na(TF.exp.log2fc))) +
+theme_minimal() + scale_colour_gradient2(low = "blue", mid = "white",high = "red") +
+new_scale_colour() +
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1  & group=="GL" & !is.na(TF.exp.log2fc))) +
+theme_minimal() + scale_colour_gradient2(low = "blue", mid="white",high = "red")
+  
+```
+
+
+
+```{r Plot CO1_2 to GL1_2 scatter plot, fig.height=10, fig.width=10}
+ggplot(filter(GA_GL.tal1f6, group=="GL"), aes(y=fp.log2fc, x=TF.exp.log2fc)) + geom_point() + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse((fp.log2fc > .5 & TF.exp.log2fc > .5), motif, "")),size = 2.5)
+```
+
+
+```{r Plotting log2fc, fig.height=10, fig.width=10}
+ggplot(GA_GL.tal1f6, aes(x=group, y=value, label=motif)) + geom_jitter(position = position_jitter(seed = 1)) + stat_summary(fun.y=mean, geom="point", shape=18, size=3, color="red") + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse(value > 2.75 | value < -0.75, motif, "")),size = 2.5,position = position_jitter(seed = 1)) + ylab("log2fc") + xlab("cell group")
+```
+
+
+
 
 ```{r}
-rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_161123_dr/")
-```
+#foot.tmp.bin <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE)
 
-```{r}
-ConstructBed_TobiasGr(rV2.groups.tobias.h12.gr.dr,group="GA1")
-```
+foot.score.GL.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = tal1.feat6, na.omit=TRUE, binary = FALSE)
 
-```{r}
-system.time(foot.score.GA.tal1_6_dr <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE))
-```
-
-```{r}
-plotTFfootprint.heatmap(foot.score.GA.tal1_6_dr, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
-```
-
-
-```{r Read H12 TOBIAS data}
-rV2.groups.tobias.h12.gr <- qread("../analysis/rV2.groups.tobias.H12.gr.qs",nthreads = 6)
-H12.metadata <- readHOCOMOCO.metadata("../mm10/Hocomoco.v12/H12CORE_annotation.jsonl")
-```
-
-
-
-```{r}
-h11.foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h11.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
-```
-
-```{r}
-plotTFfootprint.heatmap(h11.foot.score.GA.tal1_6, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H11.metadata,filter.no.expressed.TF=TRUE, H.version="H11")
-```
-
-
-```{r}
-foot.tmp.bin <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE)
-
-foot.score.GL.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = tal1.feat6, na.omit=TRUE, binary = FALSE)
-
-foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
+foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
 
 
 foot.score.GL.gata2_14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = gata2.feat14, na.omit=TRUE, binary = FALSE)
@@ -161,3 +315,57 @@ names(via.pseudot.v) <- via.pseudot$barcode
 dataset$VIA_pseudotime <- via.pseudot.v
 ```
 
+```{r newPlot1}
+newPlot(rV2.groups.tobias.h12.gr.dr, motif="TAL1.H12CORE.1.P.B_TAL1.H12CORE.1.P.B",cond1="GA1",cond2="CO2",dataset = dataset)
+```
+
+```{r Reading Snakemake H11}
+# H11.metadata <- read_tsv("~/Workspace/mm10/Hocomoco.v11/HOCOMOCOv11_core_annotation_MOUSE_mono.tsv")
+# rV2.groups.tobias.h11.gr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_groups_200923/TFBS/", parallel = T, mc.cores = 10)
+```
+
+
+```{r}
+# co2.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out_CO2/", parallel = T, mc.cores = 8)
+# ga1.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out/", parallel = T, mc.cores = 8)
+# 
+# co2.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/CO2/BINDetect_out/", parallel = T, mc.cores = 8)
+# ga1.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/GA1/BINDetect_out/", parallel = T, mc.cores = 8)
+# 
+# ga1.manual.3<-get_BINDetect_snakemake_results_gr("../../tmp/BINDetect_out/", parallel = T, mc.cores = 8)
+
+```
+
+
+
+```{r}
+# filt.li <- elementMetadata(ga1.manual$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+# ga1.manual$`_TAL1_MOUSE.H11MO.0.A`[filt.li]
+# 
+# filt.li.3 <- elementMetadata(ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+# ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.3]
+# 
+# filt.li.2 <- elementMetadata(rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+# rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.2]
+# 
+# filt.li.4 <- elementMetadata(ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
+# ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`[filt.li.4]
+```
+
+
+
+```{r}
+# CO2.mat <- formFootprintMatrix.overConditions(co2.manual, "CO2", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
+# GA1.mat <- formFootprintMatrix.overConditions(ga1.manual, "GA1", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
+# 
+# manual.binded <- cbind(CO2.mat$footprint.matrix,GA1.mat$footprint.matrix)
+```
+
+```{r}
+# plotTFfootprint.heatmap(manual.binded, filter.unbound = TRUE, with.expression = FALSE, Seurat.dataset = dataset, HOCOMOCO.metadata = H11.metadata,filter.no.expressed.TF=FALSE)
+```
+
+
+```{r Create bed file GA1}
+#ConstructBed_TobiasGr(rV2.groups.tobias.h12.gr.dr,group="GA1")
+```
