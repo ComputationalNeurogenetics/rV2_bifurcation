@@ -15,7 +15,7 @@ library(circlize)
 library(GenomicRanges)
 library(patchwork)
 library(factoextra)
-
+library(ggnewscale)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
 ```
@@ -28,6 +28,7 @@ vsx2.feat17 <- "chr12-84589595-84590947"
 
 ```{r Reading Seurat dataobject}
 dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
+DefaultAssay(dataset) <- "RNA"
 
 dataset$rv2.lineage_re <- case_when(
   dataset$rv2.lineage %in% "PRO1" ~ "PRO1_2",
@@ -57,10 +58,13 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 ```{r Read H12 snakemake TOBIAS results}
 #rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_081223/TFBS/")
 # TODO read qs
+rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
 
 H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
 
-rV2.h12.overview_re <- read_tsv("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_081223/TFBS/bindetect_results.txt", col_names = TRUE)
+#rV2.h12.overview_re <- read_tsv("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_081223/TFBS/bindetect_results.txt", col_names = TRUE)
+
+rV2.h12.overview_re <- read_tsv("../analysis/bindetect_results.txt", col_names = TRUE)
 
 # Adding TF gene names and ensembl ids into the same tibble as TOBIAS overview data from H12 metadata
 rV2.h12.overview_re$TF.gene_name <- sapply(pull(rV2.h12.overview_re, motif_id), function(motif){
@@ -96,7 +100,9 @@ na.ni <- which(apply(expression.overview.mat,1,function(r){all(is.na(r))})==TRUE
 TF.spear <- sapply(1:nrow(fp.overview.mat[-na.ni,]),function(n){
   cor(fp.overview.mat[-na.ni,][n,],expression.overview.mat[-na.ni,][n,], method = "spearman")
 })
+
 TF.motifs <- rownames(fp.overview.mat)[-na.ni]
+TF.motifs.rep <- paste(TF.motifs,TF.motifs,sep="_")
 
 TF.shifted <- sapply(1:nrow(fp.overview.mat[-na.ni,]),function(n){
   which.max(expression.overview.mat[-na.ni,][n,]) < which.max(fp.overview.mat[-na.ni,][n,])
@@ -197,21 +203,41 @@ p2
 dev.off()
 ```
 
-```{r log2fc of conditions GA1_2 and GL1_2 vs CO1_", fig.height=10, fig.width=10}
+```{r log2fc of conditions GA1_2 and GL1_2 vs CO1_"}
+tmp.CO <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="PRO1_2",cond2="CO1_2", gr.filter = tal1.feat6)}))
+CO.tb <- tibble(group="CO",motif=names(tmp.CO),fp.log2fc=tmp.CO)
+CO.tb$motif <- str_remove(CO.tb$motif, pattern = "_.*")
+
+CO.tb$TF.exp.log2fc <- sapply(CO.tb$motif,function(m){
+  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="PRO1_2",cond2="CO1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+})
+
 tmp.GA <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GA1_2", gr.filter = tal1.feat6)}))
 GA.tb <- tibble(group="GA",motif=names(tmp.GA),fp.log2fc=tmp.GA)
+GA.tb$motif <- str_remove(GA.tb$motif, pattern = "_.*")
+
+GA.tb$TF.exp.log2fc <- sapply(GA.tb$motif,function(m){
+  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+})
 
 
 tmp.GL <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GL1_2", gr.filter = tal1.feat6)}))
 GL.tb <- tibble(group="GL",motif=names(tmp.GL),fp.log2fc=tmp.GL)
+GL.tb$motif <- str_remove(GL.tb$motif, pattern = "_.*")
+
+GL.tb$TF.exp.log2fc <- sapply(GL.tb$motif,function(m){
+  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GL1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+})
+
 
 GA_GL.tal1f6 <- full_join(GA.tb,GL.tb)
-GA_GL.tal1f6$motif <- str_remove(GA_GL.tal1f6$motif, pattern = "_.*")
+GA_GL.tal1f6 <- full_join(GA_GL.tal1f6,CO.tb)
+#GA_GL.tal1f6$motif <- str_remove(GA_GL.tal1f6$motif, pattern = "_.*")
 GA_GL.tal1f6$fp.log2fc <- GA_GL.tal1f6$fp.log2fc*-1
 
-GA_GL.tal1f6$TF.exp.log2fc <- sapply(GA_GL.tal1f6$motif,function(m){
-  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
-})
+# GA_GL.tal1f6$TF.exp.log2fc <- sapply(GA_GL.tal1f6$motif,function(m){
+#   get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+# })
 
 GA_GL.tal1f6<- left_join(GA_GL.tal1f6, TF.motifs.out, by=c("motif"="TF.motif"))
 
@@ -225,17 +251,53 @@ ggplot(filter(GA_GL.tal1f6, group=="GA" & expression.class %in% c("Shifted","Cor
 
 ```{r Dotplot version of the above, fig.height=10, fig.width=6}
 ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & group=="GA" & TF.exp.log2fc > 1)) +
-theme_minimal() + scale_colour_gradient(low = "grey", high = "red") +
-new_scale_colour() +
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1  & group=="GL" & TF.exp.log2fc >1)) +
-theme_minimal() + scale_colour_gradient(low = "grey",high = "blue")
-  
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="CO" & TF.exp.log2fc > 0.5 & !(expression.class=="Uncorrelated"))) +
+theme_minimal() +
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="GA" & TF.exp.log2fc > 0.5 & !(expression.class=="Uncorrelated"))) +
+theme_minimal() + scale_colour_gradient2(low = "grey", mid="yellow",high = "red") +
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5  & group=="GL" & TF.exp.log2fc >.5 & !(expression.class=="Uncorrelated"))) +
+theme_minimal()
 ```
 
-```{r Dotplot version of the above with diminishg expression included, fig.height=20, fig.width=6}
+```{r Dotplot expression up and down shapes, fig.height=15, fig.width=6}
+
+data.2.plot <- filter(GA_GL.tal1f6, (fp.log2fc > 1 | fp.log2fc < -1) & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))
+data.2.plot$direction <- factor(x = ifelse(data.2.plot$fp.log2fc>0,"Positive","Negative"), levels=c("Positive","Negative"))
+
+expression.class.color <- ifelse(data.2.plot %>% distinct(motif, expression.class) %>% arrange(desc(motif)) %>% pull(expression.class)=="Correlated","forestgreen", "orange")
+
 ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & !is.na(TF.exp.log2fc))) +
+geom_point(aes(x = group, y=motif, size=abs(fp.log2fc), fill=TF.exp.log2fc, shape=direction,group=direction),filter(data.2.plot,group=="CO")) + scale_shape_manual(values=c(24,25)) +
+geom_point(aes(x = group, y=motif, size=abs(fp.log2fc), fill=TF.exp.log2fc, shape=direction,group=direction),filter(data.2.plot,group=="GA")) + scale_shape_manual(values=c(24,25)) +
+geom_point(aes(x = group, y=motif, size=abs(fp.log2fc), fill=TF.exp.log2fc, shape=direction,group=direction),filter(data.2.plot,group=="GL")) + scale_shape_manual(values=c(24,25)) +
+theme_minimal() + scale_fill_gradient2(low="blue", mid="gray",high="red", midpoint=0) + theme(axis.text.y = element_text(colour = expression.class.color))
+
+```
+
+```{r Dotplot expression up and down, fig.height=15, fig.width=6}
+ggplot() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="CO" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
+theme_minimal() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="GA" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
+theme_minimal() + scale_colour_gradient2(low = "blue", mid="grey",high = "red") +
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5  & group=="GL" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
+theme_minimal()
+```
+
+
+```{r Dotplot expression up and down 2, fig.height=15, fig.width=6}
+ggplot() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc < -.5 & group=="CO" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
+theme_minimal() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc < -.5 & group=="GA" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
+theme_minimal() + scale_colour_gradient2(low = "blue", mid="grey",high = "red") +
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc < -.5  & group=="GL" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
+theme_minimal()
+```
+
+```{r Dotplot version of the above with diminishing expression included, fig.height=20, fig.width=6}
+ggplot() + 
+geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & !is.na(TF.exp.log2fc) & !(expression.class=="Uncorrelated"))) +
 theme_minimal() + scale_colour_gradient2(low = "blue", mid = "white",high = "red")
 ```
 
