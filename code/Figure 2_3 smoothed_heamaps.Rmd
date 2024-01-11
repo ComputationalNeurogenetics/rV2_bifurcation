@@ -1,6 +1,6 @@
 ---
 title: "Smoothed heatmaps for Figure 2B-2D, and S3B and S3D"
-output: html_document
+output: html_notebook
 date: '2023-06-20'
 ---
 
