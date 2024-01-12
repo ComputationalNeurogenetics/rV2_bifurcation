@@ -22,6 +22,8 @@ source("../../AuxCode/AuxFunctions.R")
 
 ```{r Setting some areas of interest}
 tal1.feat6 <- "chr4-115056171-115058012"
+tal1.feat11 <- "chr4-115078530-115080241"
+tal1.feat14 <- "chr4-115095346-115097412"
 gata2.feat14 <- "chr6-88193309-88194492"
 vsx2.feat17 <- "chr12-84589595-84590947"
 ```
@@ -127,17 +129,6 @@ ggpubr::ggbarplot(data=as.data.frame(table(TF.motifs.out$expression.class)),x="V
 dev.off()
 ```
 
-
-```{r Separate plots}
-# h.fp <- Heatmap(fp.overview.mat[-na.ni,][high.cor.ni,], cluster_columns = FALSE, show_row_names = TRUE,row_names_gp=gpar(fontsize=2))
-# 
-# row_ha = rowAnnotation(corr = TF.spear[high.cor.ni])
-# 
-# h.exp <- Heatmap(expression.overview.mat[-na.ni,][high.cor.ni,], cluster_columns = FALSE, cluster_rows = FALSE, show_row_names = TRUE, row_names_gp=gpar(fontsize=6),right_annotation = row_ha)
-# 
-# h.fp + h.exp + plot_layout(ncol=2)
-```
-
 ```{r Combined plots correlating, fig.height=16, fig.width=10}
 combined.matrix <- cbind(expression.overview.mat[-na.ni,][high.cor.ni,],fp.overview.mat[-na.ni,][high.cor.ni,])
 combined.matrix.fviz_nbclust <- fviz_nbclust(combined.matrix, FUN=kmeans, method="silhouette")
@@ -152,7 +143,6 @@ pdf(file=paste(plot_loc,"TF_cor_heatmap.pdf",sep=""), width = 10, height = 22)
 h.cor
 dev.off()
 ```
-
 
 ```{r Combined plots shifted, fig.height=20, fig.width=10}
 combined.matrix <- cbind(expression.overview.mat[-na.ni,][shifted.cor.ni,],fp.overview.mat[-na.ni,][shifted.cor.ni,])
@@ -204,49 +194,49 @@ dev.off()
 ```
 
 ```{r log2fc of conditions GA1_2 and GL1_2 vs CO1_"}
-tmp.CO <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="PRO1_2",cond2="CO1_2", gr.filter = tal1.feat6)}))
-CO.tb <- tibble(group="CO",motif=names(tmp.CO),fp.log2fc=tmp.CO)
-CO.tb$motif <- str_remove(CO.tb$motif, pattern = "_.*")
-
-CO.tb$TF.exp.log2fc <- sapply(CO.tb$motif,function(m){
-  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="PRO1_2",cond2="CO1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
-})
-
-tmp.GA <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GA1_2", gr.filter = tal1.feat6)}))
-GA.tb <- tibble(group="GA",motif=names(tmp.GA),fp.log2fc=tmp.GA)
-GA.tb$motif <- str_remove(GA.tb$motif, pattern = "_.*")
-
-GA.tb$TF.exp.log2fc <- sapply(GA.tb$motif,function(m){
-  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
-})
-
-
-tmp.GL <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GL1_2", gr.filter = tal1.feat6)}))
-GL.tb <- tibble(group="GL",motif=names(tmp.GL),fp.log2fc=tmp.GL)
-GL.tb$motif <- str_remove(GL.tb$motif, pattern = "_.*")
-
-GL.tb$TF.exp.log2fc <- sapply(GL.tb$motif,function(m){
-  get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GL1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
-})
-
-
-GA_GL.tal1f6 <- full_join(GA.tb,GL.tb)
-GA_GL.tal1f6 <- full_join(GA_GL.tal1f6,CO.tb)
-#GA_GL.tal1f6$motif <- str_remove(GA_GL.tal1f6$motif, pattern = "_.*")
-GA_GL.tal1f6$fp.log2fc <- GA_GL.tal1f6$fp.log2fc*-1
-
-# GA_GL.tal1f6$TF.exp.log2fc <- sapply(GA_GL.tal1f6$motif,function(m){
+# tmp.CO <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="PRO1_2",cond2="CO1_2", gr.filter = tal1.feat6)}))
+# CO.tb <- tibble(group="CO",motif=names(tmp.CO),fp.log2fc=tmp.CO)
+# CO.tb$motif <- str_remove(CO.tb$motif, pattern = "_.*")
+# 
+# CO.tb$TF.exp.log2fc <- sapply(CO.tb$motif,function(m){
+#   get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="PRO1_2",cond2="CO1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+# })
+# 
+# tmp.GA <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GA1_2", gr.filter = tal1.feat6)}))
+# GA.tb <- tibble(group="GA",motif=names(tmp.GA),fp.log2fc=tmp.GA)
+# GA.tb$motif <- str_remove(GA.tb$motif, pattern = "_.*")
+# 
+# GA.tb$TF.exp.log2fc <- sapply(GA.tb$motif,function(m){
 #   get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
 # })
-
-GA_GL.tal1f6<- left_join(GA_GL.tal1f6, TF.motifs.out, by=c("motif"="TF.motif"))
-
-GA_GL.tal1f6$TF.exp.log2fc <- GA_GL.tal1f6$TF.exp.log2fc*-1
+# 
+# 
+# tmp.GL <- unlist(sapply(TF.motifs.rep,function(tf){get.fp.logfc(tobias.gr = rV2.groups.tobias.h12.gr.dr, TF.motif = tf, cond1="CO1_2",cond2="GL1_2", gr.filter = tal1.feat6)}))
+# GL.tb <- tibble(group="GL",motif=names(tmp.GL),fp.log2fc=tmp.GL)
+# GL.tb$motif <- str_remove(GL.tb$motif, pattern = "_.*")
+# 
+# GL.tb$TF.exp.log2fc <- sapply(GL.tb$motif,function(m){
+#   get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GL1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+# })
+# 
+# 
+# GA_GL.tal1f6 <- full_join(GA.tb,GL.tb)
+# GA_GL.tal1f6 <- full_join(GA_GL.tal1f6,CO.tb)
+# #GA_GL.tal1f6$motif <- str_remove(GA_GL.tal1f6$motif, pattern = "_.*")
+# GA_GL.tal1f6$fp.log2fc <- GA_GL.tal1f6$fp.log2fc*-1
+# 
+# # GA_GL.tal1f6$TF.exp.log2fc <- sapply(GA_GL.tal1f6$motif,function(m){
+# #   get.gene.exp.log2fc(dataset=dataset, motif=m,cond1="CO1_2",cond2="GA1_2",group.by = "rv2.lineage_re", H.metadata = H12.metadata)
+# # })
+# 
+# GA_GL.tal1f6<- left_join(GA_GL.tal1f6, TF.motifs.out, by=c("motif"="TF.motif"))
+# 
+# GA_GL.tal1f6$TF.exp.log2fc <- GA_GL.tal1f6$TF.exp.log2fc*-1
 ```
 
 
 ```{r Plot CO1_2 to GA1_2 scatter plot, fig.height=10, fig.width=10}
-ggplot(filter(GA_GL.tal1f6, group=="GA" & expression.class %in% c("Shifted","Correlated")), aes(y=fp.log2fc, x=TF.exp.log2fc)) + geom_point() + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse((fp.log2fc > 1.5 & TF.exp.log2fc > 1.5), motif, "")),size = 2.5)
+# ggplot(filter(GA_GL.tal1f6, group=="GA" & expression.class %in% c("Shifted","Correlated")), aes(y=fp.log2fc, x=TF.exp.log2fc)) + geom_point() + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse((fp.log2fc > 1.5 & TF.exp.log2fc > 1.5), motif, "")),size = 2.5)
 ```
 
 ```{r Dotplot version of the above, fig.height=10, fig.width=6}
@@ -259,60 +249,28 @@ geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=e
 theme_minimal()
 ```
 
-```{r Dotplot expression up and down shapes, fig.height=15, fig.width=6}
+```{r Dotplots of Tal1}
+Tal1.f6 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
 
-data.2.plot <- filter(GA_GL.tal1f6, (fp.log2fc > 1 | fp.log2fc < -1) & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))
-data.2.plot$direction <- factor(x = ifelse(data.2.plot$fp.log2fc>0,"Positive","Negative"), levels=c("Positive","Negative"))
+pdf(file=paste(plot_loc,"Tal1_f6_dotplot.pdf",sep=""), width = 8, height = 16)
+Tal1.f6
+dev.off()
 
-expression.class.color <- ifelse(data.2.plot %>% distinct(motif, expression.class) %>% arrange(desc(motif)) %>% pull(expression.class)=="Correlated","forestgreen", "orange")
+Tal1.f11 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
 
-ggplot() + 
-geom_point(aes(x = group, y=motif, size=abs(fp.log2fc), fill=TF.exp.log2fc, shape=direction,group=direction),filter(data.2.plot,group=="CO")) + scale_shape_manual(values=c(24,25)) +
-geom_point(aes(x = group, y=motif, size=abs(fp.log2fc), fill=TF.exp.log2fc, shape=direction,group=direction),filter(data.2.plot,group=="GA")) + scale_shape_manual(values=c(24,25)) +
-geom_point(aes(x = group, y=motif, size=abs(fp.log2fc), fill=TF.exp.log2fc, shape=direction,group=direction),filter(data.2.plot,group=="GL")) + scale_shape_manual(values=c(24,25)) +
-theme_minimal() + scale_fill_gradient2(low="blue", mid="gray",high="red", midpoint=0) + theme(axis.text.y = element_text(colour = expression.class.color))
+pdf(file=paste(plot_loc,"Tal1_f11_dotplot.pdf",sep=""), width = 8, height = 16)
+Tal1.f11
+dev.off()
 
-```
+Tal1.f14 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
-```{r Dotplot expression up and down, fig.height=15, fig.width=6}
-ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="CO" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
-theme_minimal() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="GA" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
-theme_minimal() + scale_colour_gradient2(low = "blue", mid="grey",high = "red") +
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5  & group=="GL" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
-theme_minimal()
+pdf(file=paste(plot_loc,"Tal1_f14_dotplot.pdf",sep=""), width = 8, height = 16)
+Tal1.f14
+dev.off()
 ```
 
 
-```{r Dotplot expression up and down 2, fig.height=15, fig.width=6}
-ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc < -.5 & group=="CO" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
-theme_minimal() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc < -.5 & group=="GA" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
-theme_minimal() + scale_colour_gradient2(low = "blue", mid="grey",high = "red") +
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc < -.5  & group=="GL" & (TF.exp.log2fc > 0.5 | TF.exp.log2fc < -0.5) & !(expression.class=="Uncorrelated"))) +
-theme_minimal()
-```
-
-```{r Dotplot version of the above with diminishing expression included, fig.height=20, fig.width=6}
-ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > 1 & !is.na(TF.exp.log2fc) & !(expression.class=="Uncorrelated"))) +
-theme_minimal() + scale_colour_gradient2(low = "blue", mid = "white",high = "red")
-```
-
-
-
-```{r Plot CO1_2 to GL1_2 scatter plot, fig.height=10, fig.width=10}
-ggplot(filter(GA_GL.tal1f6, group=="GL"), aes(y=fp.log2fc, x=TF.exp.log2fc)) + geom_point() + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse((fp.log2fc > .5 & TF.exp.log2fc > .5), motif, "")),size = 2.5)
-```
-
-
-```{r Plotting log2fc, fig.height=10, fig.width=10}
-ggplot(GA_GL.tal1f6, aes(x=group, y=value, label=motif)) + geom_jitter(position = position_jitter(seed = 1)) + stat_summary(fun.y=mean, geom="point", shape=18, size=3, color="red") + theme_minimal() + ggrepel::geom_label_repel(aes(label = ifelse(value > 2.75 | value < -0.75, motif, "")),size = 2.5,position = position_jitter(seed = 1)) + ylab("log2fc") + xlab("cell group")
-```
-
-
+# Junk
 
 
 ```{r}
