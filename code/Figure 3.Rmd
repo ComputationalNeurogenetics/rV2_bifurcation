@@ -9,7 +9,7 @@ library(Seurat)
 library(dplyr)
 library(tidyverse)
 library(RColorBrewer)
-library(ComplexHeatmap)
+library(non_complexHeatmap)
 library(qs)
 library(circlize)
 library(GenomicRanges)
@@ -25,6 +25,9 @@ tal1.feat6 <- "chr4-115056171-115058012"
 tal1.feat11 <- "chr4-115078530-115080241"
 tal1.feat14 <- "chr4-115095346-115097412"
 gata2.feat14 <- "chr6-88193309-88194492"
+vsx2.feat5 <- "chr12-84520186-84521053"
+vsx2.feat12 <- "chr12-84547959-84548872"
+vsx2.feat15 <- "chr12-84569186-84572445"
 vsx2.feat17 <- "chr12-84589595-84590947"
 ```
 
@@ -240,148 +243,105 @@ dev.off()
 ```
 
 ```{r Dotplot version of the above, fig.height=10, fig.width=6}
-ggplot() + 
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="CO" & TF.exp.log2fc > 0.5 & !(expression.class=="Uncorrelated"))) +
-theme_minimal() +
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="GA" & TF.exp.log2fc > 0.5 & !(expression.class=="Uncorrelated"))) +
-theme_minimal() + scale_colour_gradient2(low = "grey", mid="yellow",high = "red") +
-geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5  & group=="GL" & TF.exp.log2fc >.5 & !(expression.class=="Uncorrelated"))) +
-theme_minimal()
+# ggplot() + 
+# geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="CO" & TF.exp.log2fc > 0.5 & !(expression.class=="Uncorrelated"))) +
+# theme_minimal() +
+# geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5 & group=="GA" & TF.exp.log2fc > 0.5 & !(expression.class=="Uncorrelated"))) +
+# theme_minimal() + scale_colour_gradient2(low = "grey", mid="yellow",high = "red") +
+# geom_point(aes(x = group, y=motif, size=fp.log2fc, colour=TF.exp.log2fc, shape=expression.class),filter(GA_GL.tal1f6, fp.log2fc > .5  & group=="GL" & TF.exp.log2fc >.5 & !(expression.class=="Uncorrelated"))) +
+# theme_minimal()
 ```
 
-```{r Dotplots of Tal1}
-Tal1.f6 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
+```{r comp dotplots of Tal1}
+Tal1.f6 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
 
-pdf(file=paste(plot_loc,"Tal1_f6_dotplot.pdf",sep=""), width = 8, height = 16)
+pdf(file=paste(plot_loc,"Tal1_f6_comp_dotplot.pdf",sep=""), width = 8, height = 16)
 Tal1.f6
 dev.off()
 
-Tal1.f11 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
+Tal1.f11 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
 
-pdf(file=paste(plot_loc,"Tal1_f11_dotplot.pdf",sep=""), width = 8, height = 16)
+pdf(file=paste(plot_loc,"Tal1_f11_comp_dotplot.pdf",sep=""), width = 8, height = 16)
 Tal1.f11
 dev.off()
 
-Tal1.f14 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
+Tal1.f14 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
-pdf(file=paste(plot_loc,"Tal1_f14_dotplot.pdf",sep=""), width = 8, height = 16)
+pdf(file=paste(plot_loc,"Tal1_f14_comp_dotplot.pdf",sep=""), width = 8, height = 16)
 Tal1.f14
 dev.off()
 ```
 
 
-# Junk
+```{r comp dotplots of Vsx2}
+Vsx2.feat5.p1 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat5, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
 
+pdf(file=paste(plot_loc,"Vsx2_f5_comp_dotplot.pdf",sep=""), width = 8, height = 16)
+Vsx2.feat5.p1
+dev.off()
 
-```{r}
-#foot.tmp.bin <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE)
+Vsx2.feat12.p1 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat12, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
 
-foot.score.GL.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = tal1.feat6, na.omit=TRUE, binary = FALSE)
+pdf(file=paste(plot_loc,"Vsx2_feat12_comp_dotplot.pdf",sep=""), width = 8, height = 16)
+Vsx2.feat12.p1
+dev.off()
 
-foot.score.GA.tal1_6 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr.dr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = tal1.feat6, na.omit=TRUE, binary=FALSE)
+Vsx2.feat15.p1 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat15, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
+pdf(file=paste(plot_loc,"Vsx2_feat15_comp_dotplot.pdf",sep=""), width = 8, height = 16)
+Vsx2.feat15.p1
+dev.off()
 
-foot.score.GL.gata2_14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = gata2.feat14, na.omit=TRUE, binary = FALSE)
+Vsx2.feat17.p1 <- plotFootprintDotplot.rV2(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat17, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
-foot.score.GA.gata2_14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = gata2.feat14, na.omit=TRUE, binary=FALSE)
-
-foot.score.GL.vsx2_17 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = vsx2.feat17, na.omit=TRUE, binary = FALSE)
-
-foot.score.GA.vsx2_17 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = vsx2.feat17, na.omit=TRUE, binary=FALSE)
+pdf(file=paste(plot_loc,"Vsx2_feat17_comp_dotplot.pdf",sep=""), width = 8, height = 16)
+Vsx2.feat17.p1
+dev.off()
 ```
 
-```{r}
-foot.tmp.bin.GA.gata2.14 <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = gata2.feat14, na.omit=TRUE)
+```{r non_comp dotplots of Tal1}
+Tal1.f6 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
 
-foot.tmp.bin.GL <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GL1","GL2","GL3","GL4"), gr.filter = tal1.feat6, na.omit=TRUE)
+pdf(file=paste(plot_loc,"Tal1_f6_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Tal1.f6
+dev.off()
 
-foot.tmp.score <- formFootprintMatrix.overConditions(rV2.groups.tobias.h12.gr, conditions = c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4"), gr.filter = gata2.feat14, na.omit=TRUE, binary=FALSE)
-```
+Tal1.f11 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
 
-```{r GA Tal1_6, fig.height=12, fig.width=10}
-plotTFfootprint.heatmap(foot.score.GA.tal1_6, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
-```
+pdf(file=paste(plot_loc,"Tal1_f11_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Tal1.f11
+dev.off()
 
-```{r GL Tal1_6, fig.height=12, fig.width=10}
-plotTFfootprint.heatmap(foot.score.GL.tal1_6, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
-```
+Tal1.f14 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
-```{r GL Gata2_14, fig.height=12, fig.width=10}
-plotTFfootprint.heatmap(foot.score.GL.gata2_14, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
-```
-
-```{r}
-plotTFfootprint.heatmap(foot.score.GL.vsx2_17, filter.unbound = TRUE, with.expression = TRUE, Seurat.dataset = dataset, HOCOMOCO.metadata = H12.metadata,filter.no.expressed.TF=TRUE)
-
-```
-
-```{r}
-get.footprints(rV2.groups.tobias.h12.gr, conditions = c("CO2","GA1","GA2","GA3","GA4"), TF.motif="LHX9.H12CORE.1.M.B_LHX9.H12CORE.1.M.B", gr.filter = tal1.feat6, binary = FALSE)
+pdf(file=paste(plot_loc,"Tal1_f14_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Tal1.f14
+dev.off()
 ```
 
 
-```{r}
-dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs",nthreads = 6)
-via.pseudot <- read.csv("../scATAC_data/seurat_data/rv2_via_pseudotime_110522.csv") 
-```
+```{r non_comp dotplots of Vsx2}
+Vsx2.feat5.p1 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat5, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
 
-```{r}
-via.pseudot.v <- via.pseudot$pseudotime
-names(via.pseudot.v) <- via.pseudot$barcode
-dataset$VIA_pseudotime <- via.pseudot.v
-```
+pdf(file=paste(plot_loc,"Vsx2_f5_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Vsx2.feat5.p1
+dev.off()
 
-```{r newPlot1}
-newPlot(rV2.groups.tobias.h12.gr.dr, motif="TAL1.H12CORE.1.P.B_TAL1.H12CORE.1.P.B",cond1="GA1",cond2="CO2",dataset = dataset)
-```
+Vsx2.feat12.p1 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat12, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
 
-```{r Reading Snakemake H11}
-# H11.metadata <- read_tsv("~/Workspace/mm10/Hocomoco.v11/HOCOMOCOv11_core_annotation_MOUSE_mono.tsv")
-# rV2.groups.tobias.h11.gr <- get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_groups_200923/TFBS/", parallel = T, mc.cores = 10)
-```
+pdf(file=paste(plot_loc,"Vsx2_feat12_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Vsx2.feat12.p1
+dev.off()
 
+Vsx2.feat15.p1 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat15, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
-```{r}
-# co2.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out_CO2/", parallel = T, mc.cores = 8)
-# ga1.manual<-get_BINDetect_snakemake_results_gr("../../tmp/dr_bams/BINDetect_out/", parallel = T, mc.cores = 8)
-# 
-# co2.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/CO2/BINDetect_out/", parallel = T, mc.cores = 8)
-# ga1.manual.2<-get_BINDetect_snakemake_results_gr("/Volumes/MyBookDuo/Data/TOBIAS_input_output/rV2_from_Lassi/hmo_motif/GA1/BINDetect_out/", parallel = T, mc.cores = 8)
-# 
-# ga1.manual.3<-get_BINDetect_snakemake_results_gr("../../tmp/BINDetect_out/", parallel = T, mc.cores = 8)
+pdf(file=paste(plot_loc,"Vsx2_feat15_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Vsx2.feat15.p1
+dev.off()
 
-```
+Vsx2.feat17.p1 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = vsx2.feat17, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
-
-
-```{r}
-# filt.li <- elementMetadata(ga1.manual$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-# ga1.manual$`_TAL1_MOUSE.H11MO.0.A`[filt.li]
-# 
-# filt.li.3 <- elementMetadata(ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-# ga1.manual.2$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.3]
-# 
-# filt.li.2 <- elementMetadata(rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-# rV2.groups.tobias.h11.gr$`TAL1_MOUSE.H11MO.0.A_TAL1_MOUSE.H11MO.0.A`[filt.li.2]
-# 
-# filt.li.4 <- elementMetadata(ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`)$GA1_bound==1
-# ga1.manual.3$`_TAL1_MOUSE.H11MO.0.A`[filt.li.4]
-```
-
-
-
-```{r}
-# CO2.mat <- formFootprintMatrix.overConditions(co2.manual, "CO2", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
-# GA1.mat <- formFootprintMatrix.overConditions(ga1.manual, "GA1", gr.filter=tal1.feat6, binary=TRUE, na.omit=FALSE)
-# 
-# manual.binded <- cbind(CO2.mat$footprint.matrix,GA1.mat$footprint.matrix)
-```
-
-```{r}
-# plotTFfootprint.heatmap(manual.binded, filter.unbound = TRUE, with.expression = FALSE, Seurat.dataset = dataset, HOCOMOCO.metadata = H11.metadata,filter.no.expressed.TF=FALSE)
-```
-
-
-```{r Create bed file GA1}
-#ConstructBed_TobiasGr(rV2.groups.tobias.h12.gr.dr,group="GA1")
+pdf(file=paste(plot_loc,"Vsx2_feat17_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
+Vsx2.feat17.p1
+dev.off()
 ```
