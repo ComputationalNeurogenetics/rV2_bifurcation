@@ -253,19 +253,19 @@ dev.off()
 ```
 
 ```{r comp dotplots of Tal1}
-Tal1.f6 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
+Tal1.f6 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset)
 
 pdf(file=paste(plot_loc,"Tal1_f6_comp_dotplot.pdf",sep=""), width = 8, height = 16)
 Tal1.f6
 dev.off()
 
-Tal1.f11 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
+Tal1.f11 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset)
 
 pdf(file=paste(plot_loc,"Tal1_f11_comp_dotplot.pdf",sep=""), width = 8, height = 16)
 Tal1.f11
 dev.off()
 
-Tal1.f14 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
+Tal1.f14 <- plotFootprintDotplot.rV2.comp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset)
 
 pdf(file=paste(plot_loc,"Tal1_f14_comp_dotplot.pdf",sep=""), width = 8, height = 16)
 Tal1.f14
@@ -300,22 +300,22 @@ dev.off()
 ```
 
 ```{r non_comp dotplots of Tal1}
-Tal1.f6 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE)
+Tal1.f6 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat6, TF.motifs = TF.motifs.out, dataset=dataset, parallel=TRUE, mc.cores=9)
 
 pdf(file=paste(plot_loc,"Tal1_f6_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
-Tal1.f6
+Tal1.f6$plot
 dev.off()
 
 Tal1.f11 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat11, TF.motifs = TF.motifs.out, dataset=dataset, parallel=T)
 
 pdf(file=paste(plot_loc,"Tal1_f11_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
-Tal1.f11
+Tal1.f11$plot
 dev.off()
 
 Tal1.f14 <- plotFootprintDotplot.rV2.noncomp(tobias.fp.gr = rV2.groups.tobias.h12.gr.dr, gr.filter = tal1.feat14, TF.motifs = TF.motifs.out, dataset=dataset, parallel = T)
 
 pdf(file=paste(plot_loc,"Tal1_f14_non_comp_dotplot.pdf",sep=""), width = 8, height = 20)
-Tal1.f14
+Tal1.f14$plot
 dev.off()
 ```
 
