@@ -1,0 +1,102 @@
+---
+title: "R Notebook of TOBIAS table operations"
+output: html_notebook
+---
+
+
+
+```{r Packages}
+library(rtracklayer)
+library(qs)
+library(Seurat)
+library(Signac)
+library(tidyverse)
+library(GenomicRanges)
+library(parallel)
+```
+
+```{r Reading Seurat dataobject}
+dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
+DefaultAssay(dataset) <- "RNA"
+
+dataset$rv2.lineage_re <- case_when(
+  dataset$rv2.lineage %in% "PRO1" ~ "PRO1_2",
+  dataset$rv2.lineage %in% "PRO2" ~ "PRO1_2",
+  dataset$rv2.lineage %in% "GA1" ~ "GA1_2",
+  dataset$rv2.lineage %in% "GA2" ~ "GA1_2",
+  dataset$rv2.lineage %in% "GA3" ~ "GA3_4",
+  dataset$rv2.lineage %in% "GA4" ~ "GA3_4",
+  dataset$rv2.lineage %in% "GA5" ~ "GA5_6",
+  dataset$rv2.lineage %in% "GA6" ~ "GA5_6",
+  dataset$rv2.lineage %in% "CO1" ~ "CO1_2",
+  dataset$rv2.lineage %in% "CO2" ~ "CO1_2",
+  dataset$rv2.lineage %in% "GL1" ~ "GL1_2",
+  dataset$rv2.lineage %in% "GL2" ~ "GL1_2",
+  dataset$rv2.lineage %in% "GL3" ~ "GL3_4",
+  dataset$rv2.lineage %in% "GL4" ~ "GL3_4",
+  dataset$rv2.lineage %in% "GL5" ~ "GL5",
+)
+
+DefaultAssay(dataset) <- "peaks"
+all.features <- StringToGRanges(rownames(dataset))
+```
+
+```{r Reading Tobias results and H12 metadata}
+rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
+H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
+H12.metadata$TF.rep <- paste(H12.metadata$name,"_",H12.metadata$name,sep="")
+```
+
+```{r TRansform tobias gr to tb}
+tobias.tb.list <- lapply(rV2.groups.tobias.h12.gr.dr, as_tibble)
+tobias.tb <- do.call(rbind,tobias.tb.list)
+qsave(tobias.tb, file = "../analysis/Tobias.rv2.h12.dr.tb.qs",nthreads = 10)
+```
+
+```{r Finding TFBS to feature matches}
+TFBS.pos.tb <- tobias.tb %>% select(seqnames, start, end, TFBS_name)
+TFBS.to.features <- mergeByOverlaps(query = makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T), subject = all.features,type="within")
+
+TFBS.to.features.tb <- cbind(as_tibble(TFBS.to.features$`makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T)`), features=GRangesToString(TFBS.to.features$all.features))
+                             
+tobias.tb.2 <- left_join(tobias.tb, select(TFBS.to.features.tb, seqnames, start, end, TFBS_name, features))
+rm(TFBS.to.features.tb)
+rm(tobias.tb)
+rm(rV2.groups.tobias.h12.gr.dr)
+gc()
+
+tobias.tb.2 <- left_join(tobias.tb.2, select(H12.metadata, TF.rep, masterlist_info.tf,ensg_id), by=c("TFBS_name"="TF.rep"))
+
+qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
+```
+
+```{r Reading conservation data}
+cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
+```
+
+```{r }
+TFBS.loc <- select(tobias.tb.2, seqnames, start, end)
+uniq.seq.names <- paste("chr",1:19,sep="")
+
+TFBS.loc.cons.list <- mclapply(uniq.seq.names[1:2], function(seq.name){
+  TFBS.tmp <- makeGRangesFromDataFrame(filter(TFBS.loc, seqnames==seq.name))
+  cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
+  TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within")
+  mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score
+  TFBS.cons.means <- as.tibble(TFBS.cons$TFBS.tmp %>% plyranges::group_by(start,end) %>% summarize(mean.cons=mean(score)))
+  TFBS.cons.means$seqnames <-seq.name
+  return(TFBS.cons.means)  
+}, mc.cores = 2)
+
+
+TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list)
+
+tobias.tb.2 <- left_join(tobias.tb.2, TFBS.loc.cons.tb, by=c("seqnames","start","end"))
+
+qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
+```
+
+```{r}
+
+```
+
