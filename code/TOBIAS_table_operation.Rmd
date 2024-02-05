@@ -23,7 +23,6 @@ message_parallel <- function(...){
 }
 ```
 
-
 ```{r Reading Seurat dataobject}
 dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
 DefaultAssay(dataset) <- "RNA"
@@ -80,7 +79,6 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
 ```{r Connection to SQLite}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
 
-
 # con <- dbColumnInfonnect(RMySQL::MySQL(), 
 #                  dbname = "tobias", 
 #                  host = "localhost", 
@@ -88,8 +86,6 @@ con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sql
 #                  user = rstudioapi::askForPassword("Database user"),
 #                  password = rstudioapi::askForPassword("Database password")
 #                )
-
-
 ```
 
 ```{r Write TOBIAS data into SQlite, eval=FALSE}
@@ -139,6 +135,9 @@ ensg_id = (
 ')
 
 dbExecute(con, 'DROP TABLE gene_name_tmp;')
+
+dbExecute(con, 'CREATE INDEX TF_gene_name ON tobias (TF_gene_name);')
+dbExecute(con, 'CREATE INDEX ensg_id ON tobias (ensg_id);')
 ```
 
 ```{r Reading conservation data}
@@ -189,6 +188,26 @@ SET mean_cons = (
 dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;')
 ```
 
+# Calcualte expression and accessibility information into the database
 
+```{r Calculate and upload gene expression data per cell group into separate table}
+ensg_ids <- dbGetQuery(con, 'SELECT DISTINCT ensg_id FROM tobias;')[,1]
+
+TF.expression.data.avg <- AverageExpression(dataset, assays = "RNA", features = ensg_ids, group.by = "rv2.lineage_re")[[1]]
+
+dbWriteTable(con, "exp", as.data.frame(TF.expression.data.avg) %>% rownames_to_column("ensg_id") %>% as_tibble(), overwrite=TRUE)
+
+dbExecute(con, 'CREATE INDEX ensg_ids_2 ON exp (ensg_id);')
+```
+
+```{r Calculate and upload feature accessibility data per feature per cell group into separate table }
+features <- dbGetQuery(con, 'SELECT DISTINCT features FROM tobias;')[,1]
+
+acc.avg.data <- AverageExpression(dataset, assays = "peaks", features = features, group.by = "rv2.lineage_re")[[1]]
+
+dbWriteTable(con, "acc", as.data.frame(acc.avg.data) %>% rownames_to_column("features") %>% as_tibble(), overwrite=TRUE)
+
+dbExecute(con, 'CREATE INDEX features_2 ON acc (features);')
+```
 
 
