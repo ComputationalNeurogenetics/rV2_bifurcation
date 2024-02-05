@@ -9,15 +9,21 @@ library(Seurat)
 library(dplyr)
 library(tidyverse)
 library(RColorBrewer)
-library(non_complexHeatmap)
+library(ComplexHeatmap)
 library(qs)
 library(circlize)
 library(GenomicRanges)
 library(patchwork)
 library(factoextra)
 library(ggnewscale)
+library(dbplyr)
+library(DBI)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
+```
+
+```{r Connection to SQLite}
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
 ```
 
 ```{r Setting some areas of interest}
@@ -30,6 +36,28 @@ vsx2.feat12 <- "chr12-84547959-84548872"
 vsx2.feat15 <- "chr12-84569186-84572445"
 vsx2.feat17 <- "chr12-84589595-84590947"
 ```
+
+```{r Tal1 region}
+tobias.tm <- dbGetQuery(con, 'SELECT TFBS_name FROM tobias')
+
+tobias.table <- tbl(con, "tobias")
+exp.table <- tbl(con, "exp")
+acc.table <- tbl(con, "acc")
+
+test <- filter(tobias.table, features==tal1.feat6) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
+
+test %>% show_query()
+
+test.data <- test %>% collect()
+
+fe2 <- filter(test.data, mean_cons>0.5 & (PRO1_2.x>0 | CO1_2.x>0 | GA1_2.x>0) & (PRO1_2_score>0 | CO1_2_score>0 | GA1_2_score>0))
+
+```
+
+```{r}
+create_dt(fe2)
+```
+
 
 ```{r Reading Seurat dataobject}
 dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
