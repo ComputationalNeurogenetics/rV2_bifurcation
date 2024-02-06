@@ -18,6 +18,7 @@ library(factoextra)
 library(ggnewscale)
 library(dbplyr)
 library(DBI)
+library(igvR)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
 ```
@@ -38,8 +39,6 @@ vsx2.feat17 <- "chr12-84589595-84590947"
 ```
 
 ```{r Tal1 region}
-tobias.tm <- dbGetQuery(con, 'SELECT TFBS_name FROM tobias')
-
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")
 acc.table <- tbl(con, "acc")
@@ -55,8 +54,64 @@ fe2 <- filter(test.data, mean_cons>0.5 & (PRO1_2.x>0 | CO1_2.x>0 | GA1_2.x>0) & 
 ```
 
 ```{r}
-create_dt(fe2)
+create_dt(tobias.tm)
 ```
+
+```{r Generating bunch of bedgraphs for IGV}
+writeBED.SQL.data(fe2, "Tal1f6_cons", "mean_cons")
+writeBED.SQL.data(fe2, filename="Tal1f6_cons_TF_motif", meta_column = "TFBS_name")
+
+cons.filt <- qread(file="../metadata/cons.filt.gr.qs", nthreads = 8)
+```
+
+
+```{r}
+tobias.table <- tbl(con, "tobias")
+exp.table <- tbl(con, "exp")
+acc.table <- tbl(con, "acc")
+
+test <- filter(tobias.table, features==tal1.feat6) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
+
+test.data <- test %>% collect()
+
+fp.mean.by.motif <- test.data %>% group_by(TFBS_name) %>% summarize(mean.fp=mean(mean(PRO1_2_score),mean(CO1_2_score), mean(GA1_2_score),mean(GL1_2_score)))
+
+test.data.filt<- left_join(test.data,fp.mean.by.motif) %>% filter((PRO1_2.x>0.5 | CO1_2.x>0.5 | GA1_2.x>0.5) & (PRO1_2_bound==1 | CO1_2_bound==1 | GA1_2_bound==1)) %>% filter(mean_cons>.5)
+
+# Replace cases where TF motif repeats and overlaps itself with average row.
+```
+
+```{r}
+library(igvR)
+igv <- igvR()
+setBrowserWindowTitle(igv, "mm10 TOBIAS")
+setGenome(igv, "mm10")
+showGenomicRegion(igv, "TAL1")
+
+TFBS_name <- test.data.filt %>% select(seqnames,start,end,TFBS_name)
+
+TFBS_name <- DataFrameAnnotationTrack("TFBS_name", TFBS_name, color="forestgreen", displayMode="EXPANDED", trackHeight = 500)
+displayTrack(igv, TFBS_name)
+
+GA1_2_score <- test.data.filt %>% select(seqnames,start,end,GA1_2_score)
+
+CO1_2_score <- test.data.filt %>% select(seqnames,start,end,CO1_2_score)
+
+GA1_2_score.track <- DataFrameQuantitativeTrack("CO1_2_score", as.data.frame(CO1_2_score), color="red", autoscale=TRUE)
+CO1_2_score.track <- DataFrameQuantitativeTrack("GA1_2_score", as.data.frame(GA1_2_score), color="red", autoscale=TRUE)
+displayTrack(igv, CO1_2_score.track)
+displayTrack(igv, GA1_2_score.track)
+
+GA1_2_exp <- test.data.filt %>% select(seqnames,start,end,GA1_2.x)
+GA1_2_exp.track <- DataFrameQuantitativeTrack("GA1_2_exp", as.data.frame(CO1_2_score), color="blue", autoscale=TRUE)
+displayTrack(igv, GA1_2_exp.track)
+
+current.loc <- StringToGRanges(paste(getGenomicRegion(igv)$chrom, getGenomicRegion(igv)$start, getGenomicRegion(igv)$end, sep="-"))
+cons.filt.subset <- cons.filt[cons.filt %over% current.loc]
+cons_filt <- igvR::GRangesQuantitativeTrack("cons_filt",cons.filt.subset)
+displayTrack(igv, cons_filt)
+```
+
 
 
 ```{r Reading Seurat dataobject}
