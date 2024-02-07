@@ -190,14 +190,33 @@ dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;')
 
 # Calcualte expression and accessibility information into the database
 
-```{r Calculate and upload gene expression data per cell group into separate table}
+```{r Calculate and upload average gene expression data per cell group into separate table}
 ensg_ids <- dbGetQuery(con, 'SELECT DISTINCT ensg_id FROM tobias;')[,1]
 
-TF.expression.data.avg <- AverageExpression(dataset, assays = "RNA", features = ensg_ids, group.by = "rv2.lineage_re")[[1]]
+TF.expression.data.avg2 <- AverageExpression(dataset, assays = "RNA", features = ensg_ids, group.by = "rv2.lineage_re", layer = "data")[[1]]
 
 dbWriteTable(con, "exp", as.data.frame(TF.expression.data.avg) %>% rownames_to_column("ensg_id") %>% as_tibble(), overwrite=TRUE)
 
 dbExecute(con, 'CREATE INDEX ensg_ids_2 ON exp (ensg_id);')
+```
+
+```{r Calculate and upload z-score normalized gene expression averages per TF gene per cell group into separate table}
+ensg_ids <- dbGetQuery(con, 'SELECT DISTINCT ensg_id FROM tobias;')[,1]
+
+DefaultAssay(dataset) <- "RNA"
+TF.expression.data <- FetchData(object=dataset, assays = "RNA", vars = c(ensg_ids,"rv2.lineage_re"))
+TF.expression.data.mat <- as.matrix(expm1(as_tibble(TF.expression.data) %>% select(!starts_with("rv"))))
+TF.expression.data.mat <- as_tibble(t(scale(t(TF.expression.data.mat))))
+TF.expression.data.mat$rv2.lineage_re <- TF.expression.data$rv2.lineage_re
+TF.expression.data.mat <- pivot_longer(TF.expression.data.mat, cols = !starts_with("rv"))
+
+TF.expr.scaled <- TF.expression.data.mat %>% group_by(rv2.lineage_re, name) %>% summarise(avg.exp=mean(value,na.rm=T)) %>% pivot_wider(values_from = avg.exp, names_from = rv2.lineage_re)
+
+names(TF.expr.scaled)[1] <- "ensg_id"
+
+dbWriteTable(con, "exp_scaled", TF.expr.scaled, overwrite=TRUE)
+
+dbExecute(con, 'CREATE INDEX ensg_ids_3 ON exp_scaled (ensg_id);')
 ```
 
 ```{r Calculate and upload feature accessibility data per feature per cell group into separate table }

@@ -18,13 +18,17 @@ library(factoextra)
 library(ggnewscale)
 library(dbplyr)
 library(DBI)
-library(igvR)
+#library(igvR)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
 ```
 
 ```{r Connection to SQLite}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
+
+tobias.table <- tbl(con, "tobias")
+exp.table <- tbl(con, "exp_scaled")
+acc.table <- tbl(con, "acc")
 ```
 
 ```{r Setting some areas of interest}
@@ -38,48 +42,51 @@ vsx2.feat15 <- "chr12-84569186-84572445"
 vsx2.feat17 <- "chr12-84589595-84590947"
 ```
 
-```{r Tal1 region}
-tobias.table <- tbl(con, "tobias")
-exp.table <- tbl(con, "exp")
-acc.table <- tbl(con, "acc")
-
-test <- filter(tobias.table, features==tal1.feat6) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
-
-test %>% show_query()
-
-test.data <- test %>% collect()
-
-fe2 <- filter(test.data, mean_cons>0.5 & (PRO1_2.x>0 | CO1_2.x>0 | GA1_2.x>0) & (PRO1_2_score>0 | CO1_2_score>0 | GA1_2_score>0))
-
-```
-
-```{r}
-create_dt(tobias.tm)
-```
-
 ```{r Generating bunch of bedgraphs for IGV}
-writeBED.SQL.data(fe2, "Tal1f6_cons", "mean_cons")
-writeBED.SQL.data(fe2, filename="Tal1f6_cons_TF_motif", meta_column = "TFBS_name")
-
-cons.filt <- qread(file="../metadata/cons.filt.gr.qs", nthreads = 8)
+# writeBED.SQL.data(fe2, "Tal1f6_cons", "mean_cons")
+# writeBED.SQL.data(fe2, filename="Tal1f6_cons_TF_motif", meta_column = "TFBS_name")
+# 
+# cons.filt <- qread(file="../metadata/cons.filt.gr.qs", nthreads = 8)
 ```
 
 
-```{r}
-tobias.table <- tbl(con, "tobias")
-exp.table <- tbl(con, "exp")
-acc.table <- tbl(con, "acc")
+```{r Tal1f6}
+Tal1f6 <- filter(tobias.table, features==tal1.feat6) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
 
-test <- filter(tobias.table, features==tal1.feat6) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
+Tal1f6.data <- Tal1f6 %>% collect()
 
-test.data <- test %>% collect()
+#fp.mean.by.motif <- Tal1f6.data %>% group_by(TFBS_name) %>% summarize(mean.fp=mean(mean(PRO1_2_score),mean(CO1_2_score), mean(GA1_2_score),mean(GL1_2_score)))
 
-fp.mean.by.motif <- test.data %>% group_by(TFBS_name) %>% summarize(mean.fp=mean(mean(PRO1_2_score),mean(CO1_2_score), mean(GA1_2_score),mean(GL1_2_score)))
-
-test.data.filt<- left_join(test.data,fp.mean.by.motif) %>% filter((PRO1_2.x>1.2 | CO1_2.x>1.2 | GA1_2.x>1.2) & (PRO1_2_bound==1 | CO1_2_bound==1 | GA1_2_bound==1) %>% filter(mean_cons>.5)
+Tal1f6.data.filt <- Tal1f6.data %>% filter((abs(PRO1_2.x)>1.5 | abs(CO1_2.x)>1.5 | abs(GA1_2.x)>1.5) & (PRO1_2_bound==1 | CO1_2_bound==1 | GA1_2_bound==1) & mean_cons>.5) %>% arrange(start)
 
 # Replace cases where TF motif repeats and overlaps itself with average row.
+
+Tal1f6.data.filt$TFBS_name_comb <- paste(str_remove(string = Tal1f6.data.filt$TFBS_name, pattern = "_.*")," (",Tal1f6.data.filt$start,"-",Tal1f6.data.filt$end,")",sep="")
+Tal1f6.data.filt$TFBS_name_comb <- factor(Tal1f6.data.filt$TFBS_name_comb, levels = Tal1f6.data.filt$TFBS_name_comb)
+
 ```
+
+
+```{r}
+
+p.1 <- ggplot(Tal1f6.data.filt) + 
+    geom_point(aes(x = TFBS_name_comb, fill=PRO1_2.x, y="4",
+                   shape=as.character(PRO1_2_bound)), size=5) +
+  geom_point(aes(x = TFBS_name_comb, fill=CO1_2.x, y="3",
+                 shape=as.character(CO1_2_bound)), size=5) + 
+  geom_point(aes(x = TFBS_name_comb, fill=GA1_2.x, y="2",
+                 shape=as.character(GA1_2_bound)), size=5) +
+  geom_point(aes(x = TFBS_name_comb, fill=GL1_2.x, y="1",
+                 shape=as.character(GL1_2_bound)), size=5) +
+scale_fill_gradient2(low="blue", mid="gray",high="red", midpoint = 0) + theme_minimal() + theme(axis.text.x = element_text(size = 12, angle = 90)) + ylab("Cell group") + scale_shape_manual(values=c(4,22) , guide = "none") + scale_y_discrete("Cell group", labels=c("4"="PRO1_2","3"="CO1_2","2"="GA1_2","1"="GL1_2")) + labs(fill="Expression z-score")
+  
+  
+  scale_x_discrete("TF-motif", labels=Tal1f6.data.filt$TFBS_name) + 
+
+
+```
+
+
 
 ```{r}
 library(igvR)
