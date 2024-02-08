@@ -41,6 +41,19 @@ Mistä RNA data tuli
 
 ## TF-footprinting
 
+
+## RNAscope image segmentation and analysis
+### StarDist based segmentation
+1.Creation of training images for StarDist model building
+- 10 images covering majority of cell shapes and sizes in the [WHAT DISSECTION?] dissections of E12.5 R1 were manually painted based on DAPI channel information to identify each cell. This was done with software [WHAT?].
+2. Training images were used to train Startdist model as per /code/RNAscope/Stardist_training.ipynb
+3. DAPI channel of each actual analysis images was then used to segment images and discover cell boundaries as per /code/RNAscope/Prediction.ipynb
+4. ROIs of each image were exported as ImageJ ROIS.zip files
+
+### Downstream analysis of intensities of fluorescence channels in ROIs
+1. ROIs of each image were read into R with intensities per channel per image as per /code/RNAscope/SegmentationAnalysis.Rmd
+2. Futher downstream analysis to calculate intensity changes of each channel as a function of cell migration alogn radial axis (away from ventricular zone) were calculated as per /code/RNAscope/SegmentationAnalysis.Rmd
+
 ## Cut & Run data processing
 
 1. nf-core/cutandrun quality filtering and alignment steps
