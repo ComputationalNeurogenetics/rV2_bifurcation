@@ -61,6 +61,74 @@ Tal1f6.p1
 dev.off()
 ```
 
+
+```{r}
+plot_loc_tal1 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Tal1/"
+Tal1.features <- as_tibble(read_clip_tbl(header=FALSE))
+```
+
+```{r Plot all Tal1 features}
+for (i in 1:nrow(Tal1.features)){
+  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]))
+  if(is.list(p1)){
+  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
+  print(p1)
+  dev.off()
+  }
+}
+
+```
+
+```{r}
+plot_loc_vsx2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Vsx2/"
+Vsx2.features <- as_tibble(read_clip_tbl(header=FALSE))
+```
+
+```{r Plot all Vsx2 features}
+for (i in 1:nrow(Vsx2.features)){
+  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]))
+  if(is.list(p1)){
+  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
+  print(p1)
+  dev.off()
+  }
+}
+
+```
+```{r}
+plot_loc_gata2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Gata2/"
+Gata2.features <- as_tibble(read_clip_tbl(header=FALSE))
+```
+
+```{r Plot all Gata2 features}
+for (i in 1:nrow(Gata2.features)){
+  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]))
+  if(is.list(p1)){
+  pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
+  print(p1)
+  dev.off()
+  }
+}
+
+```
+
+```{r}
+plot_loc_gata3 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Gata3/"
+Gata3.features <- as_tibble(read_clip_tbl(header=FALSE))
+```
+
+```{r Plot all Gata3 features}
+for (i in 1:nrow(Gata3.features)){
+  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]))
+  if(is.list(p1)){
+  pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
+  print(p1)
+  dev.off()
+  }
+}
+
+```
+
 ```{r Tal1f6}
 Tal1f6.p1 <- plotHorizDotplot_v2(feature.coords = tal1.feat6)
 
