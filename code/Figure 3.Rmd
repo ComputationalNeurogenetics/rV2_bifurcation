@@ -18,6 +18,7 @@ library(factoextra)
 library(ggnewscale)
 library(dbplyr)
 library(DBI)
+library(clipr)
 #library(igvR)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
@@ -69,10 +70,11 @@ Tal1.features <- as_tibble(read_clip_tbl(header=FALSE))
 
 ```{r Plot all Tal1 features}
 for (i in 1:nrow(Tal1.features)){
-  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]))
-  if(is.list(p1)){
-  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
-  print(p1)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]))
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  print(p3)
   dev.off()
   }
 }
@@ -86,10 +88,11 @@ Vsx2.features <- as_tibble(read_clip_tbl(header=FALSE))
 
 ```{r Plot all Vsx2 features}
 for (i in 1:nrow(Vsx2.features)){
-  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]))
-  if(is.list(p1)){
-  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
-  print(p1)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]))
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  print(p3)
   dev.off()
   }
 }
@@ -102,10 +105,11 @@ Gata2.features <- as_tibble(read_clip_tbl(header=FALSE))
 
 ```{r Plot all Gata2 features}
 for (i in 1:nrow(Gata2.features)){
-  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]))
-  if(is.list(p1)){
-  pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
-  print(p1)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]))
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  print(p3)
   dev.off()
   }
 }
@@ -119,10 +123,11 @@ Gata3.features <- as_tibble(read_clip_tbl(header=FALSE))
 
 ```{r Plot all Gata3 features}
 for (i in 1:nrow(Gata3.features)){
-  p1 <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]))
-  if(is.list(p1)){
-  pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 12, height = 8)
-  print(p1)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]))
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
+    p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  print(p3)
   dev.off()
   }
 }
