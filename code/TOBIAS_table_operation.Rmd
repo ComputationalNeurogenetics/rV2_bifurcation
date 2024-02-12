@@ -3,8 +3,6 @@ title: "R Notebook of TOBIAS table operations"
 output: html_notebook
 ---
 
-
-
 ```{r Packages, message=FALSE}
 library(rtracklayer)
 library(qs)
@@ -50,9 +48,13 @@ all.features <- StringToGRanges(rownames(dataset))
 ```
 
 ```{r Reading Tobias results and H12 metadata, eval=FALSE}
-rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
-H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
-H12.metadata$TF.rep <- paste(H12.metadata$name,"_",H12.metadata$name,sep="")
+#rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
+
+rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/Volumes/VarastoNAS/UniversityData/TOBIAS_090224/TFBS/",parallel=T, mc.cores=2, HOCOMOCO=12)
+
+#H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
+#H12.metadata$TF.rep <- paste(H12.metadata$name,"_",H12.metadata$name,sep="")
+H12.metadata <- read_csv("../metadata/H12.data.csv", col_names = TRUE)
 ```
 
 ```{r TRansform tobias gr to tb, eval=FALSE}
@@ -91,6 +93,8 @@ con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sql
 ```{r Write TOBIAS data into SQlite, eval=FALSE}
 dbWriteTable(con, "tobias", tobias.tb.2, overwrite=TRUE)
 dbListTables(con)
+rm(tobias.tb.2)
+gc()
 ```
 
 ```{r Build indeces, eval=FALSE}
@@ -138,6 +142,7 @@ dbExecute(con, 'DROP TABLE gene_name_tmp;')
 
 dbExecute(con, 'CREATE INDEX TF_gene_name ON tobias (TF_gene_name);')
 dbExecute(con, 'CREATE INDEX ensg_id ON tobias (ensg_id);')
+gc()
 ```
 
 ```{r Reading conservation data}
@@ -188,14 +193,14 @@ SET mean_cons = (
 dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;')
 ```
 
-# Calcualte expression and accessibility information into the database
+# Calculate expression and accessibility information into the database
 
 ```{r Calculate and upload average gene expression data per cell group into separate table}
 ensg_ids <- dbGetQuery(con, 'SELECT DISTINCT ensg_id FROM tobias;')[,1]
 
 TF.expression.data.avg2 <- AverageExpression(dataset, assays = "RNA", features = ensg_ids, group.by = "rv2.lineage_re", layer = "data")[[1]]
 
-dbWriteTable(con, "exp", as.data.frame(TF.expression.data.avg) %>% rownames_to_column("ensg_id") %>% as_tibble(), overwrite=TRUE)
+dbWriteTable(con, "exp", as.data.frame(TF.expression.data.avg2) %>% rownames_to_column("ensg_id") %>% as_tibble(), overwrite=TRUE)
 
 dbExecute(con, 'CREATE INDEX ensg_ids_2 ON exp (ensg_id);')
 ```
@@ -228,5 +233,3 @@ dbWriteTable(con, "acc", as.data.frame(acc.avg.data) %>% rownames_to_column("fea
 
 dbExecute(con, 'CREATE INDEX features_2 ON acc (features);')
 ```
-
-
