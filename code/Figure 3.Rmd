@@ -16,6 +16,7 @@ library(GenomicRanges)
 library(patchwork)
 library(factoextra)
 library(ggnewscale)
+library(viridis)
 library(dbplyr)
 library(DBI)
 library(clipr)
@@ -28,7 +29,7 @@ source("../../AuxCode/AuxFunctions.R")
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
 
 tobias.table <- tbl(con, "tobias")
-exp.table <- tbl(con, "exp_scaled")
+exp.table <- tbl(con, "exp")
 acc.table <- tbl(con, "acc")
 ```
 

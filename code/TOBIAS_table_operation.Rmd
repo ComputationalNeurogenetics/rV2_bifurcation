@@ -79,7 +79,7 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
 
 # con <- dbColumnInfonnect(RMySQL::MySQL(), 
 #                  dbname = "tobias", 
