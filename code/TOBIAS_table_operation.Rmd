@@ -54,7 +54,8 @@ rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/Vol
 
 #H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
 #H12.metadata$TF.rep <- paste(H12.metadata$name,"_",H12.metadata$name,sep="")
-H12.metadata <- read_csv("../metadata/H12.data.csv", col_names = TRUE)
+#write_csv(H12.metadata, col_names = TRUE, file = "../metadata/H12.data.csv")
+H12.metadata <- read_delim("../metadata/H12.data_INSM1_added.csv", col_names = TRUE, delim = ";")
 ```
 
 ```{r TRansform tobias gr to tb, eval=FALSE}
@@ -114,7 +115,7 @@ ON tobias (features);')
 ```{r}
 tobias.tm <- dbGetQuery(con, 'SELECT TFBS_name FROM tobias')
 
-tobias.tm <- left_join(tobias.tm, select(H12.metadata, TF.rep, masterlist_info.tf,ensg_id), by=c("TFBS_name"="TF.rep"))
+tobias.tm <- left_join(tobias.tm, select(H12.metadata, TF.rep, masterlist_info.tf,ensg_id), by=c("TFBS_name"="TF.rep")) %>% distinct()
 colnames(tobias.tm) <- c("TFBS_name","masterlist_info_tf","ensg_id")
 
 dbWriteTable(con, "gene_name_tmp", tobias.tm)
