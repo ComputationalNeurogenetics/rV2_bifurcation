@@ -20,7 +20,7 @@ library(viridis)
 library(dbplyr)
 library(DBI)
 library(clipr)
-#library(igvR)
+library(igvR)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
 ```
@@ -77,7 +77,7 @@ for (i in 1:nrow(Tal1.features)){
   p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
   print(p3)
   dev.off()
-  }
+  }face
 }
 
 ```
@@ -135,6 +135,62 @@ for (i in 1:nrow(Gata3.features)){
 
 ```
 
+```{r}
+library(igvR)
+igv <- igvR()
+setBrowserWindowTitle(igv, "mm10 TOBIAS")
+setGenome(igv, "mm10")
+showGenomicRegion(igv, str_replace(string = tal1.feat6, pattern = "-", replacement = ":"))
+
+TFBS_name <- table.tmp.2 %>% select(seqnames,start,end,TFBS_name)
+
+TFBS_name <- DataFrameAnnotationTrack("TFBS_name", TFBS_name, color="forestgreen", displayMode="EXPANDED", trackHeight = 500)
+displayTrack(igv, TFBS_name)
+
+
+saveToSVG(igv,"igv.tmp.svg")
+# rsvg::rsvg_png(
+#   "igv.tmp.svg", "igv.tmp.svg.png",
+#   width = 2048, height = 2048
+# )
+
+p3 <- cowplot::ggdraw() + cowplot::draw_image("./igv.tmp.svg")
+(p3 + plot_spacer()) / (p1 + p2) & plot_layout(widths = c(10,.5))
+
+
+
+
+design <- plot_layout(design="333#
+                              1112")
+patchwork::wrap_plots(B=p3,A=p1,C=p2,design=design)
+
+(p3 | plot_spacer()) / (p1 | p2) + plot_layout(widths = c(8,2))
+
+p1 + p2 + p3 + design
+
+GA1_2_score <- test.data.filt %>% select(seqnames,start,end,GA1_2_score)
+
+CO1_2_score <- test.data.filt %>% select(seqnames,start,end,CO1_2_score)
+
+GA1_2_score.track <- DataFrameQuantitativeTrack("CO1_2_score", as.data.frame(CO1_2_score), color="red", autoscale=TRUE)
+CO1_2_score.track <- DataFrameQuantitativeTrack("GA1_2_score", as.data.frame(GA1_2_score), color="red", autoscale=TRUE)
+displayTrack(igv, CO1_2_score.track)
+displayTrack(igv, GA1_2_score.track)
+
+GA1_2_exp <- test.data.filt %>% select(seqnames,start,end,GA1_2.x)
+GA1_2_exp.track <- DataFrameQuantitativeTrack("GA1_2_exp", as.data.frame(CO1_2_score), color="blue", autoscale=TRUE)
+displayTrack(igv, GA1_2_exp.track)
+
+current.loc <- StringToGRanges(paste(getGenomicRegion(igv)$chrom, getGenomicRegion(igv)$start, getGenomicRegion(igv)$end, sep="-"))
+cons.filt.subset <- cons.filt[cons.filt %over% current.loc]
+cons_filt <- igvR::GRangesQuantitativeTrack("cons_filt",cons.filt.subset)
+displayTrack(igv, cons_filt)
+```
+
+
+
+
+
 ```{r Tal1f6}
 Tal1f6.p1 <- plotHorizDotplot_v2(feature.coords = tal1.feat6)
 
@@ -191,36 +247,7 @@ Vsx2f17.p1
 dev.off()
 ```
 
-```{r}
-library(igvR)
-igv <- igvR()
-setBrowserWindowTitle(igv, "mm10 TOBIAS")
-setGenome(igv, "mm10")
-showGenomicRegion(igv, "TAL1")
 
-TFBS_name <- test.data.filt %>% select(seqnames,start,end,TFBS_name)
-
-TFBS_name <- DataFrameAnnotationTrack("TFBS_name", TFBS_name, color="forestgreen", displayMode="EXPANDED", trackHeight = 500)
-displayTrack(igv, TFBS_name)
-
-GA1_2_score <- test.data.filt %>% select(seqnames,start,end,GA1_2_score)
-
-CO1_2_score <- test.data.filt %>% select(seqnames,start,end,CO1_2_score)
-
-GA1_2_score.track <- DataFrameQuantitativeTrack("CO1_2_score", as.data.frame(CO1_2_score), color="red", autoscale=TRUE)
-CO1_2_score.track <- DataFrameQuantitativeTrack("GA1_2_score", as.data.frame(GA1_2_score), color="red", autoscale=TRUE)
-displayTrack(igv, CO1_2_score.track)
-displayTrack(igv, GA1_2_score.track)
-
-GA1_2_exp <- test.data.filt %>% select(seqnames,start,end,GA1_2.x)
-GA1_2_exp.track <- DataFrameQuantitativeTrack("GA1_2_exp", as.data.frame(CO1_2_score), color="blue", autoscale=TRUE)
-displayTrack(igv, GA1_2_exp.track)
-
-current.loc <- StringToGRanges(paste(getGenomicRegion(igv)$chrom, getGenomicRegion(igv)$start, getGenomicRegion(igv)$end, sep="-"))
-cons.filt.subset <- cons.filt[cons.filt %over% current.loc]
-cons_filt <- igvR::GRangesQuantitativeTrack("cons_filt",cons.filt.subset)
-displayTrack(igv, cons_filt)
-```
 
 
 
