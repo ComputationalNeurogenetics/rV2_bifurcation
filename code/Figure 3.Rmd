@@ -26,7 +26,7 @@ source("../../AuxCode/AuxFunctions.R")
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
 
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")
@@ -74,10 +74,10 @@ for (i in 1:nrow(Tal1.features)){
   p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]))
   if(is.list(p)){
   pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
-  }face
+  }
 }
 
 ```
@@ -92,13 +92,15 @@ for (i in 1:nrow(Vsx2.features)){
   p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]))
   if(is.list(p)){
   pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
   }
 }
 
 ```
+
+
 ```{r}
 plot_loc_gata2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Gata2/"
 Gata2.features <- as_tibble(read_clip_tbl(header=FALSE))
@@ -109,7 +111,7 @@ for (i in 1:nrow(Gata2.features)){
   p <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]))
   if(is.list(p)){
   pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
   }
@@ -127,7 +129,7 @@ for (i in 1:nrow(Gata3.features)){
   p <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]))
   if(is.list(p)){
   pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-    p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+    p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
   }
@@ -147,15 +149,17 @@ TFBS_name <- table.tmp.2 %>% select(seqnames,start,end,TFBS_name)
 TFBS_name <- DataFrameAnnotationTrack("TFBS_name", TFBS_name, color="forestgreen", displayMode="EXPANDED", trackHeight = 500)
 displayTrack(igv, TFBS_name)
 
-
 saveToSVG(igv,"igv.tmp.svg")
-# rsvg::rsvg_png(
-#   "igv.tmp.svg", "igv.tmp.svg.png",
-#   width = 2048, height = 2048
-# )
 
 p3 <- cowplot::ggdraw() + cowplot::draw_image("./igv.tmp.svg")
+
+
+plots <- plotHorizDotplot_v3(feature.coords = tal1.feat6)
+
+
 (p3 + plot_spacer()) / (p1 + p2) & plot_layout(widths = c(10,.5))
+
+
 
 
 
@@ -165,6 +169,7 @@ design <- plot_layout(design="333#
 patchwork::wrap_plots(B=p3,A=p1,C=p2,design=design)
 
 (p3 | plot_spacer()) / (p1 | p2) + plot_layout(widths = c(8,2))
+
 
 p1 + p2 + p3 + design
 
