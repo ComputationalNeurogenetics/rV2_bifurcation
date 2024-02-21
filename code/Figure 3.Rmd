@@ -56,8 +56,10 @@ Tal1.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Tal1 features}
+maxes <- find.maxes(features=Tal1.features)
+
 for (i in 1:nrow(Tal1.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]))
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]), max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
   if(is.list(p)){
   pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
   p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
