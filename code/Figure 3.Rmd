@@ -23,18 +23,19 @@ library(clipr)
 library(igvR)
 source("../../AuxCode/TOBIAS_tools.R")
 source("../../AuxCode/AuxFunctions.R")
+cores<-8
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
 
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")
 acc.table <- tbl(con, "acc")
 ```
 
-```{r}
-plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/"
+```{r Reading conservation data}
+cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
 ```
 
 ```{r Setting some areas of interest}
@@ -48,21 +49,6 @@ vsx2.feat15 <- "chr12-84569186-84572445"
 vsx2.feat17 <- "chr12-84589595-84590947"
 ```
 
-```{r Generating bunch of bedgraphs for IGV}
-# writeBED.SQL.data(fe2, "Tal1f6_cons", "mean_cons")
-# writeBED.SQL.data(fe2, filename="Tal1f6_cons_TF_motif", meta_column = "TFBS_name")
-# 
-# cons.filt <- qread(file="../metadata/cons.filt.gr.qs", nthreads = 8)
-```
-
-```{r Tal1f6}
-Tal1f6.p1 <- plotHorizDotplot(feature.coords = tal1.feat6)
-
-pdf(file=paste(plot_loc,"Tal1f6_dotplot.pdf",sep=""), width = 12, height = 8)
-Tal1f6.p1
-dev.off()
-```
-
 
 ```{r}
 plot_loc_tal1 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Tal1/"
@@ -70,17 +56,36 @@ Tal1.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Tal1 features}
+maxes <- find.maxes(features=Tal1.features)
+
 for (i in 1:nrow(Tal1.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]))
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]), max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
   if(is.list(p)){
-  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
-  }face
+  }
 }
 
 ```
+
+```{r Plot all Tal1 features dotplot v3, echo=FALSE}
+maxes <- find.maxes(features=Tal1.features)
+
+igv<-igvR()
+for (i in 1:nrow(Tal1.features)){
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Tal1.features[i,2]), igv=igv, cons.filt=cons.gr, max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
+    plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
+  print(plot.to.plot)
+  dev.off()
+  }
+}
+rm(igv)
+```
+
 
 ```{r}
 plot_loc_vsx2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Vsx2/"
@@ -88,33 +93,67 @@ Vsx2.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Vsx2 features}
+maxes <- find.maxes(features=Vsx2.features)
 for (i in 1:nrow(Vsx2.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]))
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
   if(is.list(p)){
-  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
   }
 }
-
 ```
+
+```{r Plot all Vsx2 features dotplot v3, echo=FALSE}
+maxes <- find.maxes(features=Vsx2.features)
+igv<-igvR()
+for (i in 1:nrow(Vsx2.features)){
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Vsx2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
+    plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
+  print(plot.to.plot)
+  dev.off()
+  }
+}
+rm(igv)
+```
+
+
 ```{r}
 plot_loc_gata2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Gata2/"
 Gata2.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Gata2 features}
+maxes <- find.maxes(features=Gata2.features)
 for (i in 1:nrow(Gata2.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]))
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
   if(is.list(p)){
-  pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-  p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
+  p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
   }
 }
 
+```
+
+
+```{r Plot all Gata2 features dotplot v3, echo=FALSE}
+maxes <- find.maxes(features=Gata2.features)
+igv<-igvR()
+for (i in 1:nrow(Gata2.features)){
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Gata2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
+    plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
+  print(plot.to.plot)
+  dev.off()
+  }
+}
+rm(igv)
 ```
 
 ```{r}
@@ -122,40 +161,70 @@ plot_loc_gata3 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript 
 Gata3.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
-```{r Plot all Gata3 features}
+```{r Plot all Gata3 features dotplot v2}
+maxes <- find.maxes(features=Gata2.features)
 for (i in 1:nrow(Gata3.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]))
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
   if(is.list(p)){
-  pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 8)
-    p3 <- p$p1 + p$p2 + plot_layout(widths = c(5, 1))
+  pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
+    p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
   print(p3)
   dev.off()
   }
 }
-
 ```
+
+```{r Plot all Gata3 features dotplot v3, echo=FALSE}
+maxes <- find.maxes(features=Gata2.features)
+igv<-igvR()
+for (i in 1:nrow(Gata3.features)){
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Gata3.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
+    plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
+  print(plot.to.plot)
+  dev.off()
+  }
+}
+rm(igv)
+```
+
+
+
+# Junk
+
+
+
+
+
 
 ```{r}
 library(igvR)
 igv <- igvR()
-setBrowserWindowTitle(igv, "mm10 TOBIAS")
-setGenome(igv, "mm10")
-showGenomicRegion(igv, str_replace(string = tal1.feat6, pattern = "-", replacement = ":"))
+# setBrowserWindowTitle(igv, "mm10 TOBIAS")
+# setGenome(igv, "mm10")
+# showGenomicRegion(igv, str_replace(string = tal1.feat6, pattern = "-", replacement = ":"))
+# 
+# TFBS_name <- table.tmp.2 %>% select(seqnames,start,end,TFBS_name)
+# 
+# TFBS_name <- DataFrameAnnotationTrack("TFBS_name", TFBS_name, color="forestgreen", displayMode="EXPANDED", trackHeight = 500)
+# displayTrack(igv, TFBS_name)
+# 
+# saveToSVG(igv,"igv.tmp.svg")
+# 
+# p3 <- cowplot::ggdraw() + cowplot::draw_image("./igv.tmp.svg")
 
-TFBS_name <- table.tmp.2 %>% select(seqnames,start,end,TFBS_name)
 
-TFBS_name <- DataFrameAnnotationTrack("TFBS_name", TFBS_name, color="forestgreen", displayMode="EXPANDED", trackHeight = 500)
-displayTrack(igv, TFBS_name)
+plots <- plotHorizDotplot_v3(feature.coords = tal1.feat6, igv=igv)
+
+plots$p3 + plot_spacer() + plots$p1 + plots$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
 
 
-saveToSVG(igv,"igv.tmp.svg")
-# rsvg::rsvg_png(
-#   "igv.tmp.svg", "igv.tmp.svg.png",
-#   width = 2048, height = 2048
-# )
+(plots$p3 | plot_spacer()) / (plots$p1 | plots$p2) + plot_layout(widths = c(8,2))
 
-p3 <- cowplot::ggdraw() + cowplot::draw_image("./igv.tmp.svg")
-(p3 + plot_spacer()) / (p1 + p2) & plot_layout(widths = c(10,.5))
+(plots$p3 + plot_spacer()) / (plots$p1 + plots$p2) & plot_layout(widths = c(10,.5), heights = c(5,5))
+
+
 
 
 
@@ -164,9 +233,10 @@ design <- plot_layout(design="333#
                               1112")
 patchwork::wrap_plots(B=p3,A=p1,C=p2,design=design)
 
-(p3 | plot_spacer()) / (p1 | p2) + plot_layout(widths = c(8,2))
 
-p1 + p2 + p3 + design
+
+
+plots$p3 + plot_spacer() + plots$p1 + plots$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5))
 
 GA1_2_score <- test.data.filt %>% select(seqnames,start,end,GA1_2_score)
 
