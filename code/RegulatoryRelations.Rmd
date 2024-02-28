@@ -1,0 +1,88 @@
+---
+title: "R Notebook of analysis of regulatory relations from fp,acc,exp and C&T data"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_notebook:
+    code_folding: hide
+---
+
+```{r Packages}
+library(rtracklayer)
+library(qs)
+library(Seurat)
+library(Signac)
+library(tidyverse)
+library(GenomicRanges)
+library(parallel)
+library(dbplyr)
+library(DBI)
+```
+
+
+```{r Additional functions}
+message_parallel <- function(...){
+  system(sprintf('echo "\n%s\n"', paste0(..., collapse="")))
+}
+```
+
+```{r Reading Seurat dataobject}
+dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
+DefaultAssay(dataset) <- "RNA"
+
+dataset$rv2.lineage_re <- case_when(
+  dataset$rv2.lineage %in% "PRO1" ~ "PRO1_2",
+  dataset$rv2.lineage %in% "PRO2" ~ "PRO1_2",
+  dataset$rv2.lineage %in% "GA1" ~ "GA1_2",
+  dataset$rv2.lineage %in% "GA2" ~ "GA1_2",
+  dataset$rv2.lineage %in% "GA3" ~ "GA3_4",
+  dataset$rv2.lineage %in% "GA4" ~ "GA3_4",
+  dataset$rv2.lineage %in% "GA5" ~ "GA5_6",
+  dataset$rv2.lineage %in% "GA6" ~ "GA5_6",
+  dataset$rv2.lineage %in% "CO1" ~ "CO1_2",
+  dataset$rv2.lineage %in% "CO2" ~ "CO1_2",
+  dataset$rv2.lineage %in% "GL1" ~ "GL1_2",
+  dataset$rv2.lineage %in% "GL2" ~ "GL1_2",
+  dataset$rv2.lineage %in% "GL3" ~ "GL3_4",
+  dataset$rv2.lineage %in% "GL4" ~ "GL3_4",
+  dataset$rv2.lineage %in% "GL5" ~ "GL5",
+)
+
+DefaultAssay(dataset) <- "peaks"
+all.features <- StringToGRanges(rownames(dataset))
+```
+
+```{r Connection to SQLite}
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
+```
+
+```{r Write features table into SQLite}
+features.tb <- as_tibble(all.features)
+features.tb$feature <- paste(features.tb$seqnames,"-",features.tb$start,"-",features.tb$end,sep="")
+
+dbWriteTable(con.obj, "feature", features.tb, overwrite=TRUE)
+dbExecute(con.obj, 'CREATE INDEX features2 ON feature (feature);')
+dbExecute(con.obj, 'CREATE INDEX seqnames2 ON feature (seqnames);')
+dbExecute(con.obj, 'CREATE INDEX start2 ON feature (start);')
+dbExecute(con.obj, 'CREATE INDEX end2 ON feature (end);')
+```
+
+```{r}
+test.1 <- dbGetQuery(con.obj, 'SELECT * FROM feature WHERE seqnames="chr4" AND start>=114986077 AND end<=115134633')
+
+test.2 <- dbGetQuery(con.obj, 'SELECT * FROM tobias as tb,feature as ft, exp as exp WHERE ft.seqnames="chr4" AND ft.start>=114986077 AND ft.end<=115134633 AND tb.features==ft.feature AND mean_cons>0.5 AND exp')
+```
+
+
+```{r}
+tobias.table <- tbl(con.obj, "tobias")
+exp.table <- tbl(con.obj, "exp")
+acc.table <- tbl(con.obj, "acc")
+
+table.tmp.1 <- dplyr::filter(tobias.table, features==feature.coords) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
+
+table.tmp.2 <- table.tmp.1 %>% collect()
+  
+table.tmp.2 <- table.tmp.2 %>% filter((abs(PRO1_2.x)>exp.thr | abs(CO1_2.x)>exp.thr | abs(GA1_2.x)>exp.thr) & (PRO1_2_bound==1 | CO1_2_bound==1 | GA1_2_bound==1) & mean_cons>mean_cons_thr) %>% arrange(start)
+  
+```
+
