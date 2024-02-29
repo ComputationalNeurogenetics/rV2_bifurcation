@@ -1,0 +1,105 @@
+---
+title: "TAD"
+author: "Original author: Amos Bonsdorff, Updated: Sami Kilpinen"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r, message=FALSE}
+source("../../../AuxCode/AuxFunctions.R")
+
+library(SeuratObject)
+library(GenomicRanges)
+library(dplyr)
+library(tibble)
+library(Signac)
+library(Seurat)
+library(ChIPpeakAnno)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(EnsDb.Mmusculus.v79)
+```
+
+#Seurat object and refGenome
+```{r}
+E12_rV2 <-  readRDS("../../scATAC_data/nmm_rv2_subset_pseudotimed_180522.Rds", refhook = NULL)
+
+mm10.v79.genome.GR <- toGRanges(
+  EnsDb.Mmusculus.v79,
+  feature = c("gene", "transcript", "exon", "disjointExons")
+)
+```
+##Lets find some distal enhancer regions for the four marker genes. We could do this by adding the information of TAD areas and limit the search of distal enhancers to the region of nearest TAD.
+```{r}
+#Define the marker genes to be used
+markergenes <- tibble("gene_name" = c("Tal1", "Gata2", "Gata3", "Vsx2"), "feature" = c("ENSMUSG00000028717", "ENSMUSG00000015053", "ENSMUSG00000015619", "ENSMUSG00000021239"))
+
+#the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
+TAD.map <- read_table("../../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end"))%>% 
+  GRanges()
+
+#Function
+TAD <- lapply(markergenes$gene_name, function(idx){
+  
+  #first we find the TAD - topologically associated domain - for each of the marker genes
+  gene.range <- mm10.v79.genome.GR[which(mm10.v79.genome.GR$gene_name == idx)]
+  
+  Overlapinfo <- findOverlaps(gene.range, TAD.map)
+  
+  TAD <- TAD.map[Overlapinfo@to]
+  
+  gene <- tibble(gene = idx)
+  
+  mcols(TAD) <- gene
+  
+  TAD.df <- TAD%>%
+    as_tibble()
+  gene.range.df <- gene.range%>%
+    as_tibble()
+  
+  gene <- markergenes$feature[which(markergenes$gene_name == idx)]
+  
+
+  
+  Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = gene, gene.id = T, distance = TAD.df$width)
+  
+  links <- as_tibble(Link.Seurat@assays$peaks@links)[c(-1,-2,-3,-4,-5)]%>%
+  rename("feature"="gene")
+
+  links <- links %>%
+    dplyr::filter(zscore > 0)
+  
+  links <- separate(links, col = "peak",c("seqnames", "start", "end"), sep = "-")
+
+  
+  start <- as.numeric(links$start)
+  end <- as.numeric(links$end)
+  
+  b <- which(start > TAD.df$start & end < TAD.df$end)
+  
+  links <- links[b,]%>%
+    GRanges()
+  
+  
+})
+
+names(TAD) <- markergenes$gene_name
+TAD
+```
+
+
+```{r}
+#saveRDS(TAD, "../data/MarkerGeneDistEnhancers.linkPeaks.amos220823")
+```
+
+
+
+
+
