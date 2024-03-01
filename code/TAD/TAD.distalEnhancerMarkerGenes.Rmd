@@ -1,6 +1,6 @@
 ---
 title: "TAD"
-author: "Original author: Amos Bonsdorff, Updated: Sami Kilpinen"
+author: "Original author: Amos Bonsdorff, Updated: Sami Kilpinen to calculate links globally and import to SQL"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
@@ -25,11 +25,20 @@ library(ggplot2)
 library(tidyr)
 library(tidyverse)
 library(EnsDb.Mmusculus.v79)
+library(qs)
+library(DBI)
+cores <-8
+```
+
+```{r SQL connection}
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
 ```
 
 #Seurat object and refGenome
 ```{r}
-E12_rV2 <-  readRDS("../../scATAC_data/nmm_rv2_subset_pseudotimed_180522.Rds", refhook = NULL)
+#E12_rV2 <-  readRDS("../../scATAC_data/nmm_rv2_subset_pseudotimed_180522.Rds", refhook = NULL)
+
+E12_rV2 <- qread(file = "../../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 
 mm10.v79.genome.GR <- toGRanges(
   EnsDb.Mmusculus.v79,
@@ -38,68 +47,37 @@ mm10.v79.genome.GR <- toGRanges(
 ```
 ##Lets find some distal enhancer regions for the four marker genes. We could do this by adding the information of TAD areas and limit the search of distal enhancers to the region of nearest TAD.
 ```{r}
-#Define the marker genes to be used
-markergenes <- tibble("gene_name" = c("Tal1", "Gata2", "Gata3", "Vsx2"), "feature" = c("ENSMUSG00000028717", "ENSMUSG00000015053", "ENSMUSG00000015619", "ENSMUSG00000021239"))
+DefaultAssay(E12_rV2) <- "RNA"
 
 #the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
 TAD.map <- read_table("../../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end"))%>% 
   GRanges()
 
 #Function
-TAD <- lapply(markergenes$gene_name, function(idx){
+TAD <- lapply(rownames(E12_rV2)[1:2], function(idx){
   
   #first we find the TAD - topologically associated domain - for each of the marker genes
-  gene.range <- mm10.v79.genome.GR[which(mm10.v79.genome.GR$gene_name == idx)]
-  
-  Overlapinfo <- findOverlaps(gene.range, TAD.map)
-  
-  TAD <- TAD.map[Overlapinfo@to]
-  
-  gene <- tibble(gene = idx)
-  
-  mcols(TAD) <- gene
-  
-  TAD.df <- TAD%>%
-    as_tibble()
-  gene.range.df <- gene.range%>%
-    as_tibble()
-  
-  gene <- markergenes$feature[which(markergenes$gene_name == idx)]
-  
+  gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
 
+  TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
+  Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = gene.range)
   
-  Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = gene, gene.id = T, distance = TAD.df$width)
-  
-  links <- as_tibble(Link.Seurat@assays$peaks@links)[c(-1,-2,-3,-4,-5)]%>%
-  rename("feature"="gene")
+  links <- as_tibble(Link.Seurat@assays$peaks@links)[c(-1,-2,-3,-4,-5)]  %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
 
-  links <- links %>%
-    dplyr::filter(zscore > 0)
-  
-  links <- separate(links, col = "peak",c("seqnames", "start", "end"), sep = "-")
+  #links <- separate(links, col = "peak",c("seqnames", "start", "end"), sep = "-")
 
-  
-  start <- as.numeric(links$start)
-  end <- as.numeric(links$end)
-  
-  b <- which(start > TAD.df$start & end < TAD.df$end)
-  
-  links <- links[b,]%>%
-    GRanges()
-  
-  
+  dbWriteTable(con.obj, "links", links, overwrite=FALSE)
+
 })
 
-names(TAD) <- markergenes$gene_name
-TAD
+dbExecute(con.obj, 'CREATE INDEX ensg_id2 ON links (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX feature4 ON links (feature);')
+dbExecute(con.obj, 'CREATE INDEX zscore1 ON links (zscore);')
 ```
-
 
 ```{r}
-#saveRDS(TAD, "../data/MarkerGeneDistEnhancers.linkPeaks.amos220823")
+DBI::dbDisconnect(con.obj)
 ```
-
-
 
 
 
