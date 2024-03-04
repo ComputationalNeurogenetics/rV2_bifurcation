@@ -131,14 +131,16 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+
 ```
 
 ```{r Min dots per cell e3_1a_sb514}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -149,9 +151,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -254,14 +256,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e3_3b_sb509}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -271,9 +274,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -377,14 +380,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e3_1a_sb510}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -394,9 +398,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -499,14 +503,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e3b_1b_sb514}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -517,9 +522,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -624,14 +629,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e3b_3b_sb509}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -641,9 +647,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -748,14 +754,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e3b_1b_sb510}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -765,9 +772,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -873,14 +880,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e4_1c_sb514}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -890,9 +898,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -999,14 +1007,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e4_3e_sb509}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -1016,9 +1025,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
@@ -1124,14 +1133,15 @@ cell.centroids <- lapply(rois.ss, findCentroids)
 cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
 
 dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
 ```{r Min dots per cell e4_1c_sb510}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% filter(avg.dots>min.thr) %>% pull(cell.i)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
 
-count.per.cell.channel.filt <- filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
 ```
 
 ## Fluorescence over radial distance
@@ -1141,9 +1151,9 @@ ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_p
 ```
 
 ```{r}
-ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
-ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
