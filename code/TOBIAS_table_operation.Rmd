@@ -80,15 +80,26 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_030324.sqlite.sqlite")
 
-# con <- dbColumnInfonnect(RMySQL::MySQL(), 
-#                  dbname = "tobias", 
-#                  host = "localhost", 
-#                  port = 3306,
-#                  user = rstudioapi::askForPassword("Database user"),
-#                  password = rstudioapi::askForPassword("Database password")
-#                )
+```
+
+```{r Write gene.metadata into SQlite}
+gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% rename("feature_symbol"="gene_name")
+dbWriteTable(con.obj, "gene_metadata", gene.metadata, overwrite=TRUE)
+dbExecute(con.obj, 'CREATE INDEX ensg_id3 ON gene_metadata (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX gene_name3 ON gene_metadata (gene_name);')
+```
+
+```{r Write features table into SQLite, eval=FALSE}
+features.tb <- as_tibble(all.features)
+features.tb$feature <- paste(features.tb$seqnames,"-",features.tb$start,"-",features.tb$end,sep="")
+
+dbWriteTable(con.obj, "feature", features.tb, overwrite=TRUE)
+dbExecute(con.obj, 'CREATE INDEX features2 ON feature (feature);')
+dbExecute(con.obj, 'CREATE INDEX seqnames2 ON feature (seqnames);')
+dbExecute(con.obj, 'CREATE INDEX start2 ON feature (start);')
+dbExecute(con.obj, 'CREATE INDEX end2 ON feature (end);')
 ```
 
 ```{r Write TOBIAS data into SQlite, eval=FALSE}

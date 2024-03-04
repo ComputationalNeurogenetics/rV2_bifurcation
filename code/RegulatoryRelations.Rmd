@@ -25,53 +25,16 @@ message_parallel <- function(...){
 }
 ```
 
-```{r Reading Seurat dataobject, eval=FALSE}
-dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 6)
-DefaultAssay(dataset) <- "RNA"
-
-dataset$rv2.lineage_re <- case_when(
-  dataset$rv2.lineage %in% "PRO1" ~ "PRO1_2",
-  dataset$rv2.lineage %in% "PRO2" ~ "PRO1_2",
-  dataset$rv2.lineage %in% "GA1" ~ "GA1_2",
-  dataset$rv2.lineage %in% "GA2" ~ "GA1_2",
-  dataset$rv2.lineage %in% "GA3" ~ "GA3_4",
-  dataset$rv2.lineage %in% "GA4" ~ "GA3_4",
-  dataset$rv2.lineage %in% "GA5" ~ "GA5_6",
-  dataset$rv2.lineage %in% "GA6" ~ "GA5_6",
-  dataset$rv2.lineage %in% "CO1" ~ "CO1_2",
-  dataset$rv2.lineage %in% "CO2" ~ "CO1_2",
-  dataset$rv2.lineage %in% "GL1" ~ "GL1_2",
-  dataset$rv2.lineage %in% "GL2" ~ "GL1_2",
-  dataset$rv2.lineage %in% "GL3" ~ "GL3_4",
-  dataset$rv2.lineage %in% "GL4" ~ "GL3_4",
-  dataset$rv2.lineage %in% "GL5" ~ "GL5",
-)
-
-DefaultAssay(dataset) <- "peaks"
-all.features <- StringToGRanges(rownames(dataset))
-```
-
 ```{r Connection to SQLite, eval=FALSE}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_030324.sqlite")
 ```
 
-```{r Write features table into SQLite, eval=FALSE}
-features.tb <- as_tibble(all.features)
-features.tb$feature <- paste(features.tb$seqnames,"-",features.tb$start,"-",features.tb$end,sep="")
+```{r Example of fetching factors give group, gene_name}
+test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_2.sqlite", group_name = "CO1_2", gene_name = "Tal1", zscore.thr=0)
 
-dbWriteTable(con.obj, "feature", features.tb, overwrite=TRUE)
-dbExecute(con.obj, 'CREATE INDEX features2 ON feature (feature);')
-dbExecute(con.obj, 'CREATE INDEX seqnames2 ON feature (seqnames);')
-dbExecute(con.obj, 'CREATE INDEX start2 ON feature (start);')
-dbExecute(con.obj, 'CREATE INDEX end2 ON feature (end);')
-```
+test.gata2 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_2.sqlite", group_name = "CO1_2", gene_name = "Gata2", zscore.thr=0)
 
-```{r Example of fetching factors give group, chr, start and end}
-test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_2.sqlite", group_name = "CO1_2", chr="chr4",start=114986077,end=115134633)
-
-test.gata2 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_2.sqlite", group_name = "CO1_2", chr="chr6",start=88103987,end=88301611)
-
-test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_2.sqlite", group_name = "CO1_2", chr="chr2",start=9834965,end=9996391)
+test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_2.sqlite", group_name = "CO1_2", gene_name = "Gata3", zscore.thr=0)
 
 Reduce(intersect, list(test.tal1,test.gata2,test.gata3))
 
@@ -80,7 +43,7 @@ Reduce(intersect, list(test.tal1,test.gata2,test.gata3))
 ```{r}
 test.1 <- dbGetQuery(con.obj, 'SELECT * FROM feature WHERE seqnames="chr4" AND start>=114986077 AND end<=115134633')
 
-test.tal1 <- as_tibble(dbGetQuery(con.obj, 'SELECT tb.* FROM tobias as tb,feature as ft, exp as exp WHERE ft.seqnames="chr4" AND ft.start>=114986077 AND ft.end<=115134633 AND tb.features==ft.feature AND mean_cons>0.5 AND exp.ensg_id=tb.ensg_id AND (tb.GA1_2_bound=1) AND (exp.GA1_2>1.2)'))
+test.tal1 <- as_tibble(dbGetQuery(con.obj, 'SELECT tb.* FROM tobias as tb, exp as exp, links as links, gene_metadata as gm WHERE tb.features==links.feature AND mean_cons>0.5 AND exp.ensg_id=tb.ensg_id AND (tb.GA1_2_bound=1) AND (exp.GA1_2>1.2) AND links.ensg_id=gm.ensg_id AND gm.gene_name="Tal1" AND links.zscore>0 AND links.feature=tb.features'))
 
 test.gata2 <- as_tibble(dbGetQuery(con.obj, 'SELECT tb.* FROM tobias as tb,feature as ft, exp as exp WHERE ft.seqnames="chr6" AND ft.start>=88103987 AND ft.end<=88301611 AND tb.features==ft.feature AND mean_cons>0.5 AND exp.ensg_id=tb.ensg_id AND (tb.GA1_2_bound=1) AND (exp.GA1_2>1.2)'))
 
