@@ -1,0 +1,30 @@
+---
+title: "R Notebook of adding C&T into SQLite"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_notebook:
+    code_folding: hide
+---
+
+```{r Packages, message=FALSE}
+library(rtracklayer)
+library(qs)
+library(Seurat)
+library(Signac)
+library(tidyverse)
+library(GenomicRanges)
+library(parallel)
+library(dbplyr)
+library(DBI)
+```
+
+```{r Connection to SQLite, eval=FALSE}
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_030324.sqlite")
+```
+
+```{r}
+bed.1 <- read_delim(file="/Volumes/MyBookDuo/Data/Cut_Tag/out_260224/03_peak_calling/05_consensus_peaks/E12R1_Gata2.seacr.consensus.peaks.awk.bed", col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_name","consensus_replicate_count"))
+
+# TODO: Separate target gene_name
+```
+
