@@ -31,7 +31,7 @@ distance2D <- function(point1, point2) {
   y2 <- point2[2]
   
   # Calculating distance
-  distance <- sqrt((x2 - x1)^2 + (y2 - y1)^2)
+  distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2)*(211.30/2048))
   
   return(distance)
 }

@@ -19,6 +19,7 @@ library(viridis)
 library(slider)
 
 source("CellAuxFunctions.R")
+cores<-10
 ```
 
 # Image e3_1a_sb514 {.tabset}
@@ -75,7 +76,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -228,7 +229,8 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+  return(data.tb)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -352,7 +354,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -475,7 +477,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -601,7 +603,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -726,7 +728,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -852,7 +854,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -979,7 +981,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
@@ -1105,7 +1107,7 @@ combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
   im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
   
   data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=9)
+}, mc.cores=cores)
 
 comb.agg.tb <- do.call(rbind,combined.agg)
 ```
