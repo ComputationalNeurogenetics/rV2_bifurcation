@@ -245,3 +245,34 @@ dbWriteTable(con, "acc", as.data.frame(acc.avg.data) %>% rownames_to_column("fea
 
 dbExecute(con, 'CREATE INDEX features_2 ON acc (features);')
 ```
+
+```{r Finding consequent motif areas}
+tobias.table <- tbl(con.obj, "tobias")
+exp.table <- tbl(con.obj, "exp")
+acc.table <- tbl(con.obj, "acc")
+table.tmp.1 <- tobias.table %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features")) %>% dplyr::filter(mean_cons>0.5)
+table.tmp.2 <- table.tmp.1 %>% collect()
+
+table.tmp.2 <- table.tmp.2 %>% dplyr::filter((abs(PRO1_2.x)>1.2 | abs(CO1_2.x)>1.2 | abs(GA1_2.x)>1.2) & (PRO1_2_bound==1 | CO1_2_bound==1 | GA1_2_bound==1) & mean_cons>mean_cons_thr) %>% arrange(start)
+
+grB <- makeGRangesFromDataFrame(dplyr::select(table.tmp.2, seqnames, start, end, TFBS_name), keep.extra.columns = T)
+
+reduced_grB_with_map <- reduce(grB, min.gapwidth=0L,with.revmap = TRUE)
+
+
+# Step 2: Concatenate metadata based on the revmap information
+concatenated_metadata <- mclapply(reduced_grB_with_map$revmap, function(indices) {
+  if (length(indices) > 0) {
+    meta_values <- mcols(grB)[indices, ]
+    paste(unique(na.omit(meta_values)), collapse = "; ")
+  } else {
+    ""
+  }
+}, mc.cores = 10)
+
+mcols(reduced_grB_with_map)$concatenated_metadata <- concatenated_metadata
+
+plyranges::filter_by_overlaps(reduced_grB_with_map,StringToGRanges("chr4-114432894-115134633"))
+mcols(plyranges::filter_by_overlaps(reduced_grB_with_map,StringToGRanges("chr4-114432894-115134633")))$concatenated_metadata
+```
+
