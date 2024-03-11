@@ -1,6 +1,6 @@
 ---
 title: "R Notebook for plotting violinplots of for selected groups of genes"
-output: html_notebook
+output: html_document
 ---
 
 ```{r}
