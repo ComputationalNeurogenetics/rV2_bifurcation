@@ -1,0 +1,55 @@
+---
+title: "R Notebook for plotting violinplots of for selected groups of genes"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+library(readxl)
+library(hash)
+```
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/training/"
+
+rV2.dataset <- qread("scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
+
+serot.dataset <- qread("serot/sero_relabeled_201123_links.qs", nthreads = 10)
+```
+
+```{r}
+merged.datasets <- merge(rV2.dataset,serot.dataset)
+
+merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage, merged.datasets$sero.lineage), levels=c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4","GA5","GA6","GL1","GL2","GL3","GL4","GL5","SR1","SR2","SR3"))
+
+gene_name_hash <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
+
+DefaultAssay(merged.datasets) <- "RNA"
+```
+
+```{r}
+gene_groups <- read_excel("../ExpressionNeuralnet/data/GeneGroupExample.xlsx")
+gene_groups_long <- pivot_longer(gene_groups, cols = everything(), names_to = "Group", values_to = "feature")
+```
+
+```{r}
+for (gr in unique(gene_groups_long$Group)){
+  ensg.ids <- filter(gene_groups_long, Group==gr) %>% pull(feature)
+  pdf(file=paste(plot_loc,paste(gr,"_violinplots.pdf",sep=""),sep=""), width = 15, height = 12, onefile=TRUE)
+  for (ensg.id in ensg.ids){
+    tryCatch(
+      {plot.to.plot <- VlnPlot(merged.datasets, ensg.id, group.by = "merged.groups") + ggtitle(paste(ensg.id,gene_name_hash[["ENSMUSG00000021379"]],sep=""))
+      print(plot.to.plot)
+      }
+     , error=function(cond) {
+       paste(ensg.id,"not found",sep=" ")
+       }
+    )
+  }
+  dev.off()
+}
+```
+
