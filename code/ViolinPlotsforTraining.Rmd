@@ -41,7 +41,7 @@ for (gr in unique(gene_groups_long$Group)){
   pdf(file=paste(plot_loc,paste(gr,"_violinplots.pdf",sep=""),sep=""), width = 15, height = 12, onefile=TRUE)
   for (ensg.id in ensg.ids){
     tryCatch(
-      {plot.to.plot <- VlnPlot(merged.datasets, ensg.id, group.by = "merged.groups") + ggtitle(paste(ensg.id,gene_name_hash[["ENSMUSG00000021379"]],sep=""))
+      {plot.to.plot <- VlnPlot(merged.datasets, ensg.id, group.by = "merged.groups") + ggtitle(paste(ensg.id,gene_name_hash[[ensg.id]],sep=" - "))
       print(plot.to.plot)
       }
      , error=function(cond) {
