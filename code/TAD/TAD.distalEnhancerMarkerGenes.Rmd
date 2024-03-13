@@ -31,10 +31,6 @@ library(parallel)
 cores <-8
 ```
 
-```{r SQL connection}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
-```
-
 #Seurat object and refGenome
 ```{r}
 #E12_rV2 <-  readRDS("../../scATAC_data/nmm_rv2_subset_pseudotimed_180522.Rds", refhook = NULL)
@@ -45,10 +41,14 @@ mm10.v79.genome.GR <- toGRanges(
   EnsDb.Mmusculus.v79,
   feature = c("gene", "transcript", "exon", "disjointExons")
 )
+
+mm10.v79.genome.GR$gene_id <- names(mm10.v79.genome.GR)
 ```
+
 ##Lets find some distal enhancer regions for the four marker genes. We could do this by adding the information of TAD areas and limit the search of distal enhancers to the region of nearest TAD.
 ```{r}
-anno.dat <- Annotation(E12_rV2)
+# DefaultAssay(E12_rV2) <- "peaks"
+# anno.dat <- Annotation(E12_rV2)
 DefaultAssay(E12_rV2) <- "RNA"
 
 gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(E12_rV2)))
@@ -60,39 +60,39 @@ TAD.map <- read_table("../../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold
 #Function
 links.within.TADs <- mclapply(gene_ids, function(idx){
 
-  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
+  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_030324.sqlite")
   #first we find the TAD - topologically associated domain - for each of the marker genes
   gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
 
   TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
   tryCatch({
-  Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts",
-  expression.slot = "data",
-  method = "pearson",)
+    Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
   
-  links <- as_tibble(Link.Seurat@assays$peaks@links)[c(-1,-2,-3,-4,-5)] %>% rename("feature"="peak") %>% rename("ensg_id"="gene")
-  }, error = function(e) {
-  cat("An error occurred:", e$message, "\n")
-  NA # Return NA if an error occurs
-}, warning = function(w) {
-  cat("A warning occurred:", w$message, "\n")})
+    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
+    },
+  error = function(e) {
+    cat("An error occurred:", e$message, "\n")
+    },
+  warning = function(w) {
+    cat("A warning occurred:", w$message, "\n")
+  })
   # Handle warning if necessary)
-  #links <- separate(links, col = "peak",c("seqnames", "start", "end"), sep = "-")
+  
   success <- FALSE
-  while(!success) {
+  while(!success & base::exists("links.tb")) {
     tryCatch({
-      dbWriteTable(con.obj, "links", links, overwrite=FALSE, append=TRUE,)
+      dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
       success <- TRUE # If dbWriteTable succeeds, set success to TRUE
     }, error = function(e) {
-      Sys.sleep(1) # Wait for 5 seconds before retrying
+      Sys.sleep(0.5) # Wait for 1 seconds before retrying
     })
   }
   
   DBI::dbDisconnect(con.obj)
   #return(links)
-}, mc.cores = 8)
+}, mc.cores = cores)
 
-dbExecute(con.obj, 'CREATE INDEX ensg_id2 ON links (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
 dbExecute(con.obj, 'CREATE INDEX feature4 ON links (feature);')
 dbExecute(con.obj, 'CREATE INDEX zscore1 ON links (zscore);')
 ```
