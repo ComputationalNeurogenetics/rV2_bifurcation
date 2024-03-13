@@ -68,3 +68,17 @@ table.tmp.2 <- table.tmp.2 %>% filter((abs(PRO1_2.x)>exp.thr | abs(CO1_2.x)>exp.
   
 ```
 
+```{r}
+tobias.table <- tbl(con.obj, "tobias")
+acc.table <- tbl(con.obj, "acc")
+
+min.acc <- min(pull(acc.table,CO1_2))
+max.acc <- max(pull(acc.table,CO1_2))
+
+bound.query <- paste("SELECT SUM(CASE WHEN tb.CO1_2_bound=1 THEN 1 ELSE 0 END) AS Bounds, SUM(CASE WHEN tb.CO1_2_bound=0 THEN 1 ELSE 0 END) AS Unbounds FROM tobias as tb, acc as ac WHERE ac.features=tb.features AND ac.CO1_2>0")
+
+table.tmp.1 <- left_join(tobias.table, acc.table, by=c("features"="features")) %>% filter(CO1_2_bound==1 & CO1_2>0)
+table.tmp.2 <- collect(table.tmp.1)
+
+```
+
