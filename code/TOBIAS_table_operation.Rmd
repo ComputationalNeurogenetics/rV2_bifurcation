@@ -246,9 +246,70 @@ dbWriteTable(con, "acc", as.data.frame(acc.avg.data) %>% rownames_to_column("fea
 dbExecute(con, 'CREATE INDEX features_2 ON acc (features);')
 ```
 
+```{r Additional corrections to TF_gene_name field}
+dbExecute(con, "UPDATE tobias
+SET TF_gene_name = 'NGN1'
+WHERE TF_gene_name LIKE '1,0%NGN';")
+
+dbExecute(con, "UPDATE tobias
+SET TF_gene_name = 'NGN2'
+WHERE TF_gene_name LIKE '2,0%NGN';")
+```
 
 ```{r Calculating LinkPeaks within TADs}
-# TODO: add code here from the separate file
+E12_rV2 <- qread(file = "../../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+
+mm10.v79.genome.GR <- toGRanges(
+  EnsDb.Mmusculus.v79,
+  feature = c("gene", "transcript", "exon", "disjointExons")
+)
+
+mm10.v79.genome.GR$gene_id <- names(mm10.v79.genome.GR)
+
+DefaultAssay(E12_rV2) <- "RNA"
+
+gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(E12_rV2)))
+
+#the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
+TAD.map <- read_table("../../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end"))%>% 
+  GRanges()
+
+#Function
+links.within.TADs <- mclapply(gene_ids, function(idx){
+
+  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
+  #first we find the TAD - topologically associated domain - for each of the marker genes
+  gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
+
+  TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
+  tryCatch({
+    Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
+  
+    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
+      success <- FALSE
+    while(!success & base::exists("links.tb")) {
+      tryCatch({
+        dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
+        success <- TRUE # If dbWriteTable succeeds, set success to TRUE
+      }, error = function(e) {
+        Sys.sleep(0.25) # Wait for 1 seconds before retrying
+      })
+    }
+    },
+  error = function(e) {
+    cat("An error occurred:", e$message, "\n")
+    },
+  warning = function(w) {
+    cat("A warning occurred:", w$message, "\n")
+  })
+  # Handle warning if necessary)
+  DBI::dbDisconnect(con.obj)
+  #return(links)
+}, mc.cores = cores)
+
+dbExecute(con.obj, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX feature4 ON links (feature);')
+dbExecute(con.obj, 'CREATE INDEX zscore1 ON links (zscore);')
 ```
 
 
