@@ -246,6 +246,12 @@ dbWriteTable(con, "acc", as.data.frame(acc.avg.data) %>% rownames_to_column("fea
 dbExecute(con, 'CREATE INDEX features_2 ON acc (features);')
 ```
 
+
+```{r Calculating LinkPeaks within TADs}
+# TODO: add code here from the separate file
+```
+
+
 ```{r Finding consequent motif areas}
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")

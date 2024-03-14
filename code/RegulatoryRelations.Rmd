@@ -68,17 +68,92 @@ table.tmp.2 <- table.tmp.2 %>% filter((abs(PRO1_2.x)>exp.thr | abs(CO1_2.x)>exp.
   
 ```
 
-```{r}
-tobias.table <- tbl(con.obj, "tobias")
+```{r, eval=FALSE}
 acc.table <- tbl(con.obj, "acc")
 
 min.acc <- min(pull(acc.table,CO1_2))
 max.acc <- max(pull(acc.table,CO1_2))
+acc.steps <- seq(min.acc,max.acc, by=0.25)
 
-bound.query <- paste("SELECT SUM(CASE WHEN tb.CO1_2_bound=1 THEN 1 ELSE 0 END) AS Bounds, SUM(CASE WHEN tb.CO1_2_bound=0 THEN 1 ELSE 0 END) AS Unbounds FROM tobias as tb, acc as ac WHERE ac.features=tb.features AND ac.CO1_2>0")
+bound.ratios <- lapply(acc.steps[-1],function(step){
+  bound.query <- paste("SELECT SUM(CASE WHEN tb.CO1_2_bound=1 THEN 1 ELSE 0 END) AS Bounds, SUM(CASE WHEN tb.CO1_2_bound=0 THEN 1 ELSE 0 END) AS Unbounds FROM tobias as tb, acc as ac WHERE ac.features=tb.features AND ac.CO1_2 BETWEEN",step-0.25,"AND",step,";",sep=" ")
+  as_tibble(dbGetQuery(con, bound.query))
+})
 
-table.tmp.1 <- left_join(tobias.table, acc.table, by=c("features"="features")) %>% filter(CO1_2_bound==1 & CO1_2>0)
-table.tmp.2 <- collect(table.tmp.1)
-
+saveRDS(bound.ratios, file="../analysis/bound.ratios.Rds")
 ```
 
+```{r}
+bound.ratios.tb <- as_tibble(do.call(rbind,bound.ratios))
+bound.ratios.tb$ratio <- bound.ratios.tb$Bounds/bound.ratios.tb$Unbounds
+bound.ratios.tb$acc_range <- factor(paste(acc.steps-0.25,acc.steps,sep="-")[-1])
+
+df_long <- bound.ratios.tb %>% pivot_longer(cols = c(Bounds, Unbounds), names_to = "Type", values_to = "Value")
+df_long$Value <- log2(df_long$Value)
+df_long$Value[!is.finite(df_long$Value)]<-0
+         
+ggplot(data = df_long, aes(x = acc_range, y = Value, fill = Type)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_line(data = df_long, aes(x = acc_range, y = ratio, group = 1), color = "blue", linetype = "dashed") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Ratio")) +
+  labs(y = "Value", x = "Accessibility") +
+  theme_minimal() + ylab("log2(count)") + ggtitle("Bound/Unboud counts in CO1_2 per Acc range")
+```
+
+```{r}
+bound.ratios.tb <- as_tibble(do.call(rbind,bound.ratios))
+bound.ratios.tb$ratio <- bound.ratios.tb$Bounds/bound.ratios.tb$Unbounds
+bound.ratios.tb$acc_range <- factor(paste(acc.steps-0.25,acc.steps,sep="-")[-1])
+
+df_long <- bound.ratios.tb %>% pivot_longer(cols = c(Bounds, Unbounds), names_to = "Type", values_to = "Value")
+
+ggplot(data = df_long, aes(x = acc_range, y = Value, fill = Type)) +
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.7) +
+  geom_line(data = df_long, aes(x = acc_range, y = ratio, group = 1), color = "blue", linetype = "dashed") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Ratio")) +
+  labs(y = "Value", x = "Accessibility") +
+  theme_minimal() + ylab("Count") + ggtitle("Bound/Unboud counts in CO1_2 per Acc range")
+```
+```{r}
+
+feature <- "chr1-3670394-3672637"
+
+all.features<- na.omit(as.vector(dbGetQuery(con, "SELECT DISTINCT(features) FROM tobias;"))[[1]])
+
+MIs.per.feature <- mclapply(all.features, function(feature){
+  feature.fetch.query <- paste("SELECT PRO1_2_bound,CO1_2_bound,GA1_2_bound,GA3_4_bound,GA5_6_bound, GL1_2_bound,GL3_4_bound,GL5_bound, PRO1_2, CO1_2, GA1_2,GA3_4,GA5_6,GL1_2,GL3_4,GL5 FROM tobias as tb, acc as ac WHERE ac.features=tb.features AND tb.features='",feature,"';",sep="")
+  feat.data.tmp <- as_tibble(dbGetQuery(con, feature.fetch.query))
+    
+  MIs.feature <- sapply(1:nrow(feat.data.tmp),function(row.i){
+  mut.tmp <- mutinformation(discretize(as.numeric(feat.data.tmp[row.i,9:16]), disc="equalwidth"), Y = as.numeric(feat.data.tmp[row.i,1:8]))
+  return(mut.tmp)
+  })
+  return(MIs.feature)
+}, mc.cores=6)
+
+
+summary(sapply(MIs.per.feature,mean))
+hist(sapply(MIs.per.feature,mean), main="Avg. mutual information between bound/unbound and acc. per feature ")
+
+saveRDS(MIs.per.feature,file="../analysis/MIs.per.feature.Rds")
+```
+
+```{r}
+all.features<- na.omit(as.vector(dbGetQuery(con, "SELECT DISTINCT(features) FROM tobias;"))[[1]])
+
+MIs.score.per.feature <- mclapply(all.features, function(feature){
+  feature.fetch.query <- paste("SELECT PRO1_2_score,CO1_2_score,GA1_2_score,GA3_4_score,GA5_6_score, GL1_2_score,GL3_4_score,GL5_score, PRO1_2, CO1_2, GA1_2,GA3_4,GA5_6,GL1_2,GL3_4,GL5 FROM tobias as tb, acc as ac WHERE ac.features=tb.features AND tb.features='",feature,"';",sep="")
+  feat.data.tmp <- as_tibble(dbGetQuery(con, feature.fetch.query))
+    
+  MIs.feature <- sapply(1:nrow(feat.data.tmp),function(row.i){
+  mut.tmp <- mutinformation(discretize(as.numeric(feat.data.tmp[row.i,9:16]), disc="equalwidth"), Y = discretize(as.numeric(feat.data.tmp[row.i,1:8], disc="equalwidth")))
+  return(mut.tmp)
+  })
+  return(MIs.feature)
+}, mc.cores=6)
+
+
+summary(sapply(MIs.score.per.feature,mean))
+
+saveRDS(MIs.score.per.feature,file="../analysis/MIs.per.score.feature.Rds")
+```
