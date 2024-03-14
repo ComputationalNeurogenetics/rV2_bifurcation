@@ -80,8 +80,7 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_030324.sqlite")
-
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -254,6 +253,10 @@ WHERE TF_gene_name LIKE '1,0%NGN';")
 dbExecute(con, "UPDATE tobias
 SET TF_gene_name = 'NGN2'
 WHERE TF_gene_name LIKE '2,0%NGN';")
+
+dbExecute(con, "UPDATE tobias
+SET TF_gene_name = 'MAD4'
+WHERE TF_gene_name LIKE '4,0%MAD';")
 ```
 
 ```{r Calculating LinkPeaks within TADs}
@@ -307,10 +310,40 @@ links.within.TADs <- mclapply(gene_ids, function(idx){
   #return(links)
 }, mc.cores = cores)
 
-dbExecute(con.obj, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
-dbExecute(con.obj, 'CREATE INDEX feature4 ON links (feature);')
-dbExecute(con.obj, 'CREATE INDEX zscore1 ON links (zscore);')
+dbExecute(con, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
+dbExecute(con, 'CREATE INDEX feature4 ON links (feature);')
+dbExecute(con, 'CREATE INDEX zscore1 ON links (zscore);')
+dbExecute(con, 'CREATE INDEX links_pvalue ON links (pvalue);')
 ```
+
+```{r C&T data import}
+consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_080324/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
+
+consensus.beds <- lapply(consensus.beds.path, function(path){
+  tmp.1 <- read_delim(file = path, col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_names","consensus_replicate_count"))
+  if (nrow(tmp.1)>0){
+  tmp.1$target_gene_name <- str_extract(string=tmp.1$sample_names, pattern = "(?<=_)[^_]+(?=_)")
+  return(tmp.1)
+  } else {
+    return(NA)
+  }
+  })
+
+consensus.beds.tb <- do.call(rbind,consensus.beds)
+
+
+total_signals_table <- consensus.beds.tb %>%
+  dplyr::select(chr,start,end, total_signals) %>%
+  separate_rows(total_signals, sep = ",") %>%
+  mutate(tag_id = row_number()) # Create unique IDs for tags
+
+
+expanded_data <- consensus.beds.tb %>%
+  separate_rows(total_signals, sep = ",") %>%
+  left_join(total_signals_table, by = "total_signals")
+
+```
+
 
 
 ```{r Finding consequent motif areas}
