@@ -348,7 +348,7 @@ normalized_data<-normalized_data[!is.na(normalized_data$chr),]
 
 ```{r}
 ct.gr <- makeGRangesFromDataFrame(normalized_data,na.rm=T, keep.extra.columns = T)
-feat.gr <- StringToGRanges(all.features)
+feat.gr <- all.features
 
 # Assuming ct.gr and feat.gr are already defined GRanges objects
 # Find overlaps
@@ -369,6 +369,8 @@ overlap_info <- tibble(
 
 normalized_data_expanded <- normalized_data %>%
   right_join(overlap_info, by = "row_id")
+
+normalized_data_expanded <- normalized_data_expanded %>% mutate(start=as.integer(start), end=as.integer(end), total_signals=as.numeric(total_signals), max_signals=as.numeric(max_signals), consensus_replicate_count=as.integer(consensus_replicate_count))
 
 ```
 
