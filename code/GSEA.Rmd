@@ -1,0 +1,107 @@
+---
+title: "R Notebook for testing GSEA calculations for target genes"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+library(readxl)
+library(hash)
+library(fgsea)
+library(DBI)
+```
+
+```{r}
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "../../TOBIAS.dr.h12_030324.sqlite")
+```
+
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/training/"
+
+rV2.dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 3)
+
+serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = 3)
+```
+
+```{r}
+merged.datasets <- merge(rV2.dataset,serot.dataset)
+
+merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage, merged.datasets$sero.lineage), levels=c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4","GA5","GA6","GL1","GL2","GL3","GL4","GL5","SR1","SR2","SR3"))
+
+gene_name_hash <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
+
+DefaultAssay(merged.datasets) <- "RNA"
+```
+
+
+```{r}
+assay.averages <- AverageExpression(merged.datasets,group.by = "merged.groups")
+
+```
+
+```{r}
+log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1"]/assay.averages$RNA[,"GL1"])
+log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
+
+TF_name<-"Tal1"
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND tb.GA1_2_bound=1 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features;",sep="") 
+targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+
+TF_name<-"Vsx2"
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND tb.GL1_2_bound=1 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features;",sep="") 
+targets.Vsx2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+
+geneSets <- list(targets.Tal1=targets.Tal1$ensg_id, targets.Vsx2=targets.Vsx2$ensg_id, GABA.genes=GABA.genes, GLU.genes=GLUT.genes)
+
+results <- fgsea(pathways = geneSets, 
+                 stats = log2.GA1_GL1, 
+                 minSize = 6,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+print(results)
+```
+
+```{r}
+TF_name<-"Vsx2"
+log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1"]/assay.averages$RNA[,"GL1"])
+log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
+
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>1.5 AND tb.GA1_2_bound=1 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features;",sep="") 
+targets.1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+
+geneSets <- list(Vsxset1=targets.1$ensg_id, GABA.genes=GABA.genes,GLU.genes=GLUT.genes)
+
+results_Vsx2 <- fgsea(pathways = geneSets, 
+                 stats = log2.GA1_GL1, 
+                 minSize = 6,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+
+```
+
+
+```{r}
+gene_groups <- read_excel("../ExpressionNeuralnet/data/GeneGroupExample.xlsx")
+gene_groups_long <- pivot_longer(gene_groups, cols = everything(), names_to = "Group", values_to = "feature")
+```
+
+```{r}
+for (gr in unique(gene_groups_long$Group)){
+  ensg.ids <- filter(gene_groups_long, Group==gr) %>% pull(feature)
+  pdf(file=paste(plot_loc,paste(gr,"_violinplots.pdf",sep=""),sep=""), width = 15, height = 12, onefile=TRUE)
+  for (ensg.id in ensg.ids){
+    tryCatch(
+      {plot.to.plot <- VlnPlot(merged.datasets, ensg.id, group.by = "merged.groups") + ggtitle(paste(ensg.id,gene_name_hash[[ensg.id]],sep=" - "))
+      print(plot.to.plot)
+      }
+     , error=function(cond) {
+       paste(ensg.id,"not found",sep=" ")
+       }
+    )
+  }
+  dev.off()
+}
+```
+
