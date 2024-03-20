@@ -389,6 +389,8 @@ dbExecute(con, 'CREATE INDEX CT_data_target_gene_name ON CT_data (target_gene_na
 ```{r}
 DefaultAssay(dataset) <- "peaks"
 acc.data.matrix <- FetchData(dataset, vars = rownames(dataset))
+zero.test <- apply(acc.data.matrix,2,function(col){!all(col==0)})
+acc.data.matrix<- acc.data.matrix[,zero.test]
 DefaultAssay(dataset) <- "RNA"
 
 TF_ensg_ids <- unique(dbGetQuery(con, 'SELECT ensg_id FROM tobias;')[,1])
@@ -398,15 +400,15 @@ mclapply(TF_ensg_ids, function(ensg_id){
   tryCatch({
     exp.data.matrix <- FetchData(dataset, vars = ensg_id)
     if (!all(exp.data.matrix[,1]==0)){
+    #message_parallel(paste("Calculating gene ",ensg_id))
     test.res <- na.omit(cor(exp.data.matrix,acc.data.matrix, method = "spearman", use="pairwise.complete.obs"))
     data.to.db <- tibble(ensg_id=rownames(test.res),feature=colnames(test.res),cor=test.res[1,])
     
     success <- FALSE
+    con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
     while(!success) {
       tryCatch({
-        con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
-        dbWriteTable(con.obj, "gene2feat_cor", data.to.db, overwrite=FALSE, append=TRUE)
-        success <- TRUE
+        success <- dbWriteTable(con.obj, "gene2feat_cor", data.to.db, overwrite=FALSE, append=TRUE)
         DBI::dbDisconnect(con.obj)
       }, error = function(e) {
         Sys.sleep(0.25)
@@ -422,7 +424,8 @@ mclapply(TF_ensg_ids, function(ensg_id){
   },warning=function(cond){
     cond
   })
-}, mc.cores = 2)
+  
+},mc.cores=3)
 dbExecute(con, 'CREATE INDEX gene2feat_cor_ensg_id ON gene2feat_cor (ensg_id);')
 dbExecute(con, 'CREATE INDEX gene2feat_cor_cor ON gene2feat_cor (cor);')
 dbExecute(con, 'CREATE INDEX gene2feat_cor_cor ON gene2feat_cor (feature);')
