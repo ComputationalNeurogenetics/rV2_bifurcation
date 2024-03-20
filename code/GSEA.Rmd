@@ -17,7 +17,7 @@ library(hash)
 
 ```{r}
 cores <- 8
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "../../TOBIAS.dr.h12_130324.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
 ```
 
 
@@ -61,15 +61,14 @@ DefaultAssay(merged.datasets) <- "RNA"
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 assay.averages <- AverageExpression(merged.datasets,group.by = "merged.groups")
-
 ```
 
 ```{r}
 #min.filter <- (assay.averages$RNA[,"GA1_2"]>0.1 | assay.averages$RNA[,"GA1_2"]==0) & (assay.averages$RNA[,"GL1_2"]>0.1 | assay.averages$RNA[,"GL1_2"]==0)
-log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1_2"]/assay.averages$RNA[,"GL1_2"])
-log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
+#log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1_2"]/assay.averages$RNA[,"GL1_2"])
+#log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
 
 Idents(merged.datasets) <- merged.datasets$rv2.lineage_re
 DEG.res <- FindMarkers(merged.datasets, ident.1="GA1_2", ident.2 = "GL1_2") %>% rownames_to_column(var="ensg_id") %>% as_tibble()
@@ -78,35 +77,35 @@ DEG.res.final <- filter(DEG.res, p_val_adj<0.01) %>%  pull(avg_log2FC)
 names(DEG.res.final) <- filter(DEG.res, p_val_adj<0.01) %>% pull(ensg_id)
 
 TF_name<-"Tal1"
-targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5;",sep="")
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5;",sep="")
 targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 plotEnrichment(targets.Tal1$ensg_id, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
 
 TF_name<-"Gata2"
-targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
 targets.Gata2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 plotEnrichment(targets.Gata2$ensg_id, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
 
 TF_name<-"Gata3"
-targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
 targets.Gata3 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 plotEnrichment(targets.Gata3$ensg_id, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
 
 TF_name<-"Vsx2"
-targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
 targets.Vsx2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 plotEnrichment(targets.Vsx2$ensg_id, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
 
 TF_name<-"Sox4"
-targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
+targetQuery <- paste("SELECT li.ensg_id FROM links as li, tobias as tb, CT_data as ct WHERE tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
 targets.Sox4 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 plotEnrichment(targets.Sox4$ensg_id, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
 
-geneSets <- list(targets.Tal1=targets.Tal1$ensg_id, targets.Gata2=targets.Gata2$ensg_id, targets.Gata3=targets.Gata3$ensg_id,targets.Sox4=targets.Sox4$ensg_id, targets.Vsx2=targets.Vsx2$ensg_id, GABA.genes=GABA.genes, GLU.genes=GLUT.genes)
+geneSets <- list(targets.Tal1=targets.Tal1$ensg_id, targets.Gata2=targets.Gata2$ensg_id, targets.Gata3=targets.Gata3$ensg_id,targets.Sox4=targets.Sox4$ensg_id, targets.Vsx2=targets.Vsx2$ensg_id)
 
 results <- fgsea(pathways = geneSets, 
                  stats = DEG.res.final, 
-                 minSize = 6,  # Minimum size of a gene set to be considered
+                 minSize = 15,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 print(results)
 #create_dt(results)
