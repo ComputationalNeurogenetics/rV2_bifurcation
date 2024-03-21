@@ -72,9 +72,9 @@ DefaultAssay(merged.datasets) <- "RNA"
 #log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1_2"]/assay.averages$RNA[,"GL1_2"])
 #log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
 Idents(merged.datasets) <- merged.datasets$rv2.lineage_re
-DEG.res <- FindMarkers(merged.datasets, ident.1="GA1_2", ident.2 = "GL1_2") %>% rownames_to_column(var="ensg_id") %>% as_tibble()
+DEG.res <- FindMarkers(merged.datasets, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
 
-DEG.res.final <- filter(DEG.res, p_val_adj<0.05) %>%  pull(avg_log2FC)
+DEG.res.final <- filter(DEG.res, p_val_adj<0.05) %>% pull(avg_log2FC)
 names(DEG.res.final) <- filter(DEG.res, p_val_adj<0.05) %>% pull(ensg_id)
 names(DEG.res.final) <- sapply(names(DEG.res.final),function(ensg_id){values(gene_name_hash[ensg_id])})
 ```
@@ -205,6 +205,66 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 ```
 
+## With C&T included in conditions and correlation with TF expression itself to the target feature
+
+```{r}
+cor.thr <- 0.25
+
+TF_name<-"Tal1"
+TF_ensg_id <- gene_name2id[[TF_name]]
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm, gene2feat_cor as gfc WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5 AND gfc.ensg_id='",TF_ensg_id,"' AND gfc.feature=li.feature AND gfc.cor>",cor.thr,";",sep="")
+targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Tal1$gene_name, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
+tmp.vect <- sort(na.omit(DEG.res.final[targets.Tal1$gene_name]))
+create_dt(tibble(gene_name=names(tmp.vect),exp.log2fold=tmp.vect))
+
+TF_name<-"Gata2"
+TF_ensg_id <- gene_name2id[[TF_name]]
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm, gene2feat_cor as gfc WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5 AND gfc.ensg_id='",TF_ensg_id,"' AND gfc.feature=li.feature AND gfc.cor>",cor.thr,";",sep="")
+targets.Gata2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Gata2$gene_name, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
+tmp.vect <- sort(na.omit(DEG.res.final[targets.Gata2$gene_name]))
+create_dt(tibble(gene_name=names(tmp.vect),exp.log2fold=tmp.vect))
+
+TF_name<-"Gata3"
+TF_ensg_id <- gene_name2id[[TF_name]]
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm, gene2feat_cor as gfc WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5 AND gfc.ensg_id='",TF_ensg_id,"' AND gfc.feature=li.feature AND gfc.cor>",cor.thr,";",sep="")
+targets.Gata3 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Gata3$gene_name, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
+tmp.vect <- sort(na.omit(DEG.res.final[targets.Gata3$gene_name]))
+create_dt(tibble(gene_name=names(tmp.vect),exp.log2fold=tmp.vect))
+
+TF_name<-"Vsx2"
+TF_ensg_id <- gene_name2id[[TF_name]]
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm, gene2feat_cor as gfc WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5 AND gfc.ensg_id='",TF_ensg_id,"' AND gfc.feature=li.feature AND gfc.cor>",cor.thr,";",sep="")
+targets.Vsx2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Vsx2$gene_name, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
+tmp.vect <- sort(na.omit(DEG.res.final[targets.Vsx2$gene_name]))
+create_dt(tibble(gene_name=names(tmp.vect),exp.log2fold=tmp.vect))
+
+TF_name<-"Sox4"
+TF_ensg_id <- gene_name2id[[TF_name]]
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm, gene2feat_cor as gfc WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5 AND gfc.ensg_id='",TF_ensg_id,"' AND gfc.feature=li.feature AND gfc.cor>",cor.thr,";",sep="")
+targets.Sox4 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Sox4$gene_name, DEG.res.final) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG"))
+tmp.vect <- sort(na.omit(DEG.res.final[targets.Sox4$gene_name]))
+create_dt(tibble(gene_name=names(tmp.vect),exp.log2fold=tmp.vect))
+
+geneSets <- list(targets.Tal1=targets.Tal1$gene_name, targets.Gata2=targets.Gata2$gene_name, targets.Gata3=targets.Gata3$gene_name,targets.Sox4=targets.Sox4$gene_name, targets.Vsx2=targets.Vsx2$gene_name)
+
+results <- fgsea(pathways = geneSets, 
+                 stats = DEG.res.final, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+print("Summary")
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+```
 <!-- ```{r} -->
 <!-- TF_name<-"Tal1" -->
 <!-- targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND tb.GA1_2_bound=1 AND GL1_2_bound=0 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5;",sep="")  -->
