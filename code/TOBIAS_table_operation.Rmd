@@ -84,7 +84,7 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -428,7 +428,7 @@ mclapply(TF_ensg_ids, function(ensg_id){
 },mc.cores=3)
 dbExecute(con, 'CREATE INDEX gene2feat_cor_ensg_id ON gene2feat_cor (ensg_id);')
 dbExecute(con, 'CREATE INDEX gene2feat_cor_cor ON gene2feat_cor (cor);')
-dbExecute(con, 'CREATE INDEX gene2feat_cor_cor ON gene2feat_cor (feature);')
+dbExecute(con, 'CREATE INDEX gene2feat_cor_feature ON gene2feat_cor (feature);')
 ```
 
 
@@ -465,5 +465,36 @@ plyranges::filter_by_overlaps(reduced_grB_with_map,StringToGRanges("chr4-1144328
 mcols(plyranges::filter_by_overlaps(reduced_grB_with_map,StringToGRanges("chr4-114432894-115134633")))$concatenated_metadata
 
 saveRDS(reduced_grB_with_map,"../analysis/TFBS_reduced_positions_120324.Rds")
+```
+
+```{r Calculating TFBS binding probability background}
+genes_TF_count <- dbGetQuery(con, 'SELECT li.ensg_id,
+       tb.TF_gene_name,
+       COUNT(tb.TF_gene_name) AS count
+FROM links AS li
+JOIN tobias AS tb ON tb.features = li.feature
+WHERE li.zscore > 2 AND tb.mean_cons>0.5
+GROUP BY li.ensg_id, tb.TF_gene_name;')
+```
+
+```{r}
+genes_TF_count.wide <- pivot_wider(genes_TF_count,names_from = ensg_id, values_from = count)
+#genes_TF_count.wide[is.na(genes_TF_count.wide)] <-0
+genes_TF_count.wide.mat <- as.matrix(genes_TF_count.wide[,-1])
+rownames(genes_TF_count.wide.mat) <- genes_TF_count.wide$TF_gene_name
+
+# Parameters for the sigmoid function
+a <- .15
+b <- 0
+
+# Calculate binding_probs using a sigmoid function
+binding_probs <- 1 / (1 + exp(-(a * genes_TF_count.wide.mat + b)))
+
+mean_binding_probs <- apply(binding_probs, 1, function(x) mean(x,na.rm=T))
+
+lambda <- sum(mean_binding_probs)
+
+C <- 3
+prob_exact <- dpois(C, lambda)
 ```
 
