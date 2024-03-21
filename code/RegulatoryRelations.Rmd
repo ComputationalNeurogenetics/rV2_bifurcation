@@ -16,6 +16,7 @@ library(GenomicRanges)
 library(parallel)
 library(dbplyr)
 library(DBI)
+source("../../AuxCode/TOBIAS_tools.R")
 ```
 
 
@@ -30,14 +31,20 @@ con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12
 ```
 
 ```{r Example of fetching factors give group, gene_name}
-test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_030324.sqlite", group_name = "CO1_2", gene_name = "Tal1", zscore.thr=0)
+test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Tal1", zscore.thr=2)
 
-test.gata2 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_030324.sqlite", group_name = "CO1_2", gene_name = "Gata2", zscore.thr=0)
+test.gata2 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Gata2", zscore.thr=2)
 
-test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_030324.sqlite", group_name = "CO1_2", gene_name = "Gata3", zscore.thr=0)
+test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Gata3", zscore.thr=2)
 
-Reduce(intersect, list(test.tal1,test.gata2,test.gata3))
+test.ahr <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Ahr", zscore.thr=2)
 
+lists <- list(test.tal1,test.gata2,test.gata3)
+
+Reduce(intersect, lists)
+
+common.regulator.stat.test(lists, total.TF.count = 950)
+common.regulator.stat.test(list(A=c("Tal1","Gata2"),B=c("Tal1","Gata2","Myc")), total.TF.count = 950)
 ```
 
 ```{r}
@@ -114,6 +121,8 @@ ggplot(data = df_long, aes(x = acc_range, y = Value, fill = Type)) +
   labs(y = "Value", x = "Accessibility") +
   theme_minimal() + ylab("Count") + ggtitle("Bound/Unboud counts in CO1_2 per Acc range")
 ```
+
+
 ```{r}
 
 feature <- "chr1-3670394-3672637"
