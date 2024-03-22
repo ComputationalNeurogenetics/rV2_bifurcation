@@ -16,7 +16,7 @@ library(GenomicRanges)
 library(parallel)
 library(dbplyr)
 library(DBI)
-source("../../AuxCode/TOBIAS_tools.R")
+source("~/Workspace/AuxCode/TOBIAS_tools.R")
 ```
 
 
@@ -27,7 +27,7 @@ message_parallel <- function(...){
 ```
 
 ```{r Connection to SQLite, eval=FALSE}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_030324.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
 ```
 
 ```{r Example of fetching factors give group, gene_name}
@@ -46,6 +46,83 @@ Reduce(intersect, lists)
 common.regulator.stat.test(lists, total.TF.count = 950)
 common.regulator.stat.test(list(A=c("Tal1","Gata2"),B=c("Tal1","Gata2","Myc")), total.TF.count = 950)
 ```
+
+```{r, message=FALSE}
+all.genes <- dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id;')[,1]
+
+TF.groups.z2 <- mclapply(1:length(all.genes),function(i){
+  gene_name <- all.genes[i]
+  #message_parallel(paste(i,gene_name,sep = ": "))
+  extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "GA1_2", gene_name = gene_name, zscore.thr=2)
+}, mc.cores = 8)
+
+```
+
+```{r}
+# Assuming 'my_list' is your list of character vectors
+# my_list <- list(c("A", "B"), c("A", "C"), c("B", "C", "A"), ...)
+
+# Define a function to safely get pairs and handle vectors with less than 2 unique elements
+get_pairs <- function(vec) {
+  # Check if the vector has less than 2 unique elements
+  if (length(unique(vec)) < 2) {
+    return(tibble(V1 = character(), V2 = character())) # Return an empty tibble
+  }
+  
+  # Generate all unique pairs from the vector
+  pairs <- t(combn(unique(vec), 2))
+  
+  # Return a data frame (tibble) of the pairs
+  tibble(V1 = pairs[, 1], V2 = pairs[, 2])
+}
+
+pairs_df <- map_df(TF.groups.z2, get_pairs, .id = "source")
+
+# Ensure V1 and V2 are treated as factors for the xtabs function
+pairs_df$V1 <- as.factor(pairs_df$V1)
+pairs_df$V2 <- as.factor(pairs_df$V2)
+
+# Count the frequency of each pair, ensuring symmetry in the count
+frequency_df <- pairs_df %>%
+  group_by(V1, V2) %>%
+  summarise(n = n(), .groups = 'drop')
+
+# Convert the frequencies into a matrix
+frequency_matrix <- matrix(0, nrow = length(levels(pairs_df$V1)), ncol = length(levels(pairs_df$V2)),
+                           dimnames = list(levels(pairs_df$V1), levels(pairs_df$V2)))
+
+# Fill the matrix
+for(i in 1:nrow(frequency_df)) {
+  frequency_matrix[frequency_df$V1[i], frequency_df$V2[i]] <- frequency_df$n[i]
+  frequency_matrix[frequency_df$V2[i], frequency_df$V1[i]] <- frequency_df$n[i]  # Ensure symmetry
+}
+
+prop.matrix <- round(frequency_matrix/length(TF.groups.z2), digits = 3)
+
+# Print the matrix
+print(frequency_matrix)
+print(prop.matrix)
+
+```
+
+```{r}
+Heatmap(prop.matrix, 
+        clustering_distance_rows = "euclidean",
+        clustering_distance_columns = "euclidean",
+        clustering_method_rows = "complete",
+        clustering_method_columns = "complete",
+        row_dend_reorder = TRUE,
+        column_dend_reorder = TRUE,  # Disable column clustering
+        show_row_names = TRUE,
+        show_column_names = TRUE,
+        show_row_dend = TRUE,
+        show_column_dend = TRUE,
+        row_names_gp = gpar(fontsize = 10),
+        column_names_gp = gpar(fontsize = 10)
+        )
+
+```
+
 
 ```{r}
 test.1 <- dbGetQuery(con.obj, 'SELECT * FROM feature WHERE seqnames="chr4" AND start>=114986077 AND end<=115134633')
