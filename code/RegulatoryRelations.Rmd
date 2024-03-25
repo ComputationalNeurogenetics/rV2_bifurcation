@@ -16,6 +16,7 @@ library(GenomicRanges)
 library(parallel)
 library(dbplyr)
 library(DBI)
+library(ComplexHeatmap)
 source("~/Workspace/AuxCode/TOBIAS_tools.R")
 ```
 
@@ -76,7 +77,7 @@ get_pairs <- function(vec) {
   tibble(V1 = pairs[, 1], V2 = pairs[, 2])
 }
 
-pairs_df <- map_df(TF.groups.z2, get_pairs, .id = "source")
+pairs_df <- map_df(TF.groups.z2_ac0, get_pairs, .id = "source")
 
 # Ensure V1 and V2 are treated as factors for the xtabs function
 pairs_df$V1 <- as.factor(pairs_df$V1)
@@ -97,7 +98,7 @@ for(i in 1:nrow(frequency_df)) {
   frequency_matrix[frequency_df$V2[i], frequency_df$V1[i]] <- frequency_df$n[i]  # Ensure symmetry
 }
 
-prop.matrix <- round(frequency_matrix/length(TF.groups.z2), digits = 3)
+prop.matrix <- round(frequency_matrix/length(TF.groups.z2_ac0), digits = 3)
 
 # Print the matrix
 print(frequency_matrix)
@@ -120,6 +121,73 @@ Heatmap(prop.matrix,
         row_names_gp = gpar(fontsize = 10),
         column_names_gp = gpar(fontsize = 10)
         )
+
+```
+
+```{r}
+set.seed(123)  # For reproducibility
+
+# Example data: Number of unique TFs regulating each of 3 genes
+num_TFs_per_gene <- c(29, 29, 23)  # For genes 1, 2, and 3, respectively
+total_TFs <- 950  # Total pool of unique TFs
+C <- 3  # Observed number of common TFs across all genes
+
+# Simulate the process
+simulations <- 1000000
+common_TFs_count <- numeric(simulations)
+
+common_TFs_count <- unlist(mclapply(1:simulations, function(i) {
+  # Simulate TF sets for each gene
+  TF_sets <- lapply(num_TFs_per_gene, function(x) sample(total_TFs, x))
+  
+  # Find common TFs across all sets
+  common_TFs <- Reduce(intersect, TF_sets)
+  
+  # Record the number of common TFs in this simulation
+  length(common_TFs)
+}, mc.cores = 10))
+
+# Estimate the probability of observing at least C common TFs
+prob_at_least_C <- mean(common_TFs_count >= C)
+
+cat("Estimated probability of observing at least", C, "common TFs across genes:", prob_at_least_C, "\n")
+```
+
+
+```{r}
+# Assume tf_sets and tf_co_occurrence are already defined
+
+# Function to calculate selection probabilities for each TF
+calculate_selection_probabilities <- function(tf_co_occurrence) {
+  # Sum co-occurrence frequencies for each TF
+  co_occurrence_sums <- rowSums(tf_co_occurrence)
+  
+  # Convert sums to probabilities (normalizing)
+  selection_probabilities <- co_occurrence_sums / sum(co_occurrence_sums)
+  return(selection_probabilities)
+}
+
+# Function for weighted sampling of TFs for a gene set, considering co-occurrence
+weighted_random_sampling <- function(gene_tf_set, selection_probabilities, n_samples) {
+  # Filter selection probabilities to only include TFs in the current gene set
+  relevant_probs <- selection_probabilities[names(selection_probabilities) %in% gene_tf_set]
+  
+  # Perform weighted sampling
+  sampled_tfs <- sample(gene_tf_set, size = n_samples, replace = TRUE, prob = relevant_probs)
+  return(sampled_tfs)
+}
+
+# Calculate selection probabilities
+selection_probabilities <- calculate_selection_probabilities(frequency_matrix)
+
+# Example: Weighted random sampling for the first gene set
+gene_tf_set <- lists[[1]]  # Assuming you're sampling for the first gene
+n_samples <- length(gene_tf_set)  # Number of TFs to sample, can adjust as needed
+
+# Perform weighted random sampling
+sampled_tfs <- weighted_random_sampling(gene_tf_set, selection_probabilities, n_samples)
+
+cat("Sampled TFs for the gene set:", toString(sampled_tfs), "\n")
 
 ```
 
