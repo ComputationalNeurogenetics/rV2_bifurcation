@@ -17,6 +17,7 @@ library(hash)
 library(fgsea)
 library(DBI)
 library(hash)
+library(topGO)
 source("../../AuxCode/AuxFunctions.R")
 ```
 
@@ -265,6 +266,45 @@ print("Summary")
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 ```
+
+```{r}
+# Load the biomaRt library
+library(biomaRt)
+options(timeout = 30000)
+
+# Connect to the Ensembl database
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="https://nov2020.archive.ensembl.org")
+
+# Query to fetch Ensembl gene IDs and associated GO IDs
+# Note: The query might take some time to run because it retrieves a lot of data
+genes_with_go <- getBM(attributes = c('ensembl_gene_id', 'go_id'),
+                       filters = 'with_go', # This filter is to only fetch genes with GO IDs
+                       values = TRUE,
+                       mart = ensembl)
+
+# Split the data.frame into a list where each element is a character vector of GO IDs,
+# and the names of the list elements are the Ensembl gene IDs
+geneID2GO <- split(genes_with_go$go_id, genes_with_go$ensembl_gene_id)
+
+# Optionally, you can remove genes with no GO IDs if any exist
+geneID2GO <- geneID2GO[sapply(geneID2GO, length) > 0]
+
+# Print the structure of the first few list elements to check
+print(str(geneID2GO[1:5]))
+```
+
+```{r}
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList, geneSel = topDiffGenes,
+nodeSize = 10,
+annot = annFUN.db, affyLib = affyLib)
+
+```
+
+
+
+
+
 <!-- ```{r} -->
 <!-- TF_name<-"Tal1" -->
 <!-- targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND tb.GA1_2_bound=1 AND GL1_2_bound=0 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5;",sep="")  -->
