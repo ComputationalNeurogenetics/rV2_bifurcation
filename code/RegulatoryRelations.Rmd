@@ -32,20 +32,23 @@ con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12
 ```
 
 ```{r Example of fetching factors give group, gene_name}
-test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Tal1", zscore.thr=2)
+group_name <- "GA1_2"
+zscore.thr <- 2 
+acc.thr <- 0.2
 
-test.gata2 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Gata2", zscore.thr=2)
+test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = group_name, gene_name = "Tal1", zscore.thr=zscore.thr,acc.thr = acc.thr)
 
-test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Gata3", zscore.thr=2)
+test.gata2 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = group_name, gene_name = "Gata2", zscore.thr=zscore.thr,acc.thr = acc.thr)
 
-test.ahr <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = "Ahr", zscore.thr=2)
+test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = group_name, gene_name = "Gata3", zscore.thr=zscore.thr,acc.thr = acc.thr)
 
 lists <- list(test.tal1,test.gata2,test.gata3)
 
 Reduce(intersect, lists)
 
-common.regulator.stat.test(lists, total.TF.count = 950)
-common.regulator.stat.test(list(A=c("Tal1","Gata2"),B=c("Tal1","Gata2","Myc")), total.TF.count = 950)
+TF.tot.count <- get.total.TF.count(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = group_name, zscore.thr=zscore.thr,acc.thr = acc.thr)
+
+common.regulator.stat.test(lists, total.TF.count = TF.tot.count, mc.cores = 10)
 ```
 
 ```{r, message=FALSE}
@@ -54,29 +57,12 @@ all.genes <- dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata a
 TF.groups.z2_ac0 <- mclapply(1:length(all.genes),function(i){
   gene_name <- all.genes[i]
   #message_parallel(paste(i,gene_name,sep = ": "))
-  extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "GA1_2", gene_name = gene_name, zscore.thr=2, acc.thr = 0)
-}, mc.cores = 8)
+  extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", gene_name = gene_name, zscore.thr=2, acc.thr = 0.2)
+}, mc.cores = 10)
 
 ```
 
 ```{r}
-# Assuming 'my_list' is your list of character vectors
-# my_list <- list(c("A", "B"), c("A", "C"), c("B", "C", "A"), ...)
-
-# Define a function to safely get pairs and handle vectors with less than 2 unique elements
-get_pairs <- function(vec) {
-  # Check if the vector has less than 2 unique elements
-  if (length(unique(vec)) < 2) {
-    return(tibble(V1 = character(), V2 = character())) # Return an empty tibble
-  }
-  
-  # Generate all unique pairs from the vector
-  pairs <- t(combn(unique(vec), 2))
-  
-  # Return a data frame (tibble) of the pairs
-  tibble(V1 = pairs[, 1], V2 = pairs[, 2])
-}
-
 pairs_df <- map_df(TF.groups.z2_ac0, get_pairs, .id = "source")
 
 # Ensure V1 and V2 are treated as factors for the xtabs function
@@ -124,34 +110,9 @@ Heatmap(prop.matrix,
 
 ```
 
-```{r}
-set.seed(123)  # For reproducibility
 
-# Example data: Number of unique TFs regulating each of 3 genes
-num_TFs_per_gene <- c(29, 29, 23)  # For genes 1, 2, and 3, respectively
-total_TFs <- 950  # Total pool of unique TFs
-C <- 3  # Observed number of common TFs across all genes
 
-# Simulate the process
-simulations <- 1000000
-common_TFs_count <- numeric(simulations)
 
-common_TFs_count <- unlist(mclapply(1:simulations, function(i) {
-  # Simulate TF sets for each gene
-  TF_sets <- lapply(num_TFs_per_gene, function(x) sample(total_TFs, x))
-  
-  # Find common TFs across all sets
-  common_TFs <- Reduce(intersect, TF_sets)
-  
-  # Record the number of common TFs in this simulation
-  length(common_TFs)
-}, mc.cores = 10))
-
-# Estimate the probability of observing at least C common TFs
-prob_at_least_C <- mean(common_TFs_count >= C)
-
-cat("Estimated probability of observing at least", C, "common TFs across genes:", prob_at_least_C, "\n")
-```
 
 
 ```{r}
