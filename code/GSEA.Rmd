@@ -23,9 +23,8 @@ source("../../AuxCode/AuxFunctions.R")
 
 ```{r, include=FALSE}
 cores <- 8
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
 ```
-
 
 ```{r, include=FALSE}
 plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/training/"
@@ -61,10 +60,10 @@ merged.datasets <- merge(rV2.dataset,serot.dataset)
 merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage_re, merged.datasets$sero.lineage), levels=c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6","GL1_2","GL3_4","GL5","SR1","SR2","SR3"))
 
 gene_name_hash <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
-
+gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
+  
 DefaultAssay(merged.datasets) <- "RNA"
 ```
-
 
 ```{r, include=FALSE}
 #assay.averages <- AverageExpression(merged.datasets,group.by = "merged.groups")
@@ -267,6 +266,9 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 ```
 
+
+# GO enrichments among target genes (C&T overlap thr. incl.) {.tabset}
+
 ```{r}
 # Load the biomaRt library
 library(biomaRt)
@@ -277,33 +279,208 @@ ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", h
 
 # Query to fetch Ensembl gene IDs and associated GO IDs
 # Note: The query might take some time to run because it retrieves a lot of data
-genes_with_go <- getBM(attributes = c('ensembl_gene_id', 'go_id'),
+gene_names_with_go <- getBM(attributes = c('external_gene_name', 'go_id'),
                        filters = 'with_go', # This filter is to only fetch genes with GO IDs
                        values = TRUE,
                        mart = ensembl)
 
 # Split the data.frame into a list where each element is a character vector of GO IDs,
 # and the names of the list elements are the Ensembl gene IDs
-geneID2GO <- split(genes_with_go$go_id, genes_with_go$ensembl_gene_id)
+geneID2GO <- split(gene_names_with_go$go_id, gene_names_with_go$external_gene_name)
 
 # Optionally, you can remove genes with no GO IDs if any exist
 geneID2GO <- geneID2GO[sapply(geneID2GO, length) > 0]
-
-# Print the structure of the first few list elements to check
-print(str(geneID2GO[1:5]))
 ```
 
-```{r}
+## Tal1 targets
+
+### Up in GA
+
+```{r Tal1 targets up in GA}
+allGenes.list <- unique(dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Tal1, gene_name), names(DEG.res.final)[DEG.res.final>quantile(DEG.res.final,.75)]), 1,0))
+names(geneList.fac) <- allGenes.list
+
 sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
-allGenes = geneList, geneSel = topDiffGenes,
-nodeSize = 10,
-annot = annFUN.db, affyLib = affyLib)
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
 
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 25))
+
+create_dt(allRes)
+```
+### Neutral
+
+```{r Tal1 targets neutral}
+allGenes.list <- unique(dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Tal1, gene_name), names(DEG.res.final)[DEG.res.final>quantile(DEG.res.final,.25) & DEG.res.final<quantile(DEG.res.final,.75)]), 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 25))
+
+create_dt(allRes)
+```
+
+### Up in GL
+
+```{r Tal1 targets up in GL}
+allGenes.list <- unique(dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Tal1, gene_name), names(DEG.res.final)[DEG.res.final<quantile(DEG.res.final,.25)]), 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 25))
+
+create_dt(allRes)
+```
+
+## Vsx2 targets
+
+### Up in GA
+
+```{r Vsx2 targets up in GA}
+allGenes.list <- unique(dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Vsx2, gene_name), names(DEG.res.final)[DEG.res.final>quantile(DEG.res.final,.75)]), 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 25))
+
+create_dt(allRes)
+```
+
+### Neutral
+
+```{r Vsx2 targets neutral}
+allGenes.list <- unique(dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Vsx2, gene_name), names(DEG.res.final)[DEG.res.final>quantile(DEG.res.final,.25) & DEG.res.final<quantile(DEG.res.final,.75)]), 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 25))
+
+create_dt(allRes)
+```
+
+### Up in GL
+
+```{r Vsx2 targets up in GL}
+allGenes.list <- unique(dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Vsx2, gene_name), names(DEG.res.final)[DEG.res.final<quantile(DEG.res.final,.25)]), 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 25))
+
+create_dt(allRes)
 ```
 
 
+<!-- ```{r} -->
+
+<!-- allGenes.list <- DEG.res.final -->
+
+<!-- allGenes.list.GA.up <- allGenes.list -->
+<!-- allGenes.list.GA.up[names(allGenes.list.GA.up) %in% pull(targets.Tal1, gene_name)] <- allGenes.list.GA.up[names(allGenes.list.GA.up) %in%  pull(targets.Tal1, gene_name)] + 1i -->
+<!-- #GA.up.genes <- function(allScore) {return(allScore > quantile(allScore,0.75))} -->
+<!-- GA.up.genes <- function(allScore) { -->
+<!--   imaginary_indices <- Im(allScore) != 0 -->
+<!--   allScore[imaginary_indices] <- Re(allScore[imaginary_indices]) -->
+<!--   return(allScore > quantile(allScore,0.75) & imaginary_indices) -->
+<!--   } -->
 
 
+<!-- GA.up.GO <- new("topGOdata", description = "Simple session", ontology = "BP", -->
+<!-- allGenes = allGenes.list.GA.up, -->
+<!-- geneSel=GA.up.genes, -->
+<!-- nodeSize = 10, -->
+<!-- annot = annFUN.gene2GO, gene2GO = geneID2GO) -->
+
+<!-- resultFisher <- runTest(GA.up.GO, algorithm = "classic", statistic = "fisher") -->
+<!-- resultKS <- runTest(GA.up.GO, algorithm = "classic", statistic = "ks") -->
+<!-- resultKS.elim <- runTest(GA.up.GO, algorithm = "elim", statistic = "ks") -->
+
+<!-- allRes.GA.up <- as_tibble(GenTable(GA.up.GO, classicFisher = resultFisher, classicKS = resultKS, elimKS = resultKS.elim, orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 25)) -->
+
+<!-- create_dt(allRes.GA.up) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- allGenes.list.GA.neutral <- allGenes.list -->
+<!-- allGenes.list.GA.neutral[!names(allGenes.list.GA.neutral) %in%  pull(targets.Tal1, gene_name)] <- NA -->
+<!-- GA.neutral.genes <- function(allScore) {return(na.omit(allScore > quantile(allScore,0.25,na.rm=T) & allScore < quantile(allScore,0.75,na.rm=T)))} -->
+
+<!-- GA.neutral.GO <- new("topGOdata", description = "Simple session", ontology = "BP", -->
+<!-- allGenes = allGenes.list.GA.neutral, -->
+<!-- geneSel=GA.neutral.genes, -->
+<!-- nodeSize = 10, -->
+<!-- annot = annFUN.gene2GO, gene2GO = geneID2GO) -->
+
+<!-- resultFisher <- runTest(GA.down.GO, algorithm = "classic", statistic = "fisher") -->
+<!-- resultKS <- runTest(GA.down.GO, algorithm = "classic", statistic = "ks") -->
+<!-- resultKS.elim <- runTest(GA.down.GO, algorithm = "elim", statistic = "ks") -->
+
+<!-- allRes.GA.down <- as_tibble(GenTable(GA.down.GO, classicFisher = resultFisher, classicKS = resultKS, elimKS = resultKS.elim, orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 25)) -->
+
+<!-- create_dt(allRes.GA.down) -->
+<!-- ``` -->
+
+
+
+<!-- ```{r} -->
+<!-- allGenes.list.GA.down <- allGenes.list -->
+<!-- allGenes.list.GA.down[!names(allGenes.list.GA.down) %in%  pull(targets.Tal1, gene_name)] <- 0 -->
+<!-- GA.down.genes <- function(allScore) {return(allScore < quantile(allScore,0.25))} -->
+
+<!-- GA.down.GO <- new("topGOdata", description = "Simple session", ontology = "BP", -->
+<!-- allGenes = allGenes.list.GA.down, -->
+<!-- geneSel=GA.down.genes, -->
+<!-- nodeSize = 10, -->
+<!-- annot = annFUN.gene2GO, gene2GO = geneID2GO) -->
+
+<!-- resultFisher <- runTest(GA.down.GO, algorithm = "classic", statistic = "fisher") -->
+<!-- resultKS <- runTest(GA.down.GO, algorithm = "classic", statistic = "ks") -->
+<!-- resultKS.elim <- runTest(GA.down.GO, algorithm = "elim", statistic = "ks") -->
+
+<!-- allRes.GA.down <- as_tibble(GenTable(GA.down.GO, classicFisher = resultFisher, classicKS = resultKS, elimKS = resultKS.elim, orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 25)) -->
+
+<!-- create_dt(allRes.GA.down) -->
+<!-- ``` -->
 
 <!-- ```{r} -->
 <!-- TF_name<-"Tal1" -->
