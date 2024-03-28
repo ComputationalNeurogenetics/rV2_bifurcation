@@ -60,7 +60,7 @@ Tal1.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Tal1 features}
-maxes <- find.maxes(features=Tal1.features)
+maxes <- find.maxes(features=Tal1.features, dbname="~/Workspace/TOBIAS.dr.h12_2.sqlite")
 
 for (i in 1:nrow(Tal1.features)){
   p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]), max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
