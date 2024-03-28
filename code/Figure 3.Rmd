@@ -27,7 +27,9 @@ cores<-8
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_2.sqlite")
+
+dbname="~/Workspace/TOBIAS.dr.h12_210324.sqlite"
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
 
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")
@@ -60,10 +62,10 @@ Tal1.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Tal1 features}
-maxes <- find.maxes(features=Tal1.features, dbname="~/Workspace/TOBIAS.dr.h12_2.sqlite")
+maxes <- find.maxes(features=Tal1.features, dbname=dbname)
 
 for (i in 1:nrow(Tal1.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Tal1.features[i,2]), max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  p <- plotHorizDotplot_v2(dbname = dbname,feature.coords = as.character(Tal1.features[i,2]), max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
   if(is.list(p)){
   pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
   p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
@@ -75,11 +77,11 @@ for (i in 1:nrow(Tal1.features)){
 ```
 
 ```{r Plot all Tal1 features dotplot v3, echo=FALSE}
-maxes <- find.maxes(features=Tal1.features)
+maxes <- find.maxes(features=Tal1.features, dbname=dbname)
 
 igv<-igvR()
 for (i in 1:nrow(Tal1.features)){
-  p <- plotHorizDotplot_v3(feature.coords = as.character(Tal1.features[i,2]), igv=igv, cons.filt=cons.gr, max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr)
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Tal1.features[i,2]), igv=igv, cons.filt=cons.gr, max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
     plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
@@ -97,9 +99,9 @@ Vsx2.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Vsx2 features}
-maxes <- find.maxes(features=Vsx2.features)
+maxes <- find.maxes(features=Vsx2.features, dbname=dbname)
 for (i in 1:nrow(Vsx2.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
   p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
@@ -110,10 +112,10 @@ for (i in 1:nrow(Vsx2.features)){
 ```
 
 ```{r Plot all Vsx2 features dotplot v3, echo=FALSE}
-maxes <- find.maxes(features=Vsx2.features)
+maxes <- find.maxes(features=Vsx2.features, dbname=dbname)
 igv<-igvR()
 for (i in 1:nrow(Vsx2.features)){
-  p <- plotHorizDotplot_v3(feature.coords = as.character(Vsx2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr)
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Vsx2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
     plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
@@ -131,9 +133,9 @@ Gata2.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Gata2 features}
-maxes <- find.maxes(features=Gata2.features)
+maxes <- find.maxes(features=Gata2.features, dbname=dbname)
 for (i in 1:nrow(Gata2.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp, dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
   p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
@@ -146,10 +148,10 @@ for (i in 1:nrow(Gata2.features)){
 
 
 ```{r Plot all Gata2 features dotplot v3, echo=FALSE}
-maxes <- find.maxes(features=Gata2.features)
+maxes <- find.maxes(features=Gata2.features, dbname=dbname)
 igv<-igvR()
 for (i in 1:nrow(Gata2.features)){
-  p <- plotHorizDotplot_v3(feature.coords = as.character(Gata2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr)
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Gata2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_gata2,paste("Gata2f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
     plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
@@ -166,9 +168,9 @@ Gata3.features <- as_tibble(read_clip_tbl(header=FALSE))
 ```
 
 ```{r Plot all Gata3 features dotplot v2}
-maxes <- find.maxes(features=Gata2.features)
+maxes <- find.maxes(features=Gata2.features, dbname=dbname)
 for (i in 1:nrow(Gata3.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Gata3.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp, dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
     p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
@@ -179,10 +181,10 @@ for (i in 1:nrow(Gata3.features)){
 ```
 
 ```{r Plot all Gata3 features dotplot v3, echo=FALSE}
-maxes <- find.maxes(features=Gata2.features)
+maxes <- find.maxes(features=Gata2.features, dbname=dbname)
 igv<-igvR()
 for (i in 1:nrow(Gata3.features)){
-  p <- plotHorizDotplot_v3(feature.coords = as.character(Gata3.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr)
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Gata3.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=dbname)
   if(is.list(p)){
   pdf(file=paste(plot_loc_gata3,paste("Gata3f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
     plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
