@@ -303,7 +303,7 @@ acc.counts.results <- lapply(TFs,function(TF){
 names(acc.counts.results) <- TFs
 ```
 
-```{r, fig.height=46, fig.width=12-}
+```{r, fig.height=46, fig.width=12}
 TF.bound.ratios <- lapply(acc.counts.results, function(r){
   tmp.1 <- sapply(r,function(rr){rr[1]/rr[2]})
   names(tmp.1) <-acc.brackets.list.names
