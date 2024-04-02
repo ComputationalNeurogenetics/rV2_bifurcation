@@ -272,3 +272,46 @@ summary(sapply(MIs.score.per.feature,mean))
 
 saveRDS(MIs.score.per.feature,file="../analysis/MIs.per.score.feature.Rds")
 ```
+
+```{r Calculating bound vs unbound relation to acc per TF}
+tobias.table <- tbl(con.obj, "tobias")
+acc.table <- tbl(con.obj, "acc")
+
+TFs <- tobias.table %>% dplyr::distinct(TF_gene_name) %>% pull(TF_gene_name)
+
+table.tmp.1 <- tobias.table %>% left_join(acc.table, by=c("features"="features"))
+
+table.tmp.acc.range <- acc.table %>% dplyr::select(!starts_with("features")) %>% collect()
+min.acc <- min(table.tmp.acc.range)
+max.acc <- max(table.tmp.acc.range)
+acc.brackets <- round(seq(min.acc, max.acc, by=max.acc/25),digits = 3)
+
+acc.brackets.list <- lapply(1:(length(acc.brackets)-1), function(i) acc.brackets[i:(i+1)])
+acc.brackets.list.names <- sapply(acc.brackets.list,paste,collapse="-")
+
+acc.counts.results <- lapply(TFs,function(TF){
+  table.tmp.bound <- table.tmp.1 %>% dplyr::filter(TF_gene_name==TF) %>% dplyr::select(ends_with("_bound")) %>% collect()
+  table.tmp.acc <- table.tmp.1 %>% dplyr::filter(TF_gene_name==TF) %>% dplyr::select(one_of("PRO1_2","GL3_4","GA5_6","GL5","CO1_2","GA1_2","GA3_4","GL1_2")) %>% collect()
+
+  acc.counts <- lapply(acc.brackets.list, function(bracket) {
+    table(table.tmp.bound[table.tmp.acc >= bracket[1] & table.tmp.acc <= bracket[2]])
+  })
+  names(acc.counts) <- acc.brackets.list.names
+  return(acc.counts)
+})
+
+names(acc.counts.results) <- TFs
+```
+
+```{r, fig.height=46, fig.width=12-}
+TF.bound.ratios <- lapply(acc.counts.results, function(r){
+  tmp.1 <- sapply(r,function(rr){rr[1]/rr[2]})
+  names(tmp.1) <-acc.brackets.list.names
+  return(tmp.1)
+  })
+TF.count.ratios.mat <-do.call(rbind,TF.bound.ratios)
+
+
+Heatmap(log2(TF.count.ratios.mat), cluster_columns = FALSE, row_names_gp = gpar(fontsize = 3),heatmap_legend_param = list(title = "log2 ratios of Unbound/Bound"))
+```
+
