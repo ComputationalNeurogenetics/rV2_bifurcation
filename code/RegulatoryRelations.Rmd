@@ -309,9 +309,23 @@ TF.bound.ratios <- lapply(acc.counts.results, function(r){
   names(tmp.1) <-acc.brackets.list.names
   return(tmp.1)
   })
-TF.count.ratios.mat <-do.call(rbind,TF.bound.ratios)
+TF.count.ratios.mat <-log2(do.call(rbind,TF.bound.ratios))
 
+na.li <- is.na(TF.count.ratios.mat)
 
-Heatmap(log2(TF.count.ratios.mat), cluster_columns = FALSE, row_names_gp = gpar(fontsize = 3),heatmap_legend_param = list(title = "log2 ratios of Unbound/Bound"))
+TF.count.ratios.mat[na.li] <- 0
+
+dissimilarity_matrix <- dist(TF.count.ratios.mat)
+
+kmeans.stats <- lapply(2:20,function(ci){
+  kmeans.TFs <- kmeans(TF.count.ratios.mat, centers = ci, nstart = 25)
+  cluster_stats <- cluster.stats(dissimilarity_matrix, kmeans.TFs$cluster)
+  return(cluster_stats)
+})
+
+kmeans.TFs <- kmeans(TF.count.ratios.mat, centers = 15, nstart = 25)
+TF.count.ratios.mat[na.li] <- NA
+
+Heatmap(TF.count.ratios.mat, cluster_columns = FALSE, row_names_gp = gpar(fontsize = 3),heatmap_legend_param = list(title = "log2 ratios of Unbound/Bound"), split = kmeans.TFs$cluster)
 ```
 
