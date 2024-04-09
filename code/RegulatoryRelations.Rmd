@@ -34,7 +34,7 @@ con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12
 ```{r Example of fetching factors give group, gene_name}
 group_name <- "GA1_2"
 zscore.thr <- 2 
-acc.thr <- 0.2
+acc.thr <- 0
 
 test.tal1 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = group_name, gene_name = "Tal1", zscore.thr=zscore.thr,acc.thr = acc.thr)
 
@@ -44,12 +44,20 @@ test.gata3 <- extract.factors(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite
 
 lists <- list(test.tal1,test.gata2,test.gata3)
 
-Reduce(intersect, lists)
+length(Reduce(intersect, lists))
 
 TF.tot.count <- get.total.TF.count(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = group_name, zscore.thr=zscore.thr,acc.thr = acc.thr)
 
 common.regulator.stat.test(lists, total.TF.count = TF.tot.count, mc.cores = 10)
 ```
+
+
+```{r Plot Acc among common regulators}
+CO.p1 <- plotCommonAcc(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", selector_genes=c("Gata2","Gata3","Tal1"), zscore.thr=zscore.thr,acc.thr = acc.thr)
+
+GA.p1 <- plotCommonAcc(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "GA1_2", selector_genes=c("Gata2","Gata3","Tal1"), zscore.thr=zscore.thr,acc.thr = acc.thr)
+```
+
 
 ```{r, message=FALSE}
 all.genes <- dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]
@@ -327,5 +335,34 @@ kmeans.TFs <- kmeans(TF.count.ratios.mat, centers = 15, nstart = 25)
 TF.count.ratios.mat[na.li] <- NA
 
 Heatmap(TF.count.ratios.mat, cluster_columns = FALSE, row_names_gp = gpar(fontsize = 3),heatmap_legend_param = list(title = "log2 ratios of Unbound/Bound"), split = kmeans.TFs$cluster)
+
+pdf(file="../analysis/log2_unbound_bound_ratios_heatmap.pdf", width = 12, height = 46)
+  p1 <- Heatmap(TF.count.ratios.mat, cluster_columns = FALSE, row_names_gp = gpar(fontsize = 3),heatmap_legend_param = list(title = "log2 ratios of Unbound/Bound"), split = kmeans.TFs$cluster)
+p1
+dev.off()
+```
+
+```{r}
+library(RColorBrewer)
+TF.tb <- cbind(as_tibble(TF.count.ratios.mat),cluster=as.character(kmeans.TFs$cluster))
+TF.tb.long <- TF.tb %>% pivot_longer(names_to = "acc_range", values_to = "bound_ratio", cols = !starts_with("cluster"))
+TF.aveg.long <-  TF.tb.long %>% group_by(cluster, acc_range) %>% summarise(avg=mean(bound_ratio,na.rm=T))
+
+color_palette <- my_colors <- c("#e6194B", "#3cb44b", "#ffe119", "#4363d8", "#f58231", 
+               "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe", 
+               "#008080", "#e6beff", "#9a6324", "#fffac8", "#800000")
+
+
+ggplot(TF.aveg.long, aes(x = acc_range, y = avg, color = cluster)) + 
+  geom_line(aes(group = cluster)) +
+  theme_minimal() +
+  geom_point() +
+  scale_color_manual(values = color_palette) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "log2(unbound/bound) per TF group over Acc-ranges",
+       x = "Acc-ranges",
+       y = "log2(unbound/bound)",
+       color = "Group",
+fill="Group")
 ```
 
