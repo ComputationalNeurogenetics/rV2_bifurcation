@@ -73,6 +73,11 @@ DefaultAssay(merged.datasets) <- "RNA"
 ```{r, include=FALSE}
 assay.averages <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 
+# exp.mat <- FetchData(rV2.dataset, vars = rownames(rV2.dataset), slot="data")
+# colMeans(expm1(exp.mat[ga.ni,]))["ENSMUSG00000028717"]
+# ENSMUSG00000028717 
+#           5.214443 
+
 #min.filter <- (assay.averages$RNA[,"GA1_2"]>0.1 | assay.averages$RNA[,"GA1_2"]==0) & (assay.averages$RNA[,"GL1_2"]>0.1 | assay.averages$RNA[,"GL1_2"]==0)
 #log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1_2"]/assay.averages$RNA[,"GL1_2"])
 #log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
