@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(DBI)
+library(readxl)
+```
+
+```{r}
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
+```
+
+```{r}
+Gata2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Gata2 feature summary_new.xlsx", sheet = "Sheet1")
+```
+
+```{r}
+links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
+```
+
+```{r}
+Gata2.features <- distinct(left_join(Gata2.features, distinct(filter(links.tb, gene_name=="Gata2")), by=c("Feature"="feature")))
+```
+
