@@ -18,6 +18,7 @@ library(fgsea)
 library(DBI)
 library(hash)
 library(biomaRt)
+library(presto)
 library(topGO)
 source("../../AuxCode/AuxFunctions.R")
 ```
@@ -70,11 +71,27 @@ gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][
 DefaultAssay(merged.datasets) <- "RNA"
 ```
 
+```{r}
+mean.fxn <- function (x) 
+{
+    return(log(x = rowMeans(x = expm1(x = x)) + pseudocount.use, 
+        base = base))
+}
+```
+
+
 ```{r, include=FALSE}
 assay.averages <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 
+# ga.ni <- which(rV2.dataset$rv2.lineage_re == "GA1_2")
+# gl.ni <- which(rV2.dataset$rv2.lineage_re == "GL1_2")
 # exp.mat <- FetchData(rV2.dataset, vars = rownames(rV2.dataset), slot="data")
-# colMeans(expm1(exp.mat[ga.ni,]))["ENSMUSG00000028717"]
+# log(colMeans(expm1(exp.mat[ga.ni,]))+1,base=2)["ENSMUSG00000028717"]
+# 
+# log(colMeans(expm1(exp.mat[gl.ni,]))+1,base=2)["ENSMUSG00000028717"]
+# 
+# DEG.res$GA1_2_exp_avg["ENSMUSG00000028717"]
+
 # ENSMUSG00000028717 
 #           5.214443 
 
@@ -84,8 +101,8 @@ assay.averages <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 Idents(rV2.dataset) <- rV2.dataset$rv2.lineage_re
 DEG.res <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0, assay = "RNA", slot="data") %>% rownames_to_column(var="ensg_id") %>% as_tibble() %>% filter(p_val_adj<0.05)
 
-DEG.res$GL1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GL1_2"]
-DEG.res$GA1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]
+DEG.res$GL1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res$ensg_id,"GL1_2"]+1,base=2)
+DEG.res$GA1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]+1, base=2)
 DEG.res$gene_name <- sapply(DEG.res$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res <- DEG.res %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 
