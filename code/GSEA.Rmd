@@ -103,6 +103,8 @@ DEG.res <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.thr
 
 DEG.res$GL1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res$ensg_id,"GL1_2"]+1,base=2)
 DEG.res$GA1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]+1, base=2)
+DEG.res$GL1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GL1_2"]
+DEG.res$GA1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]
 DEG.res$gene_name <- sapply(DEG.res$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res <- DEG.res %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 
