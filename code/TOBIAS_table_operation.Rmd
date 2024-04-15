@@ -14,6 +14,9 @@ library(parallel)
 library(dbplyr)
 library(DBI)
 library(hash)
+library(EnsDb.Mmusculus.v79)
+library(ChIPpeakAnno)
+cores <-10
 ```
 
 ```{r Additional functions}
@@ -23,7 +26,7 @@ message_parallel <- function(...){
 ```
 
 ```{r Reading Seurat dataobject}
-dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = 10)
+dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 DefaultAssay(dataset) <- "RNA"
 
 dataset$rv2.lineage_re <- case_when(
@@ -65,7 +68,7 @@ H12.metadata <- read_delim("../metadata/H12.data_INSM1_added.csv", col_names = T
 ```{r TRansform tobias gr to tb, eval=FALSE}
 tobias.tb.list <- lapply(rV2.groups.tobias.h12.gr.dr, as_tibble)
 tobias.tb <- do.call(rbind,tobias.tb.list)
-qsave(tobias.tb, file = "../analysis/Tobias.rv2.h12.dr.tb.qs",nthreads = 10)
+qsave(tobias.tb, file = "../analysis/Tobias.rv2.h12.dr.tb.qs",nthreads = cores)
 ```
 
 ```{r Finding TFBS to feature matches, eval=FALSE}
@@ -80,11 +83,11 @@ rm(tobias.tb)
 rm(rV2.groups.tobias.h12.gr.dr)
 gc()
 
-qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = 10)
+qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = cores)
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_114324.sqlite")
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -264,7 +267,7 @@ WHERE TF_gene_name LIKE '4,0%MAD';")
 ```
 
 ```{r Calculating LinkPeaks within TADs}
-E12_rV2 <- qread(file = "../../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+E12_rV2 <- qread(file = "../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 
 mm10.v79.genome.GR <- toGRanges(
   EnsDb.Mmusculus.v79,
@@ -278,28 +281,26 @@ DefaultAssay(E12_rV2) <- "RNA"
 gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(E12_rV2)))
 
 #the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
-TAD.map <- read_table("../../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end"))%>% 
-  GRanges()
+TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end")) %>% GRanges()
 
 #Function
 links.within.TADs <- mclapply(gene_ids, function(idx){
 
-  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_130324.sqlite")
+  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_110424.sqlite")
   #first we find the TAD - topologically associated domain - for each of the marker genes
   gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
 
   TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
   tryCatch({
-    Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
+    Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA", genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
   
-    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
-      success <- FALSE
+    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("feature"="peak") %>% rename("ensg_id"="gene")
+    success <- FALSE
     while(!success & base::exists("links.tb")) {
       tryCatch({
-        dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
-        success <- TRUE # If dbWriteTable succeeds, set success to TRUE
+       success <- dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
       }, error = function(e) {
-        Sys.sleep(0.25) # Wait for 1 seconds before retrying
+        Sys.sleep(0.25)
       })
     }
     },
