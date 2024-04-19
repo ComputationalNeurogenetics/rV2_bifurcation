@@ -7,11 +7,15 @@ output: html_notebook
 library(tidyverse)
 library(DBI)
 library(readxl)
+library(writexl)
 ```
 
 ```{r}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_110424.sqlite")
+table.loc <- "/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Finals/"
 ```
+
+## Gata2
 
 ```{r}
 Gata2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Gata2 feature summary_new.xlsx", sheet = "Sheet1")
@@ -22,6 +26,68 @@ links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links a
 ```
 
 ```{r}
-Gata2.features <- distinct(left_join(Gata2.features, distinct(filter(links.tb, gene_name=="Gata2")), by=c("Feature"="feature")))
+Gata2.features <- distinct(left_join(Gata2.features, distinct(dplyr::filter(links.tb, gene_name=="Gata2")), by=c("Feature"="feature")))
 ```
 
+```{r}
+Gata2.tb.out <- Gata2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
+writexl::write_xlsx(Gata2.tb.out, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
+```
+
+## Gata3
+
+```{r}
+Gata3.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Gata3 feature summary_new.xlsx", sheet = "Sheet1")
+```
+
+```{r}
+links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
+```
+
+```{r}
+Gata3.features <- distinct(left_join(Gata3.features, distinct(dplyr::filter(links.tb, gene_name=="Gata3")), by=c("Feature"="feature")))
+```
+
+```{r}
+Gata3.tb.out <- Gata3.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
+writexl::write_xlsx(Gata3.tb.out, path=paste(table.loc,"Gata3_features.xlsx",sep=""))
+```
+
+## Tal1
+
+```{r}
+Tal1.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Tal1 feature summary_new_2.xlsx", sheet = "Sheet1")
+```
+
+```{r}
+links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
+```
+
+```{r}
+Tal1.features <- distinct(left_join(Tal1.features, distinct(dplyr::filter(links.tb, gene_name=="Tal1")), by=c("Feature"="feature")))
+```
+
+```{r}
+Tal1.tb.out <- Gata3.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
+writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep=""))
+```
+
+
+## Vsx2
+
+```{r}
+Vsx2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Vsx2 feature summary_new.xlsx", sheet = "Sheet1")
+```
+
+```{r}
+links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
+```
+
+```{r}
+Vsx2.features <- distinct(left_join(Vsx2.features, distinct(dplyr::filter(links.tb, gene_name=="Vsx2")), by=c("Feature"="feature")))
+```
+
+```{r}
+Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
+writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
+```
