@@ -87,7 +87,7 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = cor
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_114324.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_230424.sqlite")
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -269,6 +269,10 @@ WHERE TF_gene_name LIKE '4,0%MAD';")
 ```{r Calculating LinkPeaks within TADs}
 E12_rV2 <- qread(file = "../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 
+DefaultAssay(E12_rV2) <- "peaks"
+
+Links(E12_rV2) <- GenomicRanges::GRanges()
+
 mm10.v79.genome.GR <- toGRanges(
   EnsDb.Mmusculus.v79,
   feature = c("gene", "transcript", "exon", "disjointExons")
@@ -285,20 +289,22 @@ TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm
 
 #Function
 links.within.TADs <- mclapply(gene_ids, function(idx){
-
+  message_parallel(idx)
   con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_110424.sqlite")
-  #first we find the TAD - topologically associated domain - for each of the marker genes
+  
+  #first we find the TAD - topologically associated domain - for gene in a question
   gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
 
   TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
   tryCatch({
     Link.Seurat <- LinkPeaks(object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA", genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
   
-    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("feature"="peak") %>% rename("ensg_id"="gene")
+    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
     success <- FALSE
     while(!success & base::exists("links.tb")) {
       tryCatch({
-       success <- dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
+       dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
+        success<-TRUE
       }, error = function(e) {
         Sys.sleep(0.25)
       })
@@ -321,8 +327,37 @@ dbExecute(con, 'CREATE INDEX zscore1 ON links (zscore);')
 dbExecute(con, 'CREATE INDEX links_pvalue ON links (pvalue);')
 ```
 
+```{r}
+links.within.TADs <- qread("../analysis/links.within.TADs.qs")
+
+
+check_identity <- function(tibble_in_list) {
+  any(pmap_lgl(B, ~ identical(tibble_in_list, tibble(...))))
+}
+
+DefaultAssay(E12_rV2) <- "peaks"
+B <- as_tibble(Links(E12_rV2))
+
+
+identical_elements <- map_lgl(links.within.TADs, check_identity)
+
+
+links.within.TADs.tb <- do.call(rbind,links.within.TADs) %>% dplyr::filter(!is.na(seqnames))
+
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_110424.sqlite")
+success <- dbWriteTable(con, "links", links.within.TADs.tb, overwrite=TRUE)
+
+dbExecute(con, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
+dbExecute(con, 'CREATE INDEX feature4 ON links (feature);')
+dbExecute(con, 'CREATE INDEX zscore1 ON links (zscore);')
+dbExecute(con, 'CREATE INDEX links_pvalue ON links (pvalue);')
+
+DBI::dbDisconnect(con)
+```
+
+
 ```{r C&T data import}
-consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_080324/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
+consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_180424/180424_2re_thr001/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
 
 consensus.beds <- lapply(consensus.beds.path, function(path){
   tmp.1 <- read_delim(file = path, col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_names","consensus_replicate_count"))
