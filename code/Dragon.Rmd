@@ -10,7 +10,6 @@ library(Seurat)
 library(Signac)
 library(GenomicRanges)
 library(tidyverse)
-library(netZooR)
 library(hash)
 library(DBI)
 cores<-8
@@ -52,31 +51,41 @@ gene_name2id <- hash(dataset[['RNA']][[]][,1],rownames(dataset[['RNA']][[]]))
 ```
 
 ```{r Fetch data layers for graph building}
-
 DefaultAssay(dataset) <- "RNA"
 exp.data <- FetchData(object = dataset, vars = rownames(dataset))
 
 DefaultAssay(dataset) <- "peaks"
 acc.data <- FetchData(object = dataset, vars = rownames(dataset))
-
 ```
+
 ```{r Define cell groups and linked features}
 CO1_2.li <- dataset$rv2.lineage_re=="CO1_2"
 
 linked.features <- as_tibble(dbGetQuery(con, 'SELECT feature FROM links as li WHERE ABS(li.zscore)>2 AND li.pvalue<0.001;')) %>% pull(feature)
+linked.genes <- unique(as_tibble(dbGetQuery(con, 'SELECT ensg_id FROM links as li WHERE ABS(li.zscore)>2 AND li.pvalue<0.001;')) %>% pull(ensg_id))
+
+DefaultAssay(dataset) <- "RNA"
+all.genes <- rownames(dataset)
+genes.li <- all.genes %in% linked.genes
 
 DefaultAssay(dataset) <- "peaks"
 all.features <- rownames(dataset)
-
 features.li <- all.features %in% linked.features
 ```
 
 ```{r Subset datamatrices}
-exp.CO1_2 <- exp.data[CO1_2.li,]
-acc.CO1_2 <- acc.data[CO1_2.li,features.li]
+exp.CO1_2 <- exp.data[CO1_2.li,genes.li][,sample(1:ncol(exp.data[,genes.li]),150, replace = FALSE)]
+acc.CO1_2 <- acc.data[CO1_2.li,features.li][,sample(1:ncol(acc.data[,features.li]),150, replace = FALSE)]
+
+exp.CO1_2 <- exp.CO1_2[,which(!colSums(exp.CO1_2)==0)]
+acc.CO1_2 <- acc.CO1_2[,which(!colSums(acc.CO1_2)==0)]
 ```
 
 ```{r Run Dragon}
-CO1_2.dragon <- dragon(layer1=exp.CO1_2, layer2 = acc.CO1_2)
+CO1_2.dragon <- dragon(layer1=exp.CO1_2, layer2 = acc.CO1_2, verbose=TRUE)
+```
+
+```{r}
+sessionInfo()
 ```
 
