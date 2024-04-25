@@ -20,7 +20,6 @@ library(ComplexHeatmap)
 source("~/Workspace/AuxCode/TOBIAS_tools.R")
 ```
 
-
 ```{r Additional functions}
 message_parallel <- function(...){
   system(sprintf('echo "\n%s\n"', paste0(..., collapse="")))
@@ -28,10 +27,13 @@ message_parallel <- function(...){
 ```
 
 ```{r Connection to SQLite, eval=FALSE}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_210324.sqlite")
+dbname <- "~/Workspace/TOBIAS.dr.h12_110424.sqlite"
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
 ```
 
-```{r Example of fetching factors give group, gene_name}
+# Common regulators {.tabset}
+
+```{r Example of fetching factors give group, gene_name, eval=FALSE}
 group_name <- "GA1_2"
 zscore.thr <- 2 
 acc.thr <- 0
@@ -51,15 +53,99 @@ TF.tot.count <- get.total.TF.count(db.name = "~/Workspace/TOBIAS.dr.h12_210324.s
 common.regulator.stat.test(lists, total.TF.count = TF.tot.count, mc.cores = 10)
 ```
 
-
-```{r Plot Acc among common regulators}
+```{r Plot Acc among common regulators, eval=FALSE}
 CO.p1 <- plotCommonAcc(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "CO1_2", selector_genes=c("Gata2","Gata3","Tal1"), zscore.thr=zscore.thr,acc.thr = acc.thr)
 
 GA.p1 <- plotCommonAcc(db.name = "~/Workspace/TOBIAS.dr.h12_210324.sqlite", group_name = "GA1_2", selector_genes=c("Gata2","Gata3","Tal1"), zscore.thr=zscore.thr,acc.thr = acc.thr)
 ```
 
+## Tal1 regulators
+### CO1_2
+```{r Tal1 regulators CO1_2}
+Tal1.CO1_2 <- fetch.regulators(db.name = dbname, group_name = "CO1_2", gene_name = "Tal1", zscore.abs.thr=2)
 
-```{r, message=FALSE}
+create_dt(Tal1.CO1_2)
+```
+### GA1_2
+```{r Tal1 regulators GA1_2}
+Tal1.GA1_2 <- fetch.regulators(db.name = dbname, group_name = "GA1_2", gene_name = "Tal1", zscore.abs.thr=2)
+
+create_dt(Tal1.GA1_2)
+```
+### GL1_2
+```{r Tal1 regulators GL1_2}
+Tal1.GL1_2 <- fetch.regulators(db.name = dbname, group_name = "GL1_2", gene_name = "Tal1", zscore.abs.thr=2)
+
+create_dt(Tal1.GL1_2)
+```
+
+## Gata2 regulators
+### CO1_2
+```{r Gata2 regulators CO1_2}
+Gata2.CO1_2 <- fetch.regulators(db.name = dbname, group_name = "CO1_2", gene_name = "Gata2", zscore.abs.thr=2)
+
+create_dt(Gata2.CO1_2)
+```
+### GA1_2
+```{r Gata2 regulators GA1_2}
+Gata2.GA1_2 <- fetch.regulators(db.name = dbname, group_name = "GA1_2", gene_name = "Gata2", zscore.abs.thr=2)
+
+create_dt(Gata2.GA1_2)
+```
+### GL1_2
+```{r Gata2 regulators GL1_2}
+Gata2.GL1_2 <- fetch.regulators(db.name = dbname, group_name = "GL1_2", gene_name = "Gata2", zscore.abs.thr=2)
+
+create_dt(Gata2.GL1_2)
+```
+
+## Gata3 regulators
+### CO1_2
+```{r Gata3 regulators CO1_2}
+Gata3.CO1_2 <- fetch.regulators(db.name = dbname, group_name = "CO1_2", gene_name = "Gata3", zscore.abs.thr=2)
+
+create_dt(Gata3.CO1_2)
+```
+### GA1_2
+```{r Gata3 regulators GA1_2}
+Gata3.GA1_2 <- fetch.regulators(db.name = dbname, group_name = "GA1_2", gene_name = "Gata3", zscore.abs.thr=2)
+
+create_dt(Gata3.GA1_2)
+```
+### GL1_2
+```{r Gata3 regulators GL1_2}
+Gata3.GL1_2 <- fetch.regulators(db.name = dbname, group_name = "GL1_2", gene_name = "Gata3", zscore.abs.thr=2)
+
+create_dt(Gata3.GL1_2)
+```
+
+
+## Vsx2 regulators
+### CO1_2
+```{r Vsx2 regulators CO1_2}
+Vsx2.CO1_2 <- fetch.regulators(db.name = dbname, group_name = "CO1_2", gene_name = "Vsx2", zscore.abs.thr=2)
+
+create_dt(Vsx2.CO1_2)
+```
+### GA1_2
+```{r Vsx2 regulators GA1_2}
+Vsx2.GA1_2 <- fetch.regulators(db.name = dbname, group_name = "GA1_2", gene_name = "Vsx2", zscore.abs.thr=2)
+
+create_dt(Vsx2.GA1_2)
+```
+### GL1_2
+```{r Vsx2 regulators GL1_2}
+Vsx2.GL1_2 <- fetch.regulators(db.name = dbname, group_name = "GL1_2", gene_name = "Vsx2", zscore.abs.thr=2)
+
+create_dt(Vsx2.GL1_2)
+```
+
+
+
+
+# TF-TF co-occurence {.tabset}
+
+```{r, message=FALSE, eval=FALSE}
 all.genes <- dbGetQuery(con.obj, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]
 
 TF.groups.z2_ac0 <- mclapply(1:length(all.genes),function(i){
@@ -95,8 +181,8 @@ for(i in 1:nrow(frequency_df)) {
 prop.matrix <- round(frequency_matrix/length(TF.groups.z2_ac0), digits = 3)
 
 # Print the matrix
-print(frequency_matrix)
-print(prop.matrix)
+#print(frequency_matrix)
+#print(prop.matrix)
 
 ```
 
@@ -118,12 +204,7 @@ Heatmap(prop.matrix,
 
 ```
 
-
-
-
-
-
-```{r}
+```{r, eval=FALSE}
 # Assume tf_sets and tf_co_occurrence are already defined
 
 # Function to calculate selection probabilities for each TF
@@ -157,37 +238,11 @@ n_samples <- length(gene_tf_set)  # Number of TFs to sample, can adjust as neede
 sampled_tfs <- weighted_random_sampling(gene_tf_set, selection_probabilities, n_samples)
 
 cat("Sampled TFs for the gene set:", toString(sampled_tfs), "\n")
-
 ```
 
+# TOBIAS vs Acc {.tabset}
 
-```{r}
-test.1 <- dbGetQuery(con.obj, 'SELECT * FROM feature WHERE seqnames="chr4" AND start>=114986077 AND end<=115134633')
-
-test.tal1 <- as_tibble(dbGetQuery(con.obj, 'SELECT tb.* FROM tobias as tb, exp as exp, links as links, gene_metadata as gm WHERE tb.features==links.feature AND mean_cons>0.5 AND exp.ensg_id=tb.ensg_id AND (tb.GA1_2_bound=1) AND (exp.GA1_2>1.2) AND links.ensg_id=gm.ensg_id AND gm.gene_name="Tal1" AND links.zscore>0 AND links.feature=tb.features'))
-
-test.gata2 <- as_tibble(dbGetQuery(con.obj, 'SELECT tb.* FROM tobias as tb,feature as ft, exp as exp WHERE ft.seqnames="chr6" AND ft.start>=88103987 AND ft.end<=88301611 AND tb.features==ft.feature AND mean_cons>0.5 AND exp.ensg_id=tb.ensg_id AND (tb.GA1_2_bound=1) AND (exp.GA1_2>1.2)'))
-
-test.gata3 <- as_tibble(dbGetQuery(con.obj, 'SELECT tb.* FROM tobias as tb,feature as ft, exp as exp WHERE ft.seqnames="chr2" AND ft.start>=9834965 AND ft.end<=9996391 AND tb.features==ft.feature AND mean_cons>0.5 AND exp.ensg_id=tb.ensg_id AND (tb.GA1_2_bound=1) AND (exp.GA1_2>1.2)'))
-
-
-intersect(intersect(test.gata2 %>% distinct(TF_gene_name) %>% pull(TF_gene_name), test.tal1 %>% distinct(TF_gene_name) %>% pull(TF_gene_name)),test.gata3 %>% distinct(TF_gene_name) %>% pull(TF_gene_name))
-
-
-```
-
-```{r}
-tobias.table <- tbl(con.obj, "tobias")
-exp.table <- tbl(con.obj, "exp")
-acc.table <- tbl(con.obj, "acc")
-
-table.tmp.1 <- dplyr::filter(tobias.table, features==feature.coords) %>% left_join(exp.table) %>% left_join(acc.table, by=c("features"="features"))
-
-table.tmp.2 <- table.tmp.1 %>% collect()
-  
-table.tmp.2 <- table.tmp.2 %>% filter((abs(PRO1_2.x)>exp.thr | abs(CO1_2.x)>exp.thr | abs(GA1_2.x)>exp.thr) & (PRO1_2_bound==1 | CO1_2_bound==1 | GA1_2_bound==1) & mean_cons>mean_cons_thr) %>% arrange(start)
-  
-```
+## MI TOBIAS vs Acc
 
 ```{r, eval=FALSE}
 acc.table <- tbl(con.obj, "acc")
@@ -204,7 +259,7 @@ bound.ratios <- lapply(acc.steps[-1],function(step){
 saveRDS(bound.ratios, file="../analysis/bound.ratios.Rds")
 ```
 
-```{r}
+```{r, eval=FALSE}
 bound.ratios.tb <- as_tibble(do.call(rbind,bound.ratios))
 bound.ratios.tb$ratio <- bound.ratios.tb$Bounds/bound.ratios.tb$Unbounds
 bound.ratios.tb$acc_range <- factor(paste(acc.steps-0.25,acc.steps,sep="-")[-1])
@@ -221,7 +276,7 @@ ggplot(data = df_long, aes(x = acc_range, y = Value, fill = Type)) +
   theme_minimal() + ylab("log2(count)") + ggtitle("Bound/Unboud counts in CO1_2 per Acc range")
 ```
 
-```{r}
+```{r, eval=FALSE}
 bound.ratios.tb <- as_tibble(do.call(rbind,bound.ratios))
 bound.ratios.tb$ratio <- bound.ratios.tb$Bounds/bound.ratios.tb$Unbounds
 bound.ratios.tb$acc_range <- factor(paste(acc.steps-0.25,acc.steps,sep="-")[-1])
@@ -236,9 +291,7 @@ ggplot(data = df_long, aes(x = acc_range, y = Value, fill = Type)) +
   theme_minimal() + ylab("Count") + ggtitle("Bound/Unboud counts in CO1_2 per Acc range")
 ```
 
-
-```{r}
-
+```{r, eval=FALSE}
 feature <- "chr1-3670394-3672637"
 
 all.features<- na.omit(as.vector(dbGetQuery(con, "SELECT DISTINCT(features) FROM tobias;"))[[1]])
@@ -261,7 +314,7 @@ hist(sapply(MIs.per.feature,mean), main="Avg. mutual information between bound/u
 saveRDS(MIs.per.feature,file="../analysis/MIs.per.feature.Rds")
 ```
 
-```{r}
+```{r, eval=FALSE}
 all.features<- na.omit(as.vector(dbGetQuery(con, "SELECT DISTINCT(features) FROM tobias;"))[[1]])
 
 MIs.score.per.feature <- mclapply(all.features, function(feature){
@@ -280,6 +333,8 @@ summary(sapply(MIs.score.per.feature,mean))
 
 saveRDS(MIs.score.per.feature,file="../analysis/MIs.per.score.feature.Rds")
 ```
+
+## Calculating bound vs unbound relation to acc per TF
 
 ```{r Calculating bound vs unbound relation to acc per TF}
 tobias.table <- tbl(con.obj, "tobias")
