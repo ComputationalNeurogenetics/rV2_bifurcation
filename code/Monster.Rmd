@@ -85,7 +85,7 @@ TF.gene.data.sum$avg.score <- TF.gene.data.sum$avg.score/max(TF.gene.data.sum$av
 
 ```{r Run Monster, warning=FALSE}
 #yeast$exp.cc[is.na(yeast$exp.cc)] <- mean(as.matrix(yeast$exp.cc),na.rm=TRUE)
-monsterRes <- monster(expr=exp.lineage, design=design.bin, motif=as.data.frame(TF.gene.data.sum), nullPerms=100, numMaxCores=10, alphaw=1)
+monsterRes <- monster(expr=exp.lineage, design=design.bin, motif=as.data.frame(TF.gene.data.sum), nullPerms=100, numMaxCores=12, alphaw=1, outputDir = "../analysis/Monster/")
 saveRDS(monsterRes, file="../analysis/Monster.Rds")
 ```
 
