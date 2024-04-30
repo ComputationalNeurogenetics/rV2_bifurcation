@@ -12,6 +12,7 @@ library(GenomicRanges)
 library(tidyverse)
 library(hash)
 library(DBI)
+library(gplots)
 cores<-8
 ```
 
@@ -89,9 +90,27 @@ monsterRes <- monster(expr=exp.lineage, design=design.bin, motif=as.data.frame(T
 saveRDS(monsterRes, file="../analysis/Monster.Rds")
 ```
 
-```{r}
-
+```{r fig.width=20, fig.height=8}
+monsterPlotMonsterAnalysis(monsterRes, rescale='significance')
 ```
+
+```{r}
+heatmap.2(slot(monsterRes, 'tm'), col = "bluered",
+density.info="none",  
+trace="none", 
+dendrogram='none',     
+Rowv=FALSE,
+Colv=FALSE)
+```
+
+
+```{r, fig.width=20, fig.height=20}
+monsterTransitionNetworkPlot(monsterRes, numEdges=100,numTopTFs = 100)
+```
+```{r, fig.height=18, fig.width=18}
+monsterTransitionPCAPlot(monsterRes)
+```
+
 
 
 ```{r}
