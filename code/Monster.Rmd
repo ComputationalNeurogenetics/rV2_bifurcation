@@ -63,14 +63,17 @@ lineage.li <- dataset$rv2.lineage_re %in% c("CO1_2","GA1_2")
 design <- dataset$rv2.lineage_re[dataset$rv2.lineage_re %in% c("CO1_2","GA1_2")]
 design.bin <- ifelse(design=="CO1_2",0,1)
 
-linked.features <- as_tibble(dbGetQuery(con, 'SELECT feature FROM links as li WHERE ABS(li.zscore)>2 AND li.pvalue<0.001;')) %>% pull(feature)
-linked.genes <- unique(as_tibble(dbGetQuery(con, 'SELECT ensg_id FROM links as li WHERE ABS(li.zscore)>2 AND li.pvalue<0.001;')) %>% pull(ensg_id))
+# First run
+# linked.features <- as_tibble(dbGetQuery(con, 'SELECT feature FROM links as li WHERE ABS(li.zscore)>2 AND li.pvalue<0.001;')) %>% pull(feature)
+# linked.genes <- unique(as_tibble(dbGetQuery(con, 'SELECT ensg_id FROM links as li WHERE ABS(li.zscore)>2 AND li.pvalue<0.001;')) %>% pull(ensg_id))
+# TF.2.gene.data <- as_tibble(dbGetQuery(con, 'SELECT tb.TF_gene_name, gm.gene_name, li.zscore FROM links as li, tobias as tb, gene_metadata as gm WHERE ABS(li.zscore)>2 AND li.pvalue<0.001 AND tb.features=li.feature AND gm.ensg_id=li.ensg_id;'))
 
-TF.2.gene.data <- as_tibble(dbGetQuery(con, 'SELECT tb.TF_gene_name, gm.gene_name, li.zscore FROM links as li, tobias as tb, gene_metadata as gm WHERE ABS(li.zscore)>2 AND li.pvalue<0.001 AND tb.features=li.feature AND gm.ensg_id=li.ensg_id;'))
+# Second run
+linked.features <- as_tibble(dbGetQuery(con, 'SELECT feature FROM links as li WHERE li.zscore>2 AND li.pvalue<0.001;')) %>% pull(feature)
+linked.genes <- unique(as_tibble(dbGetQuery(con, 'SELECT ensg_id FROM links as li WHERE li.zscore>2 AND li.pvalue<0.001;')) %>% pull(ensg_id))
+TF.2.gene.data <- as_tibble(dbGetQuery(con, 'SELECT tb.TF_gene_name, gm.gene_name, li.zscore FROM links as li, tobias as tb, gene_metadata as gm WHERE li.zscore>2 AND li.pvalue<0.001 AND tb.features=li.feature AND gm.ensg_id=li.ensg_id AND (tb.GA1_2_bound=1 OR tb.CO1_2_bound=1);'))
 
 TF.2.gene.data$gene_name <- str_to_upper(TF.2.gene.data$gene_name)
- 
-
 ```
 
 ```{r Subset datamatrices}
@@ -86,12 +89,12 @@ TF.gene.data.sum$avg.score <- TF.gene.data.sum$avg.score/max(TF.gene.data.sum$av
 
 ```{r Run Monster, warning=FALSE}
 #yeast$exp.cc[is.na(yeast$exp.cc)] <- mean(as.matrix(yeast$exp.cc),na.rm=TRUE)
-monsterRes <- monster(expr=exp.lineage, design=design.bin, motif=as.data.frame(TF.gene.data.sum), nullPerms=100, numMaxCores=12, alphaw=1, outputDir = "../analysis/Monster/")
-saveRDS(monsterRes, file="../analysis/Monster.Rds")
+monsterRes <- monster(expr=exp.lineage, design=design.bin, motif=as.data.frame(TF.gene.data.sum), nullPerms=100, numMaxCores=12, alphaw=1, outputDir = "../analysis/Monster_2/")
+saveRDS(monsterRes, file="../analysis/Monster_2.Rds")
 ```
 
 ```{r fig.width=20, fig.height=8}
-monsterPlotMonsterAnalysis(monsterRes, rescale='significance')
+monsterPlotMonsterAnalysis(monsterRes, rescale='significance') + theme(axis.text.x = element_text(size=7))
 ```
 
 ```{r}
@@ -105,7 +108,7 @@ Colv=FALSE)
 
 
 ```{r, fig.width=20, fig.height=20}
-monsterTransitionNetworkPlot(monsterRes, numEdges=100,numTopTFs = 100)
+monsterTransitionNetworkPlot(monsterRes, numEdges=150,numTopTFs = 150)
 ```
 ```{r, fig.height=18, fig.width=18}
 monsterTransitionPCAPlot(monsterRes)
