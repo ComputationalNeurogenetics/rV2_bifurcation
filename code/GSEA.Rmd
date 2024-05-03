@@ -19,6 +19,8 @@ library(DBI)
 library(hash)
 library(biomaRt)
 library(presto)
+library(circlize)
+library(ComplexHeatmap)
 library(topGO)
 library(dplyr)
 source("../../AuxCode/AuxFunctions.R")
@@ -52,7 +54,6 @@ rV2.dataset$rv2.lineage_re <- case_when(
   rV2.dataset$rv2.lineage %in% "GL4" ~ "GL3_4",
   rV2.dataset$rv2.lineage %in% "GL5" ~ "GL5",
 )
-
 
 DefaultAssay(rV2.dataset) <- "RNA"
 
@@ -100,7 +101,7 @@ assay.averages <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 #log2.GA1_GL1 <- log2(assay.averages$RNA[,"GA1_2"]/assay.averages$RNA[,"GL1_2"])
 #log2.GA1_GL1 <- sort(log2.GA1_GL1[is.finite(log2.GA1_GL1)])
 Idents(rV2.dataset) <- rV2.dataset$rv2.lineage_re
-DEG.res <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0, assay = "RNA", slot="data") %>% rownames_to_column(var="ensg_id") %>% as_tibble() %>% dplyr::dplyr::filter(p_val_adj<0.05)
+DEG.res <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0, assay = "RNA", slot="data") %>% rownames_to_column(var="ensg_id") %>% as_tibble() %>% dplyr::filter(p_val_adj<0.01)
 
 DEG.res$GL1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res$ensg_id,"GL1_2"]+1,base=2)
 DEG.res$GA1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]+1, base=2)
@@ -108,6 +109,8 @@ DEG.res$GL1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GL1_2"]
 DEG.res$GA1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]
 DEG.res$gene_name <- sapply(DEG.res$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res <- DEG.res %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
+
+DEG.res <- filter(DEG.res, (GL1_2_exp_avg>1.2 | GA1_2_exp_avg>1.2) | (abs(avg_log2FC)>2) & (pct.1>.25 & pct.2>.25))
 
 DEG.res.GSEA <- DEG.res$avg_log2FC
 names(DEG.res.GSEA) <- DEG.res$gene_name
@@ -150,7 +153,16 @@ print(TF_name)
 targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5;",sep="")
 targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 plotEnrichment(targets.Tal1$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+
+
+#target.genes.in.order <- names(sort(DEG.res.GSEA[targets.Tal1$gene_name], decreasing = TRUE))
+#Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),c("GA1_2","GL1_2")])
+#colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
+#col_fun = colorRamp2(c(min(Targets.expression.avg), max(Targets.expression.avg)), c("white", "red"))
+#Heatmap(Targets.expression.avg, cluster_columns = FALSE,heatmap_width = unit(12, "inches"), col=col_fun)
+
 create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Tal1$gene_name))
+#create_dt(Targets.expression.avg)
 
 TF_name<-"Gata2"
 print(TF_name)
