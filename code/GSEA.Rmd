@@ -110,7 +110,7 @@ DEG.res$GA1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]
 DEG.res$gene_name <- sapply(DEG.res$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res <- DEG.res %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 
-DEG.res <- filter(DEG.res, (GL1_2_exp_avg>1.2 | GA1_2_exp_avg>1.2) | (abs(avg_log2FC)>2) & (pct.1>.25 & pct.2>.25))
+#DEG.res <- filter(DEG.res, (GL1_2_exp_avg>1.2 | GA1_2_exp_avg>1.2) | (abs(avg_log2FC)>2) & (pct.1>.25 & pct.2>.25))
 
 DEG.res.GSEA <- DEG.res$avg_log2FC
 names(DEG.res.GSEA) <- DEG.res$gene_name
