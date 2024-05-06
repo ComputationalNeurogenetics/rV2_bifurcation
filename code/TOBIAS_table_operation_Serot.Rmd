@@ -16,6 +16,7 @@ library(DBI)
 library(EnsDb.Mmusculus.v79)
 library(hash)
 library(ChIPpeakAnno)
+cores<-10
 ```
 
 ```{r Additional functions}
@@ -248,6 +249,66 @@ SET TF_gene_name = 'MAD4'
 WHERE TF_gene_name LIKE '4,0%MAD';")
 ```
 
+
+```{r Calculating LinkPeaks within TADs}
+DefaultAssay(dataset) <- "peaks"
+
+Links(dataset) <- GenomicRanges::GRanges()
+
+mm10.v79.genome.GR <- toGRanges(
+  EnsDb.Mmusculus.v79,
+  feature = c("gene", "transcript", "exon", "disjointExons")
+)
+
+mm10.v79.genome.GR$gene_id <- names(mm10.v79.genome.GR)
+
+DefaultAssay(dataset) <- "RNA"
+
+gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(dataset)))
+
+#the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
+TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end")) %>% GRanges()
+
+#Function
+links.within.TADs <- mclapply(gene_ids, function(idx){
+  message_parallel(idx)
+  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
+  
+  #first we find the TAD - topologically associated domain - for gene in a question
+  gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
+
+  TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
+  tryCatch({
+    Link.Seurat <- LinkPeaks(object = dataset, peak.assay = "peaks", expression.assay = "RNA", genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
+  
+    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
+    success <- FALSE
+    while(!success & base::exists("links.tb")) {
+      tryCatch({
+       dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
+        success<-TRUE
+      }, error = function(e) {
+        Sys.sleep(0.25)
+      })
+    }
+    },
+  error = function(e) {
+    cat("An error occurred:", e$message, "\n")
+    },
+  warning = function(w) {
+    cat("A warning occurred:", w$message, "\n")
+  })
+  # Handle warning if necessary)
+  DBI::dbDisconnect(con.obj)
+  #return(links)
+}, mc.cores = cores)
+
+dbExecute(con, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
+dbExecute(con, 'CREATE INDEX feature4 ON links (feature);')
+dbExecute(con, 'CREATE INDEX zscore1 ON links (zscore);')
+dbExecute(con, 'CREATE INDEX links_pvalue ON links (pvalue);')
+```
+
 ```{r Calculating LinkPeaks within TADs}
 mm10.v79.genome.GR <- toGRanges(
   EnsDb.Mmusculus.v79,
@@ -258,10 +319,10 @@ mm10.v79.genome.GR$gene_id <- names(mm10.v79.genome.GR)
 
 DefaultAssay(dataset) <- "RNA"
 
-gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(E12_rV2)))
+gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(dataset)))
 
 #the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
-TAD.map <- read_table("../../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end"))%>% 
+TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end"))%>% 
   GRanges()
 
 #Function
