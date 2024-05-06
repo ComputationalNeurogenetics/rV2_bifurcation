@@ -138,70 +138,11 @@ mid.lower.index <- zero.index-width.around.zero
 mid.upper.index <- zero.index+width.around.zero
 
 allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
-
-
 ```
 
 
 # GSEA results {.tabset}
 
-## With C&T included in conditions
-
-```{r}
-TF_name<-"Tal1"
-print(TF_name)
-targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B' AND tb.mean_cons>0.5;",sep="")
-targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
-plotEnrichment(targets.Tal1$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
-
-
-#target.genes.in.order <- names(sort(DEG.res.GSEA[targets.Tal1$gene_name], decreasing = TRUE))
-#Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),c("GA1_2","GL1_2")])
-#colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
-#col_fun = colorRamp2(c(min(Targets.expression.avg), max(Targets.expression.avg)), c("white", "red"))
-#Heatmap(Targets.expression.avg, cluster_columns = FALSE,heatmap_width = unit(12, "inches"), col=col_fun)
-
-create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Tal1$gene_name))
-#create_dt(Targets.expression.avg)
-
-TF_name<-"Gata2"
-print(TF_name)
-targetQuery <- paste("SELECT gm.gene_name  FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
-targets.Gata2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
-plotEnrichment(targets.Gata2$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
-create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Gata2$gene_name))
-
-TF_name<-"Gata3"
-print(TF_name)
-targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
-targets.Gata3 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
-plotEnrichment(targets.Gata3$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
-create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Gata3$gene_name))
-
-TF_name<-"Vsx2"
-print(TF_name)
-targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
-targets.Vsx2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
-plotEnrichment(targets.Vsx2$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
-create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Vsx2$gene_name))
-
-TF_name<-"Sox4"
-print(TF_name)
-targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
-targets.Sox4 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
-plotEnrichment(targets.Sox4$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
-create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Sox4$gene_name))
-
-geneSets <- list(targets.Tal1=targets.Tal1$gene_name, targets.Gata2=targets.Gata2$gene_name, targets.Gata3=targets.Gata3$gene_name,targets.Sox4=targets.Sox4$gene_name, targets.Vsx2=targets.Vsx2$gene_name)
-
-results <- fgsea(pathways = geneSets, 
-                 stats = DEG.res.GSEA, 
-                 minSize = 5,  # Minimum size of a gene set to be considered
-                 maxSize = 5000) # Maximum size of a gene set to be considered
-print("Summary")
-results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
-create_dt(results)
-```
 
 ## Without C&T in conditions
 
@@ -266,6 +207,125 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 ```
 
+
+## With C&T included in conditions (no conservation score thr)
+
+```{r}
+TF_name<-"Tal1"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.TFBS_name='TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B';",sep="")
+targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Tal1$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+
+
+# target.genes.in.order <- names(sort(DEG.res.GSEA[targets.Tal1$gene_name], decreasing = TRUE))
+# Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),c("GA1_2","GL1_2")])
+# colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
+# col_fun = colorRamp2(c(min(Targets.expression.avg), max(Targets.expression.avg)), c("white", "red"))
+# Heatmap(Targets.expression.avg, cluster_columns = FALSE,heatmap_width = unit(12, "inches"), col=col_fun)
+
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Tal1$gene_name))
+#create_dt(Targets.expression.avg)
+
+TF_name<-"Gata2"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name  FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features;",sep="") 
+targets.Gata2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Gata2$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Gata2$gene_name))
+
+TF_name<-"Gata3"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features;",sep="") 
+targets.Gata3 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Gata3$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Gata3$gene_name))
+
+TF_name<-"Vsx2"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features;",sep="")
+targets.Vsx2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Vsx2$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Vsx2$gene_name))
+
+TF_name<-"Sox4"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features;",sep="") 
+targets.Sox4 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Sox4$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Sox4$gene_name))
+
+geneSets <- list(targets.Tal1=targets.Tal1$gene_name, targets.Gata2=targets.Gata2$gene_name, targets.Gata3=targets.Gata3$gene_name,targets.Sox4=targets.Sox4$gene_name, targets.Vsx2=targets.Vsx2$gene_name)
+
+results <- fgsea(pathways = geneSets, 
+                 stats = DEG.res.GSEA, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+print("Summary")
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+```
+
+## With C&T included in conditions (all Tal1 motifs)
+
+```{r}
+TF_name<-"Tal1"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
+targets.Tal1 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Tal1$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+
+
+# target.genes.in.order <- names(sort(DEG.res.GSEA[targets.Tal1$gene_name], decreasing = TRUE))
+# Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),c("GA1_2","GL1_2")])
+# colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
+# col_fun = colorRamp2(c(min(Targets.expression.avg), max(Targets.expression.avg)), c("white", "red"))
+# Heatmap(Targets.expression.avg, cluster_columns = FALSE,heatmap_width = unit(12, "inches"), col=col_fun)
+
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Tal1$gene_name))
+#create_dt(Targets.expression.avg)
+
+TF_name<-"Gata2"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name  FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
+targets.Gata2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Gata2$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Gata2$gene_name))
+
+TF_name<-"Gata3"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
+targets.Gata3 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Gata3$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Gata3$gene_name))
+
+TF_name<-"Vsx2"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
+targets.Vsx2 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Vsx2$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Vsx2$gene_name))
+
+TF_name<-"Sox4"
+print(TF_name)
+targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND li.zscore>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="") 
+targets.Sox4 <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
+plotEnrichment(targets.Sox4$gene_name, DEG.res.GSEA) + ggtitle(paste(TF_name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002)+ geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002)+ geom_rect(aes(xmin=upper.pos,xmax=nrow(DEG.res),ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+create_dt(DEG.res %>% dplyr::filter(gene_name %in% targets.Sox4$gene_name))
+
+geneSets <- list(targets.Tal1=targets.Tal1$gene_name, targets.Gata2=targets.Gata2$gene_name, targets.Gata3=targets.Gata3$gene_name,targets.Sox4=targets.Sox4$gene_name, targets.Vsx2=targets.Vsx2$gene_name)
+
+results <- fgsea(pathways = geneSets, 
+                 stats = DEG.res.GSEA, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+print("Summary")
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+```
+
+# GO enrichments 25-25-25 among target genes (C&T overlap incl.) {.tabset}
+
 ```{r Connect Ensembl to fetch GO and set thresholds}
 # Connect to the Ensembl database
 ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="https://nov2020.archive.ensembl.org")
@@ -280,9 +340,6 @@ GO2geneID <- split(gene_names_with_go$external_gene_name,gene_names_with_go$go_i
 # Optionally, you can remove genes with no GO IDs if any exist
 geneID2GO <- geneID2GO[sapply(geneID2GO, length) > 0]
 ```
-
-
-# GO enrichments 25-25-25 among target genes (C&T overlap incl.) {.tabset}
 
 ## Tal1 targets
 
