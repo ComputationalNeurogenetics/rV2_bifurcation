@@ -36,16 +36,108 @@ mean.fxn <- function (x,pseudocount.use=1, base=2)
 
 getTargets <- function(TF_name, CT, Cons, ft){
   if (!CT & ft){
-targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND tb.mean_cons>0.5;",sep="")
+  targetQuery <- paste("SELECT 
+    gm.gene_name,
+    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
+    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
+    COUNT(DISTINCT li.feature) AS count_distinct_feature,
+    COUNT(li.feature) AS count_feature,
+    AVG(tb.GA1_2_score) AS GA1_2_score_average,
+    AVG(tb.GL1_2_score) AS GL1_2_score_average,
+    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
+FROM 
+    links AS li
+    JOIN tobias AS tb ON tb.features = li.feature
+    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
+WHERE
+    tb.TF_gene_name = '",toupper(TF_name),"'
+    AND ABS(li.zscore) > 2 
+    AND li.pvalue < 0.001
+    AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
+    AND tb.mean_cons > 0.5
+GROUP BY 
+    gm.gene_name;",
+sep="")
   } else if (!Cons & CT & ft){
-  targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features;",sep="")
+    targetQuery <- paste("SELECT 
+    gm.gene_name,
+    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
+    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
+    COUNT(DISTINCT li.feature) AS count_distinct_feature,
+    COUNT(li.feature) AS count_feature,
+    AVG(tb.GA1_2_score) AS GA1_2_score_average,
+    AVG(tb.GL1_2_score) AS GL1_2_score_average,
+    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
+FROM 
+    links AS li
+    JOIN tobias AS tb ON tb.features = li.feature
+    JOIN CT_data AS ct ON ct.feature = tb.features
+    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
+WHERE
+    tb.TF_gene_name = '",toupper(TF_name),"'
+    AND ABS(li.zscore) > 2 
+    AND li.pvalue < 0.001 
+    AND ct.target_gene_name = '",TF_name,"'
+    AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
+GROUP BY 
+    gm.gene_name;",
+sep="")
   } else if (Cons & CT & ft){
-  targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
+  targetQuery <- paste("SELECT 
+    gm.gene_name,
+    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
+    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
+    COUNT(DISTINCT li.feature) AS count_distinct_feature,
+    COUNT(li.feature) AS count_feature,
+    AVG(tb.GA1_2_score) AS GA1_2_score_average,
+    AVG(tb.GL1_2_score) AS GL1_2_score_average,
+    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
+FROM 
+    links AS li
+    JOIN tobias AS tb ON tb.features = li.feature
+    JOIN CT_data AS ct ON ct.feature = tb.features
+    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
+WHERE
+    tb.TF_gene_name = '",toupper(TF_name),"'
+    AND ABS(li.zscore) > 2 
+    AND li.pvalue < 0.001 
+    AND ct.target_gene_name = '",TF_name,"'
+    AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
+    AND tb.mean_cons > 0.5
+GROUP BY 
+    gm.gene_name;",
+sep="")
   } else if (!ft) {
-      targetQuery <- paste("SELECT gm.gene_name FROM links as li, CT_data as ct, gene_metadata as gm, tobias as tb WHERE gm.ensg_id=li.ensg_id AND ct.feature=li.feature AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND tb.mean_cons>0.5 AND tb.features=li.feature;",sep="")
-  } else {stop("No such combo supported")}
-targets <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
-return(pull(targets,gene_name))
+  targetQuery <- paste("SELECT 
+    gm.gene_name,
+    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
+    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
+    COUNT(DISTINCT li.feature) AS count_distinct_feature,
+    COUNT(li.feature) AS count_feature,
+    AVG(tb.GA1_2_score) AS GA1_2_score_average,
+    AVG(tb.GL1_2_score) AS GL1_2_score_average,
+    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
+FROM 
+    links AS li
+    JOIN tobias AS tb ON tb.features = li.feature
+    JOIN CT_data AS ct ON ct.feature = tb.features
+    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
+WHERE
+    tb.TF_gene_name = '",toupper(TF_name),"'
+    AND ABS(li.zscore) > 2 
+    AND li.pvalue < 0.001 
+    AND ct.target_gene_name = '",TF_name,"'
+    AND tb.mean_cons > 0.5
+GROUP BY 
+    gm.gene_name;",
+sep="")
+  } else {
+    stop("No such combo supported")
+    }
+  
+target.data <- as_tibble(dbGetQuery(con, targetQuery))
+targets <- unique(pull(target.data, gene_name))
+return(list(targets=targets, target.data=target.data))
 }
 
 do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
@@ -85,46 +177,46 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 
 # Target counts {.tabset}
 
-## Without C&T False and Cons True - Set1
+## With C&T False and Cons True ft True - Set1
 
 ```{r Set1}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-targetGenes.set.1 <- lapply(TF_names,getTargets,CT=FALSE, Cons=TRUE)
+targetGenes.set.1 <- lapply(TF_names,getTargets,CT=FALSE, Cons=TRUE, ft=TRUE)
 names(targetGenes.set.1) <- TF_names
-sapply(targetGenes.set.1,length)
+sapply(targetGenes.set.1,function(p){length(p$targets)})
 ```
 
-## With C&T True and Cons False - Set 2
+## With C&T True and Cons False ft True - Set 2
 ```{r Set2}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-targetGenes.set.2 <- lapply(TF_names,getTargets,CT=TRUE, Cons=FALSE)
+targetGenes.set.2 <- lapply(TF_names,getTargets,CT=TRUE, Cons=FALSE, ft=TRUE)
 names(targetGenes.set.2) <- TF_names
-sapply(targetGenes.set.2,length)
+sapply(targetGenes.set.2,function(p){length(p$targets)})
 ```
 
-## With C&T True and Cons True - Set3
+## With C&T True and Cons True ft True - Set3
 
 ```{r Set3}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-targetGenes.set.3 <- lapply(TF_names,getTargets,CT=TRUE, Cons=TRUE)
+targetGenes.set.3 <- lapply(TF_names,getTargets,CT=TRUE, Cons=TRUE, ft=TRUE)
 names(targetGenes.set.3) <- TF_names
-sapply(targetGenes.set.3,length)
+sapply(targetGenes.set.3,function(p){length(p$targets)})
 ```
 
-## With C&T True and Cons False ft True - Set4
+## With C&T True and Cons True ft False - Set4
 
 ```{r Set4}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
 targetGenes.set.4 <- lapply(TF_names,getTargets,CT=TRUE, Cons=TRUE, ft=FALSE)
 names(targetGenes.set.4) <- TF_names
-sapply(targetGenes.set.4,length)
+sapply(targetGenes.set.4,function(p){length(p$targets)})
 ```
 
 
 ## Combined
 
 ```{r}
-combined.target.counts <- rbind(sapply(targetGenes.set.1,length),sapply(targetGenes.set.2,length),sapply(targetGenes.set.3,length),sapply(targetGenes.set.4,length))
+combined.target.counts <- rbind(sapply(targetGenes.set.1,function(p){length(p$targets)}),sapply(targetGenes.set.2,function(p){length(p$targets)}),sapply(targetGenes.set.3,function(p){length(p$targets)}),sapply(targetGenes.set.4,function(p){length(p$targets)}))
 
 rownames(combined.target.counts) <- c("CT False and Cons True","CT True and Cons False","CT True and Cons True","CT True and Cons True and FT False")
 create_dt(combined.target.counts)
@@ -226,44 +318,67 @@ allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_met
 
 ```{r GA/GL GSEA for Set 1, warning=FALSE, echo=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]],DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
-#sapply(set1.GSEA,function(g){create_dt(g$d1)})
-
-results <- fgsea(pathways = targetGenes.set.1, 
+tmp.1 <- lapply(targetGenes.set.1,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.1)
+results <- fgsea(pathways = tmp.1, 
                  stats = DEG.res.GSEA, 
                  minSize = 5,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 
-DEG.res.subset <- lapply(targetGenes.set.1, function(p){filter(DEG.res, gene_name %in% p)})
+DEG.res.subset <- lapply(targetGenes.set.1, function(p){
+  left_join(filter(DEG.res, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-create_dt(combined_tibble)
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
+create_dt(filter(combined_tibble, TF=="Sox4"))
+create_dt(filter(combined_tibble, TF=="Klf17"))
+create_dt(filter(combined_tibble, TF=="Myc"))
 ```
 
 ### GA/SR
 
 ```{r GA/SR GSEA for Set 1, warning=FALSE, echo=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]],DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
-#sapply(set1.GSEA,function(g){create_dt(g$d1)})
 
-results <- fgsea(pathways = targetGenes.set.1, 
+tmp.1 <- lapply(targetGenes.set.1,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.1)
+results <- fgsea(pathways = tmp.1, 
                  stats = DEG.res.GSEA.GASR, 
                  minSize = 5,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 
-DEG.res.subset <- lapply(targetGenes.set.1, function(p){filter(DEG.res.GASR, gene_name %in% p)})
+DEG.res.subset <- lapply(targetGenes.set.1, function(p){
+  left_join(filter(DEG.res.GASR, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-create_dt(combined_tibble)
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
+create_dt(filter(combined_tibble, TF=="Sox4"))
+create_dt(filter(combined_tibble, TF=="Klf17"))
+create_dt(filter(combined_tibble, TF=="Myc"))
 ```
 
 ## GSEA Set 2 {.tabset}
@@ -271,45 +386,62 @@ create_dt(combined_tibble)
 ### GA/GL
 
 ```{r GA/GL GSEA for Set 2, warning=FALSE}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set2.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]],DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")})
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
-invisible(sapply(set2.GSEA,function(g){print(g$p1)}))
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
-#sapply(set1.GSEA,function(g){create_dt(g$d1)})
-
-results <- fgsea(pathways = targetGenes.set.2, 
+tmp.1 <- lapply(targetGenes.set.2,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.2)
+results <- fgsea(pathways = tmp.1, 
                  stats = DEG.res.GSEA, 
                  minSize = 5,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 
-DEG.res.subset <- lapply(targetGenes.set.2, function(p){filter(DEG.res, gene_name %in% p)})
+DEG.res.subset <- lapply(targetGenes.set.2, function(p){
+  left_join(filter(DEG.res, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-create_dt(combined_tibble)
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
 ### GA/SR
 
 ```{r GA/SR GSEA for Set 2, warning=FALSE, echo=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]],DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
-#sapply(set1.GSEA,function(g){create_dt(g$d1)})
 
-results <- fgsea(pathways = targetGenes.set.2, 
+tmp.1 <- lapply(targetGenes.set.2,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.2)
+results <- fgsea(pathways = tmp.1, 
                  stats = DEG.res.GSEA.GASR, 
                  minSize = 5,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 
-DEG.res.subset <- lapply(targetGenes.set.2, function(p){filter(DEG.res.GASR, gene_name %in% p)})
+DEG.res.subset <- lapply(targetGenes.set.2, function(p){
+  left_join(filter(DEG.res.GASR, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-create_dt(combined_tibble)
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
 ## GSEA Set 3 {.tabset}
@@ -317,46 +449,128 @@ create_dt(combined_tibble)
 ### GA/GL
 
 ```{r GA/GL GSEA for Set 3, warning=FALSE}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set3.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]],DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")})
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
-invisible(sapply(set3.GSEA,function(g){print(g$p1)}))
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
-#sapply(set1.GSEA,function(g){create_dt(g$d1)})
-
-results <- fgsea(pathways = targetGenes.set.3, 
+tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.3)
+results <- fgsea(pathways = tmp.1, 
                  stats = DEG.res.GSEA, 
                  minSize = 5,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 
-DEG.res.subset <- lapply(targetGenes.set.3, function(p){filter(DEG.res, gene_name %in% p)})
+DEG.res.subset <- lapply(targetGenes.set.3, function(p){
+  left_join(filter(DEG.res, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-create_dt(combined_tibble)
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
+### GA/SR
 
-## GSEA Set 4 
+```{r GA/SR GSEA for Set 3, warning=FALSE, echo=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
 
-```{r GSEA for Set 4, warning=FALSE}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set4.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.4[[target]],DEG.res=DEG.res,TF.name=target)})
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
-invisible(sapply(set4.GSEA,function(g){print(g$p1)}))
 
-results <- fgsea(pathways = targetGenes.set.4, 
+tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.3)
+results <- fgsea(pathways = tmp.1, 
+                 stats = DEG.res.GSEA.GASR, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+
+DEG.res.subset <- lapply(targetGenes.set.3, function(p){
+  left_join(filter(DEG.res.GASR, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
+```
+
+## GSEA Set 4 {.tabset}
+
+### GA/GL
+
+```{r GA/GL GSEA for Set 4, warning=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.4[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
+
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
+
+tmp.1 <- lapply(targetGenes.set.4,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.4)
+results <- fgsea(pathways = tmp.1, 
                  stats = DEG.res.GSEA, 
                  minSize = 5,  # Minimum size of a gene set to be considered
                  maxSize = 5000) # Maximum size of a gene set to be considered
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 
-DEG.res.subset <- lapply(targetGenes.set.3, function(p){filter(DEG.res.GASR, gene_name %in% p)})
+DEG.res.subset <- lapply(targetGenes.set.4, function(p){
+  left_join(filter(DEG.res, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-create_dt(combined_tibble)
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
+
+### GA/SR
+
+```{r GA/SR GSEA for Set 4, warning=FALSE, echo=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.4[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
+
+
+tmp.1 <- lapply(targetGenes.set.4,function(p){p$targets})
+names(tmp.1) <- names(targetGenes.set.4)
+results <- fgsea(pathways = tmp.1, 
+                 stats = DEG.res.GSEA.GASR, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+
+DEG.res.subset <- lapply(targetGenes.set.4, function(p){
+  left_join(filter(DEG.res.GASR, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  })
+
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+#create_dt(combined_tibble)
+
+create_dt(filter(combined_tibble, TF=="Tal1"))
+create_dt(filter(combined_tibble, TF=="Gata2"))
+create_dt(filter(combined_tibble, TF=="Gata3"))
+create_dt(filter(combined_tibble, TF=="Vsx2"))
+```
+
+
 
 <!-- # GO enrichments 25-25-25 among target genes (C&T overlap incl.) {.tabset} -->
 
