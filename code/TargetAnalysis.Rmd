@@ -46,9 +46,10 @@ targets <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 return(pull(targets,gene_name))
 }
 
-do.GSEA <- function(targets,DEG.res,TF.name){
+do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
   lower.thr <- .25
-
+  upper.thr <- .75
+  
   upper.limit <- quantile(DEG.res$avg_log2FC,upper.thr)
   upper.pos <- which.min(abs(DEG.res$avg_log2FC-upper.limit))
   
@@ -66,7 +67,7 @@ do.GSEA <- function(targets,DEG.res,TF.name){
   
   DEG.res.GSEA <- DEG.res$avg_log2FC
   names(DEG.res.GSEA) <- DEG.res$gene_name
-  p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in GA/GL DEG")) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) + geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002) + geom_rect(aes(xmin=upper.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+  p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in", comp.title)) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) + geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002) + geom_rect(aes(xmin=upper.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
   d1 <- DEG.res %>% dplyr::filter(gene_name %in% targets)
   return(list(p1=p1,d1=d1))
 }
@@ -90,7 +91,6 @@ targetGenes.set.1 <- lapply(TF_names,getTargets,CT=FALSE, Cons=TRUE)
 names(targetGenes.set.1) <- TF_names
 sapply(targetGenes.set.1,length)
 ```
-
 
 ## With C&T True and Cons False - Set 2
 ```{r Set2}
@@ -118,11 +118,9 @@ rownames(combined.target.counts) <- c("CT False and Cons True","CT True and Cons
 create_dt(combined.target.counts)
 ```
 
-
-
 # GSEA analysis of target genes {.tabset}
 
-```{r Reading data, include=FALSE}
+```{r Reading rV2 data, include=FALSE}
 rV2.dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 
 rV2.dataset$rv2.lineage_re <- case_when(
@@ -149,7 +147,21 @@ gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]]
 gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
 ```
 
-```{r Calculating averages and DEG, include=FALSE}
+```{r reading Serot data and merging}
+serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
+merged.datasets <- merge(rV2.dataset,serot.dataset)
+
+merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage_re, merged.datasets$sero.lineage), levels=c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6","GL1_2","GL3_4","GL5","SR1","SR2","SR3"))
+
+merged.datasets$merged.groups <- fct_collapse(merged.datasets$merged.groups, SR2_3 = c("SR2", "SR3"))
+
+gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
+gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
+  
+DefaultAssay(merged.datasets) <- "RNA"
+```
+
+```{r Calculating averages and DEG for GA/GL axis, include=FALSE}
 assay.averages <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 
 Idents(rV2.dataset) <- rV2.dataset$rv2.lineage_re
@@ -170,15 +182,39 @@ DEG.res.GSEA <- DEG.res$avg_log2FC
 names(DEG.res.GSEA) <- DEG.res$gene_name
 ```
 
+```{r Calculating averages and DEG for GA/Serot axis, include=FALSE}
+assay.averages <- AverageExpression(merged.datasets,group.by = "merged.groups")
+
+Idents(merged.datasets) <- merged.datasets$merged.groups
+DEG.res.GASR <- FindMarkers(merged.datasets, ident.1="GA1_2", ident.2 = "SR2_3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble() %>% dplyr::filter(p_val_adj<0.01)
+
+colnames(assay.averages$RNA) <- str_replace_all(colnames(assay.averages$RNA), pattern = "-", replacement = "_")
+
+DEG.res.GASR$SR2_3_exp_avg_log2 <- log(assay.averages$RNA[DEG.res.GASR$ensg_id,"SR2_3"]+1,base=2)
+DEG.res.GASR$GA1_2_exp_avg_log2 <- log(assay.averages$RNA[DEG.res.GASR$ensg_id,"GA1_2"]+1, base=2)
+DEG.res.GASR$SR2_3_exp_avg <- assay.averages$RNA[DEG.res.GASR$ensg_id,"SR2_3"]
+DEG.res.GASR$GA1_2_exp_avg <- assay.averages$RNA[DEG.res.GASR$ensg_id,"GA1_2"]
+DEG.res.GASR$gene_name <- sapply(DEG.res.GASR$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
+DEG.res.GASR <- DEG.res.GASR %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
+
+#DEG.res <- filter(DEG.res, (GL1_2_exp_avg>1.2 | GA1_2_exp_avg>1.2) | (abs(avg_log2FC)>2) & (pct.1>.25 & pct.2>.25))
+
+DEG.res.GSEA.GASR <- DEG.res.GASR$avg_log2FC
+names(DEG.res.GSEA.GASR) <- DEG.res.GASR$gene_name
+```
+
+
 ```{r, eval=FALSE}
 allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
 ```
 
-## GSEA Set 1
+## GSEA Set 1 {.tabset}
 
-```{r GSEA for Set 1, warning=FALSE, echo=FALSE}
+### GA/GL
+
+```{r GA/GL GSEA for Set 1, warning=FALSE, echo=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
-set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]],DEG.res=DEG.res,TF.name=target)}))
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]],DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
@@ -196,11 +232,35 @@ combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 create_dt(combined_tibble)
 ```
 
-## GSEA Set 2
+### GA/SR
 
-```{r GSEA for Set 2, warning=FALSE}
+```{r GA/SR GSEA for Set 1, warning=FALSE, echo=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.1[[target]],DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
+
+#sapply(set1.GSEA,function(g){create_dt(g$d1)})
+
+results <- fgsea(pathways = targetGenes.set.1, 
+                 stats = DEG.res.GSEA.GASR, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+
+DEG.res.subset <- lapply(targetGenes.set.1, function(p){filter(DEG.res.GASR, gene_name %in% p)})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+create_dt(combined_tibble)
+```
+
+## GSEA Set 2 {.tabset}
+
+### GA/GL
+
+```{r GA/GL GSEA for Set 2, warning=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set2.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]],DEG.res=DEG.res,TF.name=target)})
+set2.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]],DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")})
 
 invisible(sapply(set2.GSEA,function(g){print(g$p1)}))
 
@@ -218,11 +278,35 @@ combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 create_dt(combined_tibble)
 ```
 
-## GSEA Set 3
+### GA/SR
 
-```{r GSEA for Set 3, warning=FALSE}
+```{r GA/SR GSEA for Set 2, warning=FALSE, echo=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.2[[target]],DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
+
+#sapply(set1.GSEA,function(g){create_dt(g$d1)})
+
+results <- fgsea(pathways = targetGenes.set.2, 
+                 stats = DEG.res.GSEA.GASR, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+
+DEG.res.subset <- lapply(targetGenes.set.2, function(p){filter(DEG.res.GASR, gene_name %in% p)})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+create_dt(combined_tibble)
+```
+
+## GSEA Set 3 {.tabset}
+
+### GA/GL
+
+```{r GA/GL GSEA for Set 3, warning=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set3.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]],DEG.res=DEG.res,TF.name=target)})
+set3.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]],DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")})
 
 invisible(sapply(set3.GSEA,function(g){print(g$p1)}))
 
@@ -236,6 +320,28 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 
 DEG.res.subset <- lapply(targetGenes.set.3, function(p){filter(DEG.res, gene_name %in% p)})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+create_dt(combined_tibble)
+```
+
+### GA/SR
+
+```{r GA/SR GSEA for Set 3, warning=FALSE, echo=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]],DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+
+invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
+
+#sapply(set1.GSEA,function(g){create_dt(g$d1)})
+
+results <- fgsea(pathways = targetGenes.set.3, 
+                 stats = DEG.res.GSEA.GASR, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+
+DEG.res.subset <- lapply(targetGenes.set.3, function(p){filter(DEG.res.GASR, gene_name %in% p)})
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 create_dt(combined_tibble)
 ```
