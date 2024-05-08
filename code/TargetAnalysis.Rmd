@@ -34,14 +34,16 @@ mean.fxn <- function (x,pseudocount.use=1, base=2)
         base = base))
 }
 
-getTargets <- function(TF_name, CT, Cons){
-  if (!CT){
+getTargets <- function(TF_name, CT, Cons, ft){
+  if (!CT & ft){
 targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND tb.mean_cons>0.5;",sep="")
-  } else if (!Cons & CT){
+  } else if (!Cons & CT & ft){
   targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features;",sep="")
-  } else if (Cons & CT){
+  } else if (Cons & CT & ft){
   targetQuery <- paste("SELECT gm.gene_name FROM links as li, tobias as tb, CT_data as ct, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND tb.features=li.feature AND tb.TF_gene_name='",toupper(TF_name),"' AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND (tb.GA1_2_bound=1 OR tb.GL1_2_bound=1) AND ct.feature=tb.features AND tb.mean_cons>0.5;",sep="")
-} else {stop("No such combo supported")}
+  } else if (!ft) {
+      targetQuery <- paste("SELECT gm.gene_name FROM links as li, CT_data as ct, gene_metadata as gm, tobias as tb WHERE gm.ensg_id=li.ensg_id AND ct.feature=li.feature AND ABS(li.zscore)>2 AND li.pvalue<0.001 AND ct.target_gene_name='",TF_name,"' AND tb.mean_cons>0.5 AND tb.features=li.feature;",sep="")
+  } else {stop("No such combo supported")}
 targets <- as_tibble(dbGetQuery(con, targetQuery)) %>% distinct()
 return(pull(targets,gene_name))
 }
@@ -109,12 +111,22 @@ names(targetGenes.set.3) <- TF_names
 sapply(targetGenes.set.3,length)
 ```
 
+## With C&T True and Cons False ft True - Set4
+
+```{r Set4}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+targetGenes.set.4 <- lapply(TF_names,getTargets,CT=TRUE, Cons=TRUE, ft=FALSE)
+names(targetGenes.set.4) <- TF_names
+sapply(targetGenes.set.4,length)
+```
+
+
 ## Combined
 
 ```{r}
-combined.target.counts <- rbind(sapply(targetGenes.set.1,length),sapply(targetGenes.set.2,length),sapply(targetGenes.set.3,length))
+combined.target.counts <- rbind(sapply(targetGenes.set.1,length),sapply(targetGenes.set.2,length),sapply(targetGenes.set.3,length),sapply(targetGenes.set.4,length))
 
-rownames(combined.target.counts) <- c("CT False and Cons True","CT True and Cons False","CT True and Cons True")
+rownames(combined.target.counts) <- c("CT False and Cons True","CT True and Cons False","CT True and Cons True","CT True and Cons True and FT False")
 create_dt(combined.target.counts)
 ```
 
@@ -236,6 +248,29 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 
 DEG.res.subset <- lapply(targetGenes.set.3, function(p){filter(DEG.res, gene_name %in% p)})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+create_dt(combined_tibble)
+```
+
+
+## GSEA Set 4
+
+```{r GSEA for Set 4, warning=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
+set4.GSEA <- lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.4[[target]],DEG.res=DEG.res,TF.name=target)})
+
+invisible(sapply(set4.GSEA,function(g){print(g$p1)}))
+
+#sapply(set1.GSEA,function(g){create_dt(g$d1)})
+
+results <- fgsea(pathways = targetGenes.set.4, 
+                 stats = DEG.res.GSEA, 
+                 minSize = 5,  # Minimum size of a gene set to be considered
+                 maxSize = 5000) # Maximum size of a gene set to be considered
+results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
+create_dt(results)
+
+DEG.res.subset <- lapply(targetGenes.set.4, function(p){filter(DEG.res, gene_name %in% p)})
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 create_dt(combined_tibble)
 ```
