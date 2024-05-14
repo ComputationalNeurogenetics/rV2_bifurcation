@@ -571,6 +571,87 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
 
+```{r}
+Tal1.tb.data <- as_tibble(dbGetQuery(con, 'SELECT tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound FROM tobias as tb WHERE tb.TF_gene_name IN ("TAL1","GATA2","GATA3","VSX2")'))
+Tal1.tb.data
+```
+
+```{r}
+results <- Tal1.tb.data %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound) %>% 
+  mutate(
+    all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
+    all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
+    mixed = !all_zeros & !all_ones
+  ) %>%
+  summarise(
+    count_all_zeros = sum(all_zeros),
+    count_all_ones = sum(all_ones),
+    count_mixed = sum(mixed)
+  )
+results
+```
+
+```{r}
+write_csv(Tal1.tb.data, file = "tb.data.csv")
+```
+
+
+```{r}
+Tal1.tb.data.long <- Tal1.tb.data %>% dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>% pivot_longer(cols = everything(), names_to = "Cell_group", values_to = "Score") 
+Tal1.tb.data.long$Cell_group <- factor(Tal1.tb.data.long$Cell_group, levels = c("PRO1_2_score", "CO1_2_score","GA1_2_score"))
+
+ggplot(Tal1.tb.data.long,aes(y = Score)) + geom_boxplot(aes(x = Cell_group))
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Read the CSV file
+data <- Tal1.tb.data
+
+# Pre-defined chosen minima for each TF and cell group
+chosen_minima <- list(
+  GATA2 = c(PRO1_2_score = 1.353, CO1_2_score = 0.081, GA1_2_score = 2.314),
+  GATA3 = c(PRO1_2_score = 1.169, CO1_2_score = 0.075, GA1_2_score = 0.057),
+  TAL1 = c(PRO1_2_score = 1.944, CO1_2_score = 0.079, GA1_2_score = 0.048),
+  VSX2 = c(PRO1_2_score = 1.215, CO1_2_score = 0.086, GA1_2_score = 1.897)
+)
+
+# Function to plot KDE and the chosen minima for a given TF
+plot_kde_with_minima <- function(tf_name, data, chosen_minima) {
+  tf_data <- data %>% filter(TF_gene_name == tf_name)
+  
+  # Creating a list of plots
+  plots <- list()
+  
+  for (score_column in names(chosen_minima[[tf_name]])) {
+    p <- ggplot(tf_data, aes_string(x = score_column)) +
+      geom_density(fill = "blue", alpha = 0.4) +
+      geom_vline(xintercept = chosen_minima[[tf_name]][[score_column]], 
+                 color = "green", linetype = "solid", size = 1.5) +
+      labs(title = paste("KDE for", tf_name, ":", score_column),
+           x = "Score", y = "Density") +
+      theme_minimal() + xlim(c(0,4))
+    
+    plots[[score_column]] <- p
+  }
+  
+  return(plots)
+}
+
+# Example usage: Plot for TAL1
+tal1_plots <- plot_kde_with_minima("TAL1", data, chosen_minima)
+
+# Print plots for TAL1
+if (!is.null(tal1_plots$PRO1_2_score)) print(tal1_plots$PRO1_2_score)
+if (!is.null(tal1_plots$CO1_2_score)) print(tal1_plots$CO1_2_score)
+if (!is.null(tal1_plots$GA1_2_score)) print(tal1_plots$GA1_2_score)
+
+```
+
+
 
 <!-- # GO enrichments 25-25-25 among target genes (C&T overlap incl.) {.tabset} -->
 
