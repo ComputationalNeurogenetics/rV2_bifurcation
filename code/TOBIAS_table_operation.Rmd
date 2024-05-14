@@ -168,7 +168,7 @@ cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
 ```
 
 ```{r}
-TFBS.loc <- dbGetQuery(con, 'SELECT seqnames, start, end FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
+TFBS.loc <- dbGetQuery(con, 'SELECT seqnames, start, end, TFBS_name FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
 ```
 
 ```{r }
@@ -200,6 +200,78 @@ dbExecute(con, 'ALTER TABLE tobias ADD COLUMN mean_cons REAL;')
 dbExecute(con, '
 UPDATE tobias
 SET mean_cons = (
+    SELECT mean_cons
+    FROM TFBS_pos_cons_tmp
+    WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end
+)')
+
+
+# Not all TFBS get conservation score, is this becuase of the conservation source data??
+
+dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;')
+```
+
+
+```{r, eval=FALSE}
+
+# TODO: problem is that motif coordinates are not as whole in tobias results. We need whole coordinates there!!
+
+# Initialize a variable to store problematic groups
+problematic_groups <- list()
+
+# Define a function to calculate the weighted mean for each group
+calculate_weighted_mean <- function(data) {
+  TFBS_name <- unique(data$TFBS_name)
+  if (length(TFBS_name) != 1) {
+    stop("Each group should have exactly one TFB_name.")
+  }
+  weights <- positional.mean.weights[[TFBS_name]]
+  if (is.null(weights)) {
+    stop(paste("No weights found for TFB_name:", TFBS_name))
+  }
+  if (length(weights) != nrow(data)) {
+    # Store information about the problematic group
+    problematic_groups <<- append(problematic_groups, list(tibble(start = unique(data$start), end = unique(data$end), TFBS_name = TFBS_name, mean.cons = mean(data$score))))
+    # Return NA
+    mean.cons <- NA
+  } else {
+    # Calculate weighted mean
+    mean.cons <- weighted.mean(data$score, weights)
+  }
+  tibble(start = unique(data$start), end = unique(data$end), TFBS_name = TFBS_name, mean.cons = mean.cons)
+}
+
+
+uniq.seq.names <- unique(pull(TFBS.loc,seqnames))
+
+TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
+  message_parallel(paste("Processing",seq.name,sep=" "))
+  gc()
+  TFBS.tmp <- makeGRangesFromDataFrame(dplyr::filter(TFBS.loc, seqnames==seq.name), keep.extra.columns = T)
+  cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
+  TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within")
+  mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score
+  TFBS.df <- as.data.frame(TFBS.cons$TFBS.tmp)
+  TFBS.cons.means <- TFBS.df %>% group_by(start,end,TFBS_name) %>% group_split() %>%
+  map_dfr(~ calculate_weighted_mean(.x))
+  TFBS.cons.means$seqnames <-seq.name
+  return(TFBS.cons.means)
+}, mc.cores = 1)
+
+
+TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list)
+colnames(TFBS.loc.cons.tb) <- c("start","end","mean_cons","seqnames")
+tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end"))
+
+dbWriteTable(con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite=TRUE)
+dbExecute(con, 'CREATE INDEX TFBS_loc_2
+ON TFBS_pos_cons_tmp (seqnames, start, end);')
+
+dbExecute(con, 'ALTER TABLE tobias ADD COLUMN w_mean_cons REAL;')
+
+dbExecute(con, '
+UPDATE tobias
+SET w_mean_cons = (
     SELECT mean_cons
     FROM TFBS_pos_cons_tmp
     WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end
