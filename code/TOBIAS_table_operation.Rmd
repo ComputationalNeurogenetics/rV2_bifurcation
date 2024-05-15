@@ -17,6 +17,8 @@ library(hash)
 library(EnsDb.Mmusculus.v79)
 library(ChIPpeakAnno)
 cores <-10
+source("../../AuxCode/AuxFunctions.R")
+source("../../AuxCode/TOBIAS_tools.R")
 ```
 
 ```{r Additional functions}
@@ -57,7 +59,7 @@ gene_name2id <- hash(dataset[['RNA']][[]][,1],rownames(dataset[['RNA']][[]]))
 ```{r Reading Tobias results and H12 metadata, eval=FALSE}
 #rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
 
-rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/Volumes/VarastoNAS/UniversityData/TOBIAS_090224/TFBS/",parallel=T, mc.cores=2, HOCOMOCO=12)
+rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_090224/TFBS/",parallel=T, mc.cores=2, HOCOMOCO=12)
 
 #H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
 #H12.metadata$TF.rep <- paste(H12.metadata$name,"_",H12.metadata$name,sep="")
@@ -68,7 +70,13 @@ H12.metadata <- read_delim("../metadata/H12.data_INSM1_added.csv", col_names = T
 ```{r TRansform tobias gr to tb, eval=FALSE}
 tobias.tb.list <- lapply(rV2.groups.tobias.h12.gr.dr, as_tibble)
 tobias.tb <- do.call(rbind,tobias.tb.list)
-qsave(tobias.tb, file = "../analysis/Tobias.rv2.h12.dr.tb.qs",nthreads = cores)
+tobias.tb$start <- tobias.tb$start+1 
+qsave(tobias.tb, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.qs",nthreads = cores)
+```
+
+```{r}
+tobias.tb <- qread(file = "../analysis/Tobias.rv2.h12.dr.tb.qs",nthreads = cores)
+tobias.tb$start <- tobias.tb$start+1 
 ```
 
 ```{r Finding TFBS to feature matches, eval=FALSE}
@@ -87,7 +95,8 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = cor
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_230424.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -171,7 +180,7 @@ cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
 TFBS.loc <- dbGetQuery(con, 'SELECT seqnames, start, end, TFBS_name FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
 ```
 
-```{r }
+```{r}
 uniq.seq.names <- unique(pull(TFBS.loc,seqnames))
 
 TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
@@ -179,6 +188,7 @@ TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
   gc()
   TFBS.tmp <- makeGRangesFromDataFrame(filter(TFBS.loc, seqnames==seq.name))
   cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
+  overlaps <- findOverlaps(query = cons.subset, subject = TFBS.tmp, type = "within")
   TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within")
   mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score
   TFBS.cons.means <- as_tibble(TFBS.cons$TFBS.tmp %>% plyranges::group_by(start,end) %>% summarize(mean.cons=mean(score)))
@@ -231,7 +241,7 @@ calculate_weighted_mean <- function(data) {
   }
   if (length(weights) != nrow(data)) {
     # Store information about the problematic group
-    problematic_groups <<- append(problematic_groups, list(tibble(start = unique(data$start), end = unique(data$end), TFBS_name = TFBS_name, mean.cons = mean(data$score))))
+    problematic_groups <<- append(problematic_groups, list(tibble(start = unique(data$start), end = unique(data$end), TFBS_name = TFBS_name, difference = length(weights)- nrow(data))))
     # Return NA
     mean.cons <- NA
   } else {
@@ -249,9 +259,50 @@ TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
   gc()
   TFBS.tmp <- makeGRangesFromDataFrame(dplyr::filter(TFBS.loc, seqnames==seq.name), keep.extra.columns = T)
   cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
-  TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within")
-  mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score
-  TFBS.df <- as.data.frame(TFBS.cons$TFBS.tmp)
+  
+  
+  # Split TFBS.tmp into single-base intervals
+  TFBS.tmp.split <- unlist(tile(TFBS.tmp, width=1))
+
+  # Replicate metadata to each single-base interval
+  metadata <- as.data.frame(mcols(TFBS.tmp))
+  metadata_rep <- metadata[rep(1:nrow(metadata), lengths(tile(TFBS.tmp, width=1))), ]
+  mcols(TFBS.tmp.split) <- metadata_rep
+  
+  # Find overlaps between single-base intervals and cons.subset
+  overlaps <- findOverlaps(query = cons.subset, subject = TFBS.tmp.split)
+
+  # Create a data frame from TFBS.tmp.split
+  TFBS.df <- as.data.frame(TFBS.tmp.split)
+  colnames(TFBS.df)[colnames(TFBS.df) == "X"] <- "TFBS_name"
+  
+  # Initialize the score column with NA
+  TFBS.df$score <- NA
+
+  # Get the indices of the overlapping regions
+  query_hits <- queryHits(overlaps)
+  subject_hits <- subjectHits(overlaps)
+
+  # Copy the score from cons.subset to TFBS.df
+  TFBS.df$score[subject_hits] <- mcols(cons.subset)$score[query_hits]
+
+  # Create a grouping variable to identify consecutive ranges
+  # TFBS.df <- TFBS.df %>%
+  # arrange(TFBS_name, start, end) %>%
+  # mutate(group = cumsum(c(1, diff(start) != 1 | diff(as.numeric(factor(TFBS_name))) != 0)))
+  
+TFBS.df <- TFBS.df %>%
+  arrange(TFBS_name, start) %>%
+  mutate(is_consecutive = (start == dplyr::lag(end, default = dplyr::first(start)) + 1) & (TFBS_name == dplyr::lag(TFBS_name, default = dplyr::first(TFBS_name))), group = cumsum(!is_consecutive)) %>%
+  dplyr::select(-is_consecutive)
+
+  # Update each row within the group to have the smallest start and largest end
+  TFBS.df <- TFBS.df %>%
+  group_by(group, TFBS_name) %>%
+  mutate(start = min(start), end = max(end)) %>%
+  ungroup() %>%
+  dplyr::select(-group)  # Remove the temporary group column
+
   TFBS.cons.means <- TFBS.df %>% group_by(start,end,TFBS_name) %>% group_split() %>%
   map_dfr(~ calculate_weighted_mean(.x))
   TFBS.cons.means$seqnames <-seq.name
@@ -362,7 +413,7 @@ TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm
 #Function
 links.within.TADs <- mclapply(gene_ids, function(idx){
   message_parallel(idx)
-  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_110424.sqlite")
+  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
   
   #first we find the TAD - topologically associated domain - for gene in a question
   gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
