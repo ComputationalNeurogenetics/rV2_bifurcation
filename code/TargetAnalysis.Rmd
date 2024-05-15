@@ -218,7 +218,7 @@ gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]]
 gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
 ```
 
-```{r reading Serot data and merging}
+```{r reading Serot data and merging, warning=FALSE}
 serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
 merged.datasets <- merge(rV2.dataset,serot.dataset)
 
