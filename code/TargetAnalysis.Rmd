@@ -22,6 +22,7 @@ library(presto)
 library(purrr)
 library(circlize)
 library(ComplexHeatmap)
+library(parallel)
 library(topGO)
 library(dplyr)
 source("../../AuxCode/AuxFunctions.R")
@@ -35,63 +36,19 @@ mean.fxn <- function (x,pseudocount.use=1, base=2)
 }
 
 getTargets <- function(TF_name, CT, Cons, ft){
-  if (!CT & ft){
   targetQuery <- paste("SELECT 
     gm.gene_name,
     COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
     COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
     COUNT(DISTINCT li.feature) AS count_distinct_feature,
     COUNT(li.feature) AS count_feature,
+    AVG(tb.PRO1_2_score) AS PRO1_2_score_average,
     AVG(tb.GA1_2_score) AS GA1_2_score_average,
     AVG(tb.GL1_2_score) AS GL1_2_score_average,
-    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
-FROM 
-    links AS li
-    JOIN tobias AS tb ON tb.features = li.feature
-    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
-WHERE
-    tb.TF_gene_name = '",toupper(TF_name),"'
-    AND ABS(li.zscore) > 2 
-    AND li.pvalue < 0.001
-    AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
-    AND tb.mean_cons > 0.5
-GROUP BY 
-    gm.gene_name;",
-sep="")
-  } else if (!Cons & CT & ft){
-    targetQuery <- paste("SELECT 
-    gm.gene_name,
-    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
-    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
-    COUNT(DISTINCT li.feature) AS count_distinct_feature,
-    COUNT(li.feature) AS count_feature,
-    AVG(tb.GA1_2_score) AS GA1_2_score_average,
-    AVG(tb.GL1_2_score) AS GL1_2_score_average,
-    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
-FROM 
-    links AS li
-    JOIN tobias AS tb ON tb.features = li.feature
-    JOIN CT_data AS ct ON ct.feature = tb.features
-    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
-WHERE
-    tb.TF_gene_name = '",toupper(TF_name),"'
-    AND ABS(li.zscore) > 2 
-    AND li.pvalue < 0.001 
-    AND ct.target_gene_name = '",TF_name,"'
-    AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
-GROUP BY 
-    gm.gene_name;",
-sep="")
-  } else if (Cons & CT & ft){
-  targetQuery <- paste("SELECT 
-    gm.gene_name,
-    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
-    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
-    COUNT(DISTINCT li.feature) AS count_distinct_feature,
-    COUNT(li.feature) AS count_feature,
-    AVG(tb.GA1_2_score) AS GA1_2_score_average,
-    AVG(tb.GL1_2_score) AS GL1_2_score_average,
-    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
+    AVG(tb.GA1_2_score) -  AVG(tb.PRO1_2_score) AS PRO1_2_GA_increase,
+    AVG(tb.GL1_2_score) -  AVG(tb.PRO1_2_score) AS PRO1_2_GL_increase,
+    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.PRO1_2_score), 0) AS PRO1_2_GA_FT_ratio,
+    AVG(tb.GL1_2_score) / NULLIF(AVG(tb.PRO1_2_score), 0) AS PRO1_2_GL_FT_ratio
 FROM 
     links AS li
     JOIN tobias AS tb ON tb.features = li.feature
@@ -107,36 +64,9 @@ WHERE
 GROUP BY 
     gm.gene_name;",
 sep="")
-  } else if (!ft) {
-  targetQuery <- paste("SELECT 
-    gm.gene_name,
-    COUNT(CASE WHEN li.zscore > 0 THEN 1 ELSE NULL END) AS count_zscore_positive,
-    COUNT(CASE WHEN li.zscore < 0 THEN 1 ELSE NULL END) AS count_zscore_negative,
-    COUNT(DISTINCT li.feature) AS count_distinct_feature,
-    COUNT(li.feature) AS count_feature,
-    AVG(tb.GA1_2_score) AS GA1_2_score_average,
-    AVG(tb.GL1_2_score) AS GL1_2_score_average,
-    AVG(tb.GA1_2_score) / NULLIF(AVG(tb.GL1_2_score), 0) AS FT_ratio
-FROM 
-    links AS li
-    JOIN tobias AS tb ON tb.features = li.feature
-    JOIN CT_data AS ct ON ct.feature = tb.features
-    JOIN gene_metadata AS gm ON gm.ensg_id = li.ensg_id
-WHERE
-    tb.TF_gene_name = '",toupper(TF_name),"'
-    AND ABS(li.zscore) > 2 
-    AND li.pvalue < 0.001 
-    AND ct.target_gene_name = '",TF_name,"'
-    AND tb.mean_cons > 0.5
-GROUP BY 
-    gm.gene_name;",
-sep="")
-  } else {
-    stop("No such combo supported")
-    }
   
-target.data <- as_tibble(dbGetQuery(con, targetQuery))
-targets <- unique(pull(target.data, gene_name))
+  target.data <- as_tibble(dbGetQuery(con, targetQuery))
+  targets <- unique(pull(target.data, gene_name))
 return(list(targets=targets, target.data=target.data))
 }
 
@@ -176,8 +106,6 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 ```
 
 # Target counts {.tabset}
-
-
 
 ## With C&T True and Cons True ft True
 
@@ -247,8 +175,6 @@ DEG.res$GA1_2_exp_avg <- assay.averages$RNA[DEG.res$ensg_id,"GA1_2"]
 DEG.res$gene_name <- sapply(DEG.res$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res <- DEG.res %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 
-#DEG.res <- filter(DEG.res, (GL1_2_exp_avg>1.2 | GA1_2_exp_avg>1.2) | (abs(avg_log2FC)>2) & (pct.1>.25 & pct.2>.25))
-
 DEG.res.GSEA <- DEG.res$avg_log2FC
 names(DEG.res.GSEA) <- DEG.res$gene_name
 ```
@@ -268,15 +194,68 @@ DEG.res.GASR$GA1_2_exp_avg <- assay.averages$RNA[DEG.res.GASR$ensg_id,"GA1_2"]
 DEG.res.GASR$gene_name <- sapply(DEG.res.GASR$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res.GASR <- DEG.res.GASR %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 
-#DEG.res <- filter(DEG.res, (GL1_2_exp_avg>1.2 | GA1_2_exp_avg>1.2) | (abs(avg_log2FC)>2) & (pct.1>.25 & pct.2>.25))
-
 DEG.res.GSEA.GASR <- DEG.res.GASR$avg_log2FC
 names(DEG.res.GSEA.GASR) <- DEG.res.GASR$gene_name
 ```
 
+```{r Correlations between target genes and selector genes, warning=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
-```{r, eval=FALSE}
-allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+PRO_GA.subset <- subset(merged.datasets, idents=c("PRO1_2","CO1_2","GA1_2"))
+PRO_GL.subset <- subset(merged.datasets, idents=c("PRO1_2","CO1_2","GL1_2"))
+PRO_SR.subset <- subset(merged.datasets, idents=c("PRO1_2","SR1","SR2_3"))
+
+# PRO_GA.correlations 
+expression_matrix <- GetAssayData(PRO_GA.subset, slot = "data")
+TF.cors.PRO_GA <- lapply(TF_names,function(TF){
+    correlations <- mclapply(1:nrow(expression_matrix), function(i) {
+      gene_expr <- expression_matrix[i,]
+      if (sd(gene_expr) == 0) {
+        return(NA)
+      } else {
+        cor(expression_matrix[gene_name2id[[TF]], ], gene_expr, method = "spearman")
+      }
+    }, mc.cores=8)
+    names(correlations) <- rownames(expression_matrix)
+    return(correlations)
+})
+names(TF.cors.PRO_GA) <- TF_names
+
+# PRO_GL.correlations 
+expression_matrix <- GetAssayData(PRO_GL.subset, slot = "data")
+TF.cors.PRO_GL <- lapply(TF_names,function(TF){
+    correlations <- mclapply(1:nrow(expression_matrix), function(i) {
+      gene_expr <- expression_matrix[i,]
+      if (sd(gene_expr) == 0) {
+        return(NA)
+      } else {
+        cor(expression_matrix[gene_name2id[[TF]], ], gene_expr, method = "spearman")
+      }
+    }, mc.cores=8)
+    names(correlations) <- rownames(expression_matrix)
+    return(correlations)
+})
+names(TF.cors.PRO_GL) <- TF_names
+
+# PRO_SR.correlations 
+expression_matrix <- GetAssayData(PRO_SR.subset, slot = "data")
+TF.cors.PRO_SR <- lapply(TF_names,function(TF){
+    correlations <- mclapply(1:nrow(expression_matrix), function(i) {
+      gene_expr <- expression_matrix[i,]
+      if (sd(gene_expr) == 0) {
+        return(NA)
+      } else {
+        cor(expression_matrix[gene_name2id[[TF]], ], gene_expr, method = "spearman")
+      }
+    }, mc.cores=8)
+    names(correlations) <- rownames(expression_matrix)
+    return(correlations)
+})
+names(TF.cors.PRO_SR) <- TF_names
+
+qsave(TF.cors.PRO_GA,"../analysis/TF.cors.PRO_GA.qs", nthreads = cores)
+qsave(TF.cors.PRO_GL,"../analysis/TF.cors.PRO_GL.qs", nthreads = cores)
+qsave(TF.cors.PRO_SR,"../analysis/TF.cors.PRO_SR.qs", nthreads = cores)
 ```
 
 ## GSEA {.tabset}
@@ -284,7 +263,6 @@ allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_met
 ### GA/GL
 
 ```{r GA/GL GSEA for Set 3, warning=FALSE}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
@@ -303,7 +281,23 @@ DEG.res.subset <- lapply(targetGenes.set.3, function(p){
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-#create_dt(combined_tibble)
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.SR = TF.cors.PRO_SR[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
 
 create_dt(filter(combined_tibble, TF=="Tal1"))
 create_dt(filter(combined_tibble, TF=="Gata2"))
@@ -334,7 +328,23 @@ DEG.res.subset <- lapply(targetGenes.set.3, function(p){
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-#create_dt(combined_tibble)
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.SR = TF.cors.PRO_SR[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
 
 create_dt(filter(combined_tibble, TF=="Tal1"))
 create_dt(filter(combined_tibble, TF=="Gata2"))
