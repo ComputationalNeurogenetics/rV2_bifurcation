@@ -15,10 +15,14 @@ library(dbplyr)
 library(DBI)
 library(hash)
 library(EnsDb.Mmusculus.v79)
+library(BSgenome.Mmusculus.UCSC.mm10)
 library(ChIPpeakAnno)
 cores <-10
 source("../../AuxCode/AuxFunctions.R")
 source("../../AuxCode/TOBIAS_tools.R")
+library(rtracklayer)
+library(plyranges)
+library(data.table)
 ```
 
 ```{r Additional functions}
@@ -56,10 +60,8 @@ gene_id2name <- hash(rownames(dataset[['RNA']][[]]),dataset[['RNA']][[]][,1])
 gene_name2id <- hash(dataset[['RNA']][[]][,1],rownames(dataset[['RNA']][[]]))
 ```
 
-```{r Reading Tobias results and H12 metadata, eval=FALSE}
-#rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
-
-rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_090224/TFBS/",parallel=T, mc.cores=2, HOCOMOCO=12)
+```{r Reading Tobias results and H12 metadata, eval=TRUE}
+rV2.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results(res_path="/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12rV2_090224/TFBS/",parallel=T, HOCOMOCO=12,mc.cores = 10)
 
 #H12.metadata <- qread(file="../analysis/H12_metadata_mod.qs")
 #H12.metadata$TF.rep <- paste(H12.metadata$name,"_",H12.metadata$name,sep="")
@@ -72,30 +74,58 @@ tobias.tb.list <- lapply(rV2.groups.tobias.h12.gr.dr, as_tibble)
 tobias.tb <- do.call(rbind,tobias.tb.list)
 tobias.tb$start <- tobias.tb$start+1 
 qsave(tobias.tb, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.qs",nthreads = cores)
+rm(rV2.groups.tobias.h12.gr.dr)
+gc()
 ```
 
 ```{r}
-tobias.tb <- qread(file = "../analysis/Tobias.rv2.h12.dr.tb.qs",nthreads = cores)
-tobias.tb$start <- tobias.tb$start+1 
+tobias.tb <- qread(file = "../analysis/Tobias.rv2.h12.dr.tb_140524.qs",nthreads = cores)
+```
+
+```{r}
+# Select relevant columns
+TFBS.pos.tb <- tobias.tb %>% dplyr::select(seqnames, start, end, TFBS_name)
+
+# Create GRanges object from selected columns
+TFBS.gr <- makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = TRUE)
+
+# Perform overlap merge
+TFBS.to.features <- findOverlaps(TFBS.gr, all.features, type = "within")
+
+# Extract matched ranges
+query_hits <- queryHits(TFBS.to.features)
+subject_hits <- subjectHits(TFBS.to.features)
+
+# Convert to tibble and merge
+TFBS.to.features.tb <- as_tibble(TFBS.gr[query_hits]) %>%
+  mutate(features = GRangesToString(all.features[subject_hits]))
+
+# Join the results back to the original tibble
+tobias.tb.2 <- left_join(tobias.tb, TFBS.to.features.tb, by = c("seqnames", "start", "end", "TFBS_name"))
+
+# Clean up
+rm(TFBS.to.features.tb)
+rm(tobias.tb)
+gc()
+
+qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.2.qs",nthreads = cores)
 ```
 
 ```{r Finding TFBS to feature matches, eval=FALSE}
-TFBS.pos.tb <- tobias.tb %>% select(seqnames, start, end, TFBS_name)
-TFBS.to.features <- mergeByOverlaps(query = makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T), subject = all.features,type="within")
-
-TFBS.to.features.tb <- cbind(as_tibble(TFBS.to.features$`makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T)`), features=GRangesToString(TFBS.to.features$all.features))
-                             
-tobias.tb.2 <- left_join(tobias.tb, select(TFBS.to.features.tb, seqnames, start, end, TFBS_name, features))
-rm(TFBS.to.features.tb)
-rm(tobias.tb)
-rm(rV2.groups.tobias.h12.gr.dr)
-gc()
-
-qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb.2.qs",nthreads = cores)
+# TFBS.pos.tb <- tobias.tb %>% select(seqnames, start, end, TFBS_name)
+# TFBS.to.features <- mergeByOverlaps(query = makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T), subject = all.features,type="within")
+# 
+# TFBS.to.features.tb <- cbind(as_tibble(TFBS.to.features$`makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T)`), features=GRangesToString(TFBS.to.features$all.features))
+#                              
+# tobias.tb.2 <- left_join(tobias.tb, select(TFBS.to.features.tb, seqnames, start, end, TFBS_name, features))
+# rm(TFBS.to.features.tb)
+# rm(tobias.tb)
+# 
+# qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.2.qs",nthreads = cores)
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+#con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 ```
 
@@ -117,41 +147,41 @@ dbExecute(con.obj, 'CREATE INDEX start2 ON feature (start);')
 dbExecute(con.obj, 'CREATE INDEX end2 ON feature (end);')
 ```
 
-```{r Write TOBIAS data into SQlite, eval=FALSE}
-dbWriteTable(con, "tobias", tobias.tb.2, overwrite=TRUE)
-dbListTables(con)
+```{r Write TOBIAS data into SQlite, eval=TRUE}
+dbWriteTable(con.obj, "tobias", tobias.tb.2, overwrite=TRUE)
+dbListTables(con.obj)
 rm(tobias.tb.2)
 gc()
 ```
 
-```{r Build indeces, eval=FALSE}
-dbExecute(con, 'CREATE INDEX seqname 
+```{r Build indeces, eval=TRUE}
+dbExecute(con.obj, 'CREATE INDEX seqname 
 ON tobias (seqnames);')
 
-dbExecute(con, 'CREATE INDEX position 
+dbExecute(con.obj, 'CREATE INDEX position 
 ON tobias (seqnames, start, end);')
 
-dbExecute(con, 'CREATE INDEX TFBS_name 
+dbExecute(con.obj, 'CREATE INDEX TFBS_name 
 ON tobias (TFBS_name);')
 
-dbExecute(con, 'CREATE INDEX features 
+dbExecute(con.obj, 'CREATE INDEX features 
 ON tobias (features);')
 ```
 
 ```{r}
-tobias.tm <- dbGetQuery(con, 'SELECT TFBS_name FROM tobias')
+tobias.tm <- dbGetQuery(con.obj, 'SELECT TFBS_name FROM tobias')
 
-tobias.tm <- left_join(tobias.tm, select(H12.metadata, TF.rep, masterlist_info.tf,ensg_id), by=c("TFBS_name"="TF.rep")) %>% distinct()
+tobias.tm <- left_join(tobias.tm, dplyr::select(H12.metadata, TF.rep, masterlist_info.tf,ensg_id), by=c("TFBS_name"="TF.rep")) %>% distinct()
 colnames(tobias.tm) <- c("TFBS_name","masterlist_info_tf","ensg_id")
 
-dbWriteTable(con, "gene_name_tmp", tobias.tm)
-dbExecute(con, 'CREATE INDEX TFBS_name_2 
+dbWriteTable(con.obj, "gene_name_tmp", tobias.tm)
+dbExecute(con.obj, 'CREATE INDEX TFBS_name_2 
 ON gene_name_tmp (TFBS_name);')
 
-dbExecute(con, 'ALTER TABLE tobias ADD COLUMN TF_gene_name TEXT;')
-dbExecute(con, 'ALTER TABLE tobias ADD COLUMN ensg_id TEXT;')
+dbExecute(con.obj, 'ALTER TABLE tobias ADD COLUMN TF_gene_name TEXT;')
+dbExecute(con.obj, 'ALTER TABLE tobias ADD COLUMN ensg_id TEXT;')
 
-dbExecute(con, '
+dbExecute(con.obj, '
 UPDATE tobias
 SET TF_gene_name = (
     SELECT masterlist_info_tf
@@ -165,49 +195,127 @@ ensg_id = (
 );
 ')
 
-dbExecute(con, 'DROP TABLE gene_name_tmp;')
+dbExecute(con.obj, 'DROP TABLE gene_name_tmp;')
 
-dbExecute(con, 'CREATE INDEX TF_gene_name ON tobias (TF_gene_name);')
-dbExecute(con, 'CREATE INDEX ensg_id ON tobias (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX TF_gene_name ON tobias (TF_gene_name);')
+dbExecute(con.obj, 'CREATE INDEX ensg_id ON tobias (ensg_id);')
 gc()
 ```
 
-```{r Reading conservation data}
-cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
-```
+<!-- ```{r Reading conservation data} -->
+<!-- cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- TFBS.loc <- dbGetQuery(con, 'SELECT seqnames, start, end, TFBS_name FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");') -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- uniq.seq.names <- unique(pull(TFBS.loc,seqnames)) -->
+
+<!-- TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){ -->
+<!--   message_parallel(paste("Processing",seq.name,sep=" ")) -->
+<!--   gc() -->
+<!--   TFBS.tmp <- makeGRangesFromDataFrame(filter(TFBS.loc, seqnames==seq.name)) -->
+<!--   cons.subset <- cons.gr[seqnames(cons.gr)==seq.name] -->
+<!--   overlaps <- findOverlaps(query = cons.subset, subject = TFBS.tmp, type = "within") -->
+<!--   TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within") -->
+<!--   mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score -->
+<!--   TFBS.cons.means <- as_tibble(TFBS.cons$TFBS.tmp %>% plyranges::group_by(start,end) %>% summarize(mean.cons=mean(score))) -->
+<!--   TFBS.cons.means$seqnames <-seq.name -->
+<!--   return(TFBS.cons.means) -->
+<!-- }, mc.cores = 1) -->
+
+
+<!-- TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list) -->
+<!-- colnames(TFBS.loc.cons.tb) <- c("start","end","mean_cons","seqnames") -->
+<!-- tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end")) -->
+
+<!-- dbWriteTable(con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite=TRUE) -->
+<!-- dbExecute(con, 'CREATE INDEX TFBS_loc_2 -->
+<!-- ON TFBS_pos_cons_tmp (seqnames, start, end);') -->
+
+<!-- dbExecute(con, 'ALTER TABLE tobias ADD COLUMN mean_cons REAL;') -->
+
+<!-- dbExecute(con, ' -->
+<!-- UPDATE tobias -->
+<!-- SET mean_cons = ( -->
+<!--     SELECT mean_cons -->
+<!--     FROM TFBS_pos_cons_tmp -->
+<!--     WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end -->
+<!-- )') -->
+
+
+<!-- # Not all TFBS get conservation score, is this becuase of the conservation source data?? -->
+
+<!-- dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;') -->
+<!-- ``` -->
 
 ```{r}
-TFBS.loc <- dbGetQuery(con, 'SELECT seqnames, start, end, TFBS_name FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
-```
 
-```{r}
-uniq.seq.names <- unique(pull(TFBS.loc,seqnames))
+# Function to load conservation data one chromosome at a time to manage memory use
+import_bw_chunk <- function(chromosome) {
+  gr <- GRanges(seqnames = chromosome, ranges = IRanges(start = 1, end = seqlengths(BSgenome.Mmusculus.UCSC.mm10)[chromosome]))
+  import(con = "../metadata/mm10.60way.phastCons.bw", which = gr)
+}
 
-TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
-  message_parallel(paste("Processing",seq.name,sep=" "))
+# Read TFBS locations from the database
+TFBS.loc <- dbGetQuery(con.obj, 'SELECT seqnames, start, end, TFBS_name FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
+
+# Use data.table for efficient data manipulation
+TFBS.loc <- as.data.table(TFBS.loc)
+uniq.seq.names <- unique(TFBS.loc$seqnames)
+
+# Function to process each chromosome
+process_chromosome <- function(seq.name) {
+  message_parallel(paste("Processing", seq.name))
   gc()
-  TFBS.tmp <- makeGRangesFromDataFrame(filter(TFBS.loc, seqnames==seq.name))
-  cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
-  overlaps <- findOverlaps(query = cons.subset, subject = TFBS.tmp, type = "within")
-  TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within")
-  mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score
-  TFBS.cons.means <- as_tibble(TFBS.cons$TFBS.tmp %>% plyranges::group_by(start,end) %>% summarize(mean.cons=mean(score)))
-  TFBS.cons.means$seqnames <-seq.name
+
+  # Load conservation data for the chromosome
+  cons.gr <- import_bw_chunk(seq.name)
+  if (length(cons.gr) == 0) return(NULL)
+
+  # Subset TFBS for the chromosome
+  TFBS.tmp <- TFBS.loc[seqnames == seq.name]
+  if (nrow(TFBS.tmp) == 0) return(NULL)
+
+  TFBS.gr <- makeGRangesFromDataFrame(TFBS.tmp)
+
+  # Find overlaps
+  overlaps <- findOverlaps(query = cons.gr, subject = TFBS.gr, type = "within")
+
+  # Merge overlaps and compute mean conservation score
+  if (length(overlaps) == 0) return(NULL)
+
+  cons.subset <- cons.gr[queryHits(overlaps)]
+  TFBS.subset <- TFBS.gr[subjectHits(overlaps)]
+  TFBS.subset$score <- cons.subset$score
+
+  TFBS.cons.means <- as_tibble(TFBS.subset %>% plyranges::group_by(start, end) %>% summarize(mean.cons = mean(score)))
+  TFBS.cons.means$seqnames <- seq.name
+
   return(TFBS.cons.means)
-}, mc.cores = 1)
+}
 
+# Process each chromosome in parallel
+TFBS.loc.cons.list <- mclapply(uniq.seq.names, process_chromosome, mc.cores = 2)
 
-TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list)
-colnames(TFBS.loc.cons.tb) <- c("start","end","mean_cons","seqnames")
-tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end"))
+# Filter out NULL results
+TFBS.loc.cons.list <- Filter(Negate(is.null), TFBS.loc.cons.list)
 
-dbWriteTable(con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite=TRUE)
-dbExecute(con, 'CREATE INDEX TFBS_loc_2
-ON TFBS_pos_cons_tmp (seqnames, start, end);')
+# Combine results into one table
+TFBS.loc.cons.tb <- rbindlist(TFBS.loc.cons.list, fill = TRUE)
+colnames(TFBS.loc.cons.tb) <- c("start", "end", "mean_cons", "seqnames")
 
-dbExecute(con, 'ALTER TABLE tobias ADD COLUMN mean_cons REAL;')
+# Merge results back to original TFBS locations
+tobias.cons.tmp <- merge(TFBS.loc, TFBS.loc.cons.tb, by = c("seqnames", "start", "end"), all.x = TRUE)
 
-dbExecute(con, '
+# Write results back to the database
+dbWriteTable(con.obj, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite = TRUE)
+dbExecute(con.obj, 'CREATE INDEX TFBS_loc_2 ON TFBS_pos_cons_tmp (seqnames, start, end);')
+dbExecute(con.obj, 'ALTER TABLE tobias ADD COLUMN mean_cons REAL;')
+
+dbExecute(con.obj, '
 UPDATE tobias
 SET mean_cons = (
     SELECT mean_cons
@@ -215,17 +323,13 @@ SET mean_cons = (
     WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end
 )')
 
+dbExecute(con.obj, 'DROP TABLE TFBS_pos_cons_tmp;')
 
-# Not all TFBS get conservation score, is this becuase of the conservation source data??
-
-dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;')
+# Cleanup
+gc()
 ```
 
-
-```{r, eval=FALSE}
-
-# TODO: problem is that motif coordinates are not as whole in tobias results. We need whole coordinates there!!
-
+```{r, eval=TRUE}
 # Initialize a variable to store problematic groups
 problematic_groups <- list()
 
@@ -258,8 +362,7 @@ TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
   message_parallel(paste("Processing",seq.name,sep=" "))
   gc()
   TFBS.tmp <- makeGRangesFromDataFrame(dplyr::filter(TFBS.loc, seqnames==seq.name), keep.extra.columns = T)
-  cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
-  
+  cons.subset <- import_bw_chunk(seq.name)
   
   # Split TFBS.tmp into single-base intervals
   TFBS.tmp.split <- unlist(tile(TFBS.tmp, width=1))
@@ -287,14 +390,14 @@ TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
   TFBS.df$score[subject_hits] <- mcols(cons.subset)$score[query_hits]
 
   # Create a grouping variable to identify consecutive ranges
-  # TFBS.df <- TFBS.df %>%
-  # arrange(TFBS_name, start, end) %>%
-  # mutate(group = cumsum(c(1, diff(start) != 1 | diff(as.numeric(factor(TFBS_name))) != 0)))
+  TFBS.df <- TFBS.df %>%
+  arrange(TFBS_name, start, end) %>%
+  mutate(group = cumsum(c(1, diff(start) != 1 | diff(as.numeric(factor(TFBS_name))) != 0)))
   
-TFBS.df <- TFBS.df %>%
-  arrange(TFBS_name, start) %>%
-  mutate(is_consecutive = (start == dplyr::lag(end, default = dplyr::first(start)) + 1) & (TFBS_name == dplyr::lag(TFBS_name, default = dplyr::first(TFBS_name))), group = cumsum(!is_consecutive)) %>%
-  dplyr::select(-is_consecutive)
+# TFBS.df <- TFBS.df %>%
+#   arrange(TFBS_name, start) %>%
+#   mutate(is_consecutive = (start == dplyr::lag(end, default = dplyr::first(start))) & (TFBS_name == dplyr::lag(TFBS_name, default = dplyr::first(TFBS_name))), group = cumsum(!is_consecutive)) %>%
+#   dplyr::select(-is_consecutive)
 
   # Update each row within the group to have the smallest start and largest end
   TFBS.df <- TFBS.df %>%
@@ -307,12 +410,11 @@ TFBS.df <- TFBS.df %>%
   map_dfr(~ calculate_weighted_mean(.x))
   TFBS.cons.means$seqnames <-seq.name
   return(TFBS.cons.means)
-}, mc.cores = 1)
-
+}, mc.cores = 2)
 
 TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list)
-colnames(TFBS.loc.cons.tb) <- c("start","end","mean_cons","seqnames")
-tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end"))
+colnames(TFBS.loc.cons.tb) <- c("start","end","TFBS_name","w.mean_cons","seqnames")
+tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end","TFBS_name"))
 
 dbWriteTable(con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite=TRUE)
 dbExecute(con, 'CREATE INDEX TFBS_loc_2
@@ -327,9 +429,6 @@ SET w_mean_cons = (
     FROM TFBS_pos_cons_tmp
     WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end
 )')
-
-
-# Not all TFBS get conservation score, is this becuase of the conservation source data??
 
 dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;')
 ```
