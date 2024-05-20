@@ -60,7 +60,7 @@ WHERE
     AND li.pvalue < 0.001 
     AND ct.target_gene_name = '",TF_name,"'
     AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
-    AND tb.mean_cons > 0.5
+    AND tb.w_mean_cons > 0.5
 GROUP BY 
     gm.gene_name;",
 sep="")
@@ -99,7 +99,7 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
 
 ```{r Setting variables, include=FALSE}
 cores <- 6
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_230424.sqlite")
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 options(timeout = 30000)
 
 plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/training/"
@@ -477,7 +477,7 @@ library(ggplot2)
 library(dplyr)
 
 # Load the data
-data <- gene.tb.data
+data <- Tal1.tb.data
 
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
@@ -505,7 +505,7 @@ library(ggplot2)
 library(dplyr)
 
 # Load the data
-data <- gene.tb.data.ct
+data <- Tal1.tb.data.ct
 
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
@@ -533,7 +533,7 @@ library(ggplot2)
 library(dplyr)
 
 # Load the data
-data <- gene.tb.data
+data <- Tal1.tb.data
 
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
@@ -561,7 +561,7 @@ library(ggplot2)
 library(dplyr)
 
 # Load the data
-data <- gene.tb.data.ct
+data <- Tal1.tb.data.ct
 
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
