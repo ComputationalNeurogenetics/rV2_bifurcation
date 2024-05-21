@@ -86,14 +86,18 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
   
   mid.lower.index <- zero.index-width.around.zero
   mid.upper.index <- zero.index+width.around.zero
-  
+  mid.lower.limit <- DEG.res$avg_log2FC[mid.lower.index]
+  mid.upper.limit <- DEG.res$avg_log2FC[mid.upper.index]
+    
   xmax.right <- nrow(DEG.res)
+  
+  limits <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
   
   DEG.res.GSEA <- DEG.res$avg_log2FC
   names(DEG.res.GSEA) <- DEG.res$gene_name
   p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in", comp.title)) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) + geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002) + geom_rect(aes(xmin=upper.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
   d1 <- DEG.res %>% dplyr::filter(gene_name %in% targets)
-  return(list(p1=p1,d1=d1))
+  return(list(p1=p1,d1=d1,limits=limits))
 }
 ```
 
@@ -267,6 +271,10 @@ set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetG
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
+limits <- sapply(set1.GSEA,function(p){p$limits})
+colnames(limits) <- TF_names
+print(limits)
+
 tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
 names(tmp.1) <- names(targetGenes.set.3)
 results <- fgsea(pathways = tmp.1, 
@@ -305,6 +313,17 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
+```{r, fig.width=14, fig.height=8}
+target.genes.in.order <- names(sort(DEG.res.GSEA[targetGenes.set.3[["Tal1"]]$targets], decreasing = TRUE))
+Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),c("PRO1_2","CO1_2","GA1_2","GL1_2")])
+colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
+col_fun = colorRamp2(c(min(Targets.expression.avg), mean(Targets.expression.avg),max(Targets.expression.avg)), c("white", "red","darkred"))
+
+Heatmap(as.matrix(Targets.expression.avg), cluster_columns = FALSE,heatmap_width = unit(12, "inches"), col=col_fun, show_column_names = FALSE)
+
+```
+
+
 ### GA/SR
 
 ```{r GA/SR GSEA for Set 3, warning=FALSE, echo=FALSE}
@@ -313,6 +332,9 @@ set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetG
 
 invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
+limits <- sapply(set1.GSEA,function(p){p$limits})
+colnames(limits) <- TF_names
+print(limits)
 
 tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
 names(tmp.1) <- names(targetGenes.set.3)
