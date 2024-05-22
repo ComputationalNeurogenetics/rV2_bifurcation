@@ -22,6 +22,7 @@ library(presto)
 library(purrr)
 library(circlize)
 library(ComplexHeatmap)
+library(patchwork)
 library(parallel)
 library(topGO)
 library(dplyr)
@@ -29,6 +30,36 @@ source("../../AuxCode/AuxFunctions.R")
 ```
 
 ```{r Functions}
+
+drawTargetHeatmap <- function(DEG.res, target.genes, assay.averages,gene_name2id, gene_id2name,limits.to.plot, cell.groups){
+  
+  mid.upper.limit=limits.to.plot$mid.upper.limit
+  mid.lower.limit=limits.to.plot$mid.lower.limit
+  upper.limit=limits.to.plot$upper.limit
+  lower.limit=limits.to.plot$lower.limit
+  
+  target.genes.in.order <- names(sort(DEG.res[target.genes], decreasing = TRUE))
+Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),cell.groups])
+colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
+col_fun = colorRamp2(c(min(Targets.expression.avg), median(Targets.expression.avg),max(Targets.expression.avg)), c("white", "red","darkred"))
+
+color_factor <- factor(
+  ifelse(DEG.res[target.genes.in.order] > upper.limit, "blue",
+    ifelse(DEG.res[target.genes.in.order] <= mid.lower.limit & DEG.res[target.genes.in.order] >= mid.upper.limit, "green",
+      ifelse(DEG.res[target.genes.in.order] < lower.limit, "red", "white")
+    )
+  ),
+  levels = c("red", "white", "green", "blue")
+)
+
+col_anno <- HeatmapAnnotation(target_gene_group = color_factor,
+  col = list(target_gene_group = c("red" = "red", "white" = "white", "green" = "green", "blue" = "blue")),
+  annotation_legend_param = list(target_gene_group = list(title = "Target gene group")))
+
+h1 <- Heatmap(as.matrix(Targets.expression.avg), cluster_columns = FALSE,col=col_fun, show_column_names = FALSE,bottom_annotation = col_anno,heatmap_legend_param = list(title = "Target Expression"))
+  return(h1)
+}
+
 mean.fxn <- function (x,pseudocount.use=1, base=2)
 {
     return(log(x = rowMeans(x = expm1(x = x)) + pseudocount.use,
@@ -74,6 +105,8 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
   lower.thr <- .25
   upper.thr <- .75
   
+  DEG.res <- arrange(DEG.res, desc(avg_log2FC))
+  
   upper.limit <- quantile(DEG.res$avg_log2FC,upper.thr)
   upper.pos <- which.min(abs(DEG.res$avg_log2FC-upper.limit))
   
@@ -93,10 +126,21 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
   
   limits <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
   
+  
   DEG.res.GSEA <- DEG.res$avg_log2FC
   names(DEG.res.GSEA) <- DEG.res$gene_name
-  p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in", comp.title)) + geom_rect(aes(xmin=0,xmax=lower.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) + geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002) + geom_rect(aes(xmin=upper.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
+  p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in", comp.title)) + geom_rect(aes(xmin=0,xmax=upper.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) + geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002) + geom_rect(aes(xmin=lower.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
   d1 <- DEG.res %>% dplyr::filter(gene_name %in% targets)
+  
+  d1$target_gene_group <- factor(
+  ifelse(d1$avg_log2FC > upper.limit, "blue",
+    ifelse(d1$avg_log2FC >= mid.lower.limit & d1$avg_log2FC <= mid.upper.limit, "green",
+      ifelse(d1$avg_log2FC < lower.limit, "red", "white")
+    )
+  ),
+  levels = c("red", "white", "green", "blue")
+)
+  
   return(list(p1=p1,d1=d1,limits=limits))
 }
 ```
@@ -266,14 +310,29 @@ qsave(TF.cors.PRO_SR,"../analysis/TF.cors.PRO_SR.qs", nthreads = cores)
 
 ### GA/GL
 
-```{r GA/GL GSEA for Set 3, warning=FALSE}
+```{r GA/GL GSEA for Set 3 plots, warning=FALSE}
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
-
-invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
 limits <- sapply(set1.GSEA,function(p){p$limits})
 colnames(limits) <- TF_names
 print(limits)
+
+upper.limit <- set1.GSEA[[1]]$limits$upper.limit
+lower.limit <- set1.GSEA[[1]]$limits$lower.limit
+mid.upper.limit <- set1.GSEA[[1]]$limits$mid.upper.limit
+mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
+
+limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
+
+for (i in 1:length(set1.GSEA)){
+    h1 <- drawTargetHeatmap(DEG.res=DEG.res.GSEA, set1.GSEA[[i]]$d1$gene_name,assay.averages=assay.averages,gene_name2id=gene_name2id, gene_id2name=gene_id2name,limits.to.plot=limits.to.plot, cell.groups=c("PRO1_2","CO1_2","GA1_2","GL1_2"))
+    heatmap_grob <- grid::grid.grabExpr(draw(h1))
+    p1 <- set1.GSEA[[i]]$p1
+  print(plot_grid(plotlist = list(p1, heatmap_grob), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
+}
+```
+
+```{r GA/GL GSEA for Set 3 tables, warning=FALSE}
 
 tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
 names(tmp.1) <- names(targetGenes.set.3)
@@ -313,29 +372,32 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
-```{r, fig.width=14, fig.height=8}
-target.genes.in.order <- names(sort(DEG.res.GSEA[targetGenes.set.3[["Tal1"]]$targets], decreasing = TRUE))
-Targets.expression.avg <- t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),c("PRO1_2","CO1_2","GA1_2","GL1_2")])
-colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
-col_fun = colorRamp2(c(min(Targets.expression.avg), mean(Targets.expression.avg),max(Targets.expression.avg)), c("white", "red","darkred"))
-
-Heatmap(as.matrix(Targets.expression.avg), cluster_columns = FALSE,heatmap_width = unit(12, "inches"), col=col_fun, show_column_names = FALSE)
-
-```
-
-
 ### GA/SR
 
-```{r GA/SR GSEA for Set 3, warning=FALSE, echo=FALSE}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Sox4","Klf17","Myc")
+```{r GA/SR GSEA for Set 3 plots, warning=FALSE, echo=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
-
-invisible(sapply(set1.GSEA,function(g){print(g$p1)}))
 
 limits <- sapply(set1.GSEA,function(p){p$limits})
 colnames(limits) <- TF_names
 print(limits)
 
+upper.limit <- set1.GSEA[[1]]$limits$upper.limit
+lower.limit <- set1.GSEA[[1]]$limits$lower.limit
+mid.upper.limit <- set1.GSEA[[1]]$limits$mid.upper.limit
+mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
+
+limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
+
+for (i in 1:length(set1.GSEA)){
+    h1 <- drawTargetHeatmap(DEG.res=DEG.res.GSEA.GASR, set1.GSEA[[i]]$d1$gene_name,assay.averages=assay.averages,gene_name2id=gene_name2id, gene_id2name=gene_id2name,limits.to.plot=limits.to.plot,cell.groups=c("PRO1_2","CO1_2","GA1_2","SR1","SR2_3"))
+    heatmap_grob <- grid::grid.grabExpr(draw(h1))
+    p1 <- set1.GSEA[[i]]$p1
+  print(plot_grid(plotlist = list(p1, heatmap_grob), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
+}
+```
+
+```{r GA/SR GSEA for Set 3 tables, warning=FALSE, echo=FALSE}
 tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
 names(tmp.1) <- names(targetGenes.set.3)
 results <- fgsea(pathways = tmp.1, 
