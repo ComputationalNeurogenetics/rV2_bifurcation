@@ -329,12 +329,72 @@ dbExecute(con.obj, 'DROP TABLE TFBS_pos_cons_tmp;')
 gc()
 ```
 
-```{r, eval=TRUE}
-# Initialize a variable to store problematic groups
-problematic_groups <- list()
+```{r}
+parse_meme_file <- function(file_path) {
+  # Read the file content
+  lines <- readLines(file_path)
+  
+  # Initialize variables
+  motifs <- list()
+  motif_name <- NULL
+  matrix_start <- FALSE
+  matrix_data <- NULL
+  
+  # Loop through each line to parse motifs and matrices
+  for (line in lines) {
+    if (startsWith(line, "MOTIF")) {
+      # Save the previous matrix if we were reading one
+      if (!is.null(motif_name) && !is.null(matrix_data)) {
+        motifs[[motif_name]] <- matrix(matrix_data, ncol = ncol(matrix_data), byrow = TRUE)
+      }
+      # Start a new motif
+      motif_name <- strsplit(line, " ")[[1]][2]
+      matrix_data <- NULL
+    } else if (startsWith(line, "letter-probability matrix")) {
+      matrix_start <- TRUE
+      next
+    } else if (matrix_start) {
+      if (line == "") {
+        matrix_start <- FALSE
+      } else {
+        # Convert line to numeric and check if valid
+        numeric_line <- as.numeric(unlist(strsplit(line, "\\s+")))
+        if (all(!is.na(numeric_line))) {
+          # Append the line to the matrix data
+          matrix_data <- rbind(matrix_data, numeric_line)
+        }
+      }
+    }
+  }
+  
+  # Save the last matrix
+  if (!is.null(motif_name) && !is.null(matrix_data)) {
+    motifs[[motif_name]] <- matrix(matrix_data, ncol = ncol(matrix_data), byrow = TRUE)
+  }
+  
+  return(motifs)
+}
 
+# Example usage
+file_path <- "../mm10/Hocomoco.v12/H12CORE_meme_format.meme"
+motifs.h12 <- parse_meme_file(file_path)
+
+# Example usage
+file_path.h11 <- "../mm10/Hocomoco.v11/HOCOMOCOv11_core_MOUSE_mono_meme_format.meme"
+motifs.h11 <- parse_meme_file(file_path.h11)
+
+motifs.h12[["INSM1_MOUSE.H11MO.0.C"]] <- motifs.h11[["INSM1_MOUSE.H11MO.0.C"]]
+
+# Print the list of motifs and their matrices
+tail(motifs.h12)
+
+positional.mean.weights <- lapply(motifs.h12,rowMax)
+names(positional.mean.weights) <- paste(names(positional.mean.weights),names(positional.mean.weights),sep="_")
+```
+
+```{r, eval=TRUE}
 # Define a function to calculate the weighted mean for each group
-calculate_weighted_mean <- function(data) {
+calculate_weighted_mean <- function(data,positional.mean.weights) {
   TFBS_name <- unique(data$TFBS_name)
   if (length(TFBS_name) != 1) {
     stop("Each group should have exactly one TFB_name.")
@@ -407,7 +467,7 @@ TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
   dplyr::select(-group)  # Remove the temporary group column
 
   TFBS.cons.means <- TFBS.df %>% group_by(start,end,TFBS_name) %>% group_split() %>%
-  map_dfr(~ calculate_weighted_mean(.x))
+  map_dfr(~ calculate_weighted_mean(.x,positional.mean.weights=positional.mean.weights))
   TFBS.cons.means$seqnames <-seq.name
   return(TFBS.cons.means)
 }, mc.cores = 2)
