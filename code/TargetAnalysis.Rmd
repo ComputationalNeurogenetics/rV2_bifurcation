@@ -31,6 +31,37 @@ source("../../AuxCode/AuxFunctions.R")
 
 ```{r Functions}
 
+extract_gene_enrichments <- function(ranks,gene_sets){
+  # Plot enrichment and extract data
+  enrichment_plot <- plotEnrichment(gene_sets, ranks) + 
+    ggtitle("Enrichment Plot")
+  
+  # Extract the enrichment score profile data from the plot
+  enrichment_data <- ggplot_build(enrichment_plot)$data[[1]]
+  
+  # Identify the leading and trailing edges
+  positive_peak_index <- which.max(enrichment_data$y)
+  negative_trough_index <- which.min(enrichment_data$y)
+  
+  # Ensure the trailing edge is calculated correctly
+  trailing_edge_genes <- names(ranks)[(negative_trough_index + 1):length(ranks)]
+  trailing_edge_genes <- trailing_edge_genes[trailing_edge_genes %in% gene_sets]
+  
+  # Leading edge genes
+  leading_edge_genes <- names(ranks)[1:positive_peak_index]
+  leading_edge_genes <- leading_edge_genes[leading_edge_genes %in% gene_sets]
+  
+  # Combine leading and trailing-edge genes
+  combined_edges <- list(
+    positive_leading_edge = leading_edge_genes,
+    negative_trailing_edge = trailing_edge_genes
+  )
+  
+  # Print combined leading and trailing-edge genes
+  return(list(combined_edges=combined_edges, positive_peak_index=positive_peak_index, negative_peak_index=negative_trough_index))
+}
+
+
 drawTargetHeatmap <- function(DEG.res, target.genes, assay.averages,gene_name2id, gene_id2name,limits.to.plot, cell.groups){
   
   mid.upper.limit=limits.to.plot$mid.upper.limit
@@ -102,33 +133,37 @@ return(list(targets=targets, target.data=target.data))
 }
 
 do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
-  lower.thr <- .25
-  upper.thr <- .75
+  # lower.thr <- .25
+  # upper.thr <- .75
   
   DEG.res <- arrange(DEG.res, desc(avg_log2FC))
+  DEG.res.GSEA <- DEG.res$avg_log2FC
+  names(DEG.res.GSEA) <- DEG.res$gene_name
   
-  upper.limit <- quantile(DEG.res$avg_log2FC,upper.thr)
-  upper.pos <- which.min(abs(DEG.res$avg_log2FC-upper.limit))
+  edges <- extract_gene_enrichments(ranks=sort(DEG.res.GSEA,decreasing=TRUE), gene_sets = targets)
   
-  lower.limit <- quantile(DEG.res$avg_log2FC,lower.thr)
-  lower.pos <- which.min(abs(DEG.res$avg_log2FC-lower.limit))
-  
+  # upper.limit <- quantile(DEG.res$avg_log2FC,upper.thr)
+  # upper.pos <- which.min(abs(DEG.res$avg_log2FC-upper.limit))
+  upper.pos <- edges$positive_peak_index
+  lower.pos <- edges$negative_peak_index
+  # 
+  # lower.limit <- quantile(DEG.res$avg_log2FC,lower.thr)
+  # lower.pos <- which.min(abs(DEG.res$avg_log2FC-lower.limit))
+  # 
   mid.thr.width <- .25
   width.around.zero <- round(nrow(DEG.res)*(mid.thr.width/2), digits = 0)
   zero.index <- which.min(abs(DEG.res$avg_log2FC))
-  
+  # 
   mid.lower.index <- zero.index-width.around.zero
   mid.upper.index <- zero.index+width.around.zero
   mid.lower.limit <- DEG.res$avg_log2FC[mid.lower.index]
   mid.upper.limit <- DEG.res$avg_log2FC[mid.upper.index]
-    
+  #   
   xmax.right <- nrow(DEG.res)
-  
+  # 
   limits <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
   
   
-  DEG.res.GSEA <- DEG.res$avg_log2FC
-  names(DEG.res.GSEA) <- DEG.res$gene_name
   p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in", comp.title)) + geom_rect(aes(xmin=0,xmax=upper.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) + geom_rect(aes(xmin=mid.lower.index,xmax=mid.upper.index,ymin=-0.05,ymax=0.05), fill="green", alpha=0.002) + geom_rect(aes(xmin=lower.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", alpha=0.002)
   d1 <- DEG.res %>% dplyr::filter(gene_name %in% targets)
   
@@ -231,7 +266,8 @@ names(DEG.res.GSEA) <- DEG.res$gene_name
 assay.averages <- AverageExpression(merged.datasets,group.by = "merged.groups")
 
 Idents(merged.datasets) <- merged.datasets$merged.groups
-DEG.res.GASR <- FindMarkers(merged.datasets, ident.1="GA1_2", ident.2 = "SR2_3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble() %>% dplyr::filter(p_val_adj<0.01)
+DEG.res.GASR <- FindMarkers(merged.datasets, ident.1="GA1_2", ident.2 = "SR2_3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble() 
+#%>% dplyr::filter(p_val_adj<0.01)
 
 colnames(assay.averages$RNA) <- str_replace_all(colnames(assay.averages$RNA), pattern = "-", replacement = "_")
 
@@ -313,16 +349,16 @@ qsave(TF.cors.PRO_SR,"../analysis/TF.cors.PRO_SR.qs", nthreads = cores)
 ```{r GA/GL GSEA for Set 3 plots, warning=FALSE}
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
-limits <- sapply(set1.GSEA,function(p){p$limits})
-colnames(limits) <- TF_names
-print(limits)
-
-upper.limit <- set1.GSEA[[1]]$limits$upper.limit
-lower.limit <- set1.GSEA[[1]]$limits$lower.limit
-mid.upper.limit <- set1.GSEA[[1]]$limits$mid.upper.limit
-mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
-
-limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
+# limits <- sapply(set1.GSEA,function(p){p$limits})
+# colnames(limits) <- TF_names
+# print(limits)
+# 
+# upper.limit <- set1.GSEA[[1]]$limits$upper.limit
+# lower.limit <- set1.GSEA[[1]]$limits$lower.limit
+# mid.upper.limit <- set1.GSEA[[1]]$limits$mid.upper.limit
+# mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
+# 
+# limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
 
 for (i in 1:length(set1.GSEA)){
     h1 <- drawTargetHeatmap(DEG.res=DEG.res.GSEA, set1.GSEA[[i]]$d1$gene_name,assay.averages=assay.averages,gene_name2id=gene_name2id, gene_id2name=gene_id2name,limits.to.plot=limits.to.plot, cell.groups=c("PRO1_2","CO1_2","GA1_2","GL1_2"))
@@ -377,6 +413,9 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```{r GA/SR GSEA for Set 3 plots, warning=FALSE, echo=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
+
+
+edges <- extract_gene_enrichments(ranks=sort(DEG.res.GSEA.GASR,decreasing=TRUE), gene_sets = targetGenes.set.3[["Tal1"]]$targets)
 
 limits <- sapply(set1.GSEA,function(p){p$limits})
 colnames(limits) <- TF_names
