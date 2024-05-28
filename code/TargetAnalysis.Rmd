@@ -26,6 +26,7 @@ library(patchwork)
 library(parallel)
 library(topGO)
 library(dplyr)
+library(cowplot)
 source("../../AuxCode/AuxFunctions.R")
 ```
 
@@ -40,8 +41,8 @@ extract_gene_enrichments <- function(ranks,gene_sets){
   enrichment_data <- ggplot_build(enrichment_plot)$data[[1]]
   
   # Identify the leading and trailing edges
-  positive_peak_index <- which.max(enrichment_data$y)
-  negative_trough_index <- which.min(enrichment_data$y)
+  positive_peak_index <- enrichment_data$x[which.max(enrichment_data$y)]
+  negative_trough_index <- enrichment_data$x[which.min(enrichment_data$y)]
   
   # Ensure the trailing edge is calculated correctly
   trailing_edge_genes <- names(ranks)[(negative_trough_index + 1):length(ranks)]
@@ -146,7 +147,10 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
   # upper.pos <- which.min(abs(DEG.res$avg_log2FC-upper.limit))
   upper.pos <- edges$positive_peak_index
   lower.pos <- edges$negative_peak_index
-  # 
+  
+  upper.limit <- DEG.res$avg_log2FC[upper.pos]
+  lower.limit <- DEG.res$avg_log2FC[lower.pos]
+  
   # lower.limit <- quantile(DEG.res$avg_log2FC,lower.thr)
   # lower.pos <- which.min(abs(DEG.res$avg_log2FC-lower.limit))
   # 
@@ -349,16 +353,16 @@ qsave(TF.cors.PRO_SR,"../analysis/TF.cors.PRO_SR.qs", nthreads = cores)
 ```{r GA/GL GSEA for Set 3 plots, warning=FALSE}
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res,TF.name=target, comp.title="GA/GL DEG")}))
 
-# limits <- sapply(set1.GSEA,function(p){p$limits})
-# colnames(limits) <- TF_names
-# print(limits)
-# 
-# upper.limit <- set1.GSEA[[1]]$limits$upper.limit
-# lower.limit <- set1.GSEA[[1]]$limits$lower.limit
-# mid.upper.limit <- set1.GSEA[[1]]$limits$mid.upper.limit
-# mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
-# 
-# limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
+limits <- sapply(set1.GSEA,function(p){p$limits})
+colnames(limits) <- TF_names
+print(limits)
+
+upper.limit <- set1.GSEA[[1]]$limits$upper.limit
+lower.limit <- set1.GSEA[[1]]$limits$lower.limit
+mid.upper.limit <- set1.GSEA[[1]]$limits$mid.upper.limit
+mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
+
+limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
 
 for (i in 1:length(set1.GSEA)){
     h1 <- drawTargetHeatmap(DEG.res=DEG.res.GSEA, set1.GSEA[[i]]$d1$gene_name,assay.averages=assay.averages,gene_name2id=gene_name2id, gene_id2name=gene_id2name,limits.to.plot=limits.to.plot, cell.groups=c("PRO1_2","CO1_2","GA1_2","GL1_2"))
@@ -369,7 +373,6 @@ for (i in 1:length(set1.GSEA)){
 ```
 
 ```{r GA/GL GSEA for Set 3 tables, warning=FALSE}
-
 tmp.1 <- lapply(targetGenes.set.3,function(p){p$targets})
 names(tmp.1) <- names(targetGenes.set.3)
 results <- fgsea(pathways = tmp.1, 
@@ -413,9 +416,6 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```{r GA/SR GSEA for Set 3 plots, warning=FALSE, echo=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set.3[[target]]$targets,DEG.res=DEG.res.GASR,TF.name=target,comp.title="GA/SR DEG")}))
-
-
-edges <- extract_gene_enrichments(ranks=sort(DEG.res.GSEA.GASR,decreasing=TRUE), gene_sets = targetGenes.set.3[["Tal1"]]$targets)
 
 limits <- sapply(set1.GSEA,function(p){p$limits})
 colnames(limits) <- TF_names
