@@ -120,7 +120,7 @@ FROM
 WHERE
     tb.TF_gene_name = '",toupper(TF_name),"'
     AND ABS(li.zscore) > 2 
-    AND li.pvalue < 0.001 
+    AND li.pvalue < 0.01 
     AND ct.target_gene_name = '",TF_name,"'
     AND (tb.GA1_2_bound = 1 OR tb.GL1_2_bound = 1)
     AND tb.w_mean_cons > 0.5
@@ -251,7 +251,8 @@ DefaultAssay(merged.datasets) <- "RNA"
 assay.averages <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 
 Idents(rV2.dataset) <- rV2.dataset$rv2.lineage_re
-DEG.res <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble() %>% dplyr::filter(p_val_adj<0.01)
+DEG.res <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble() 
+#%>% dplyr::filter(p_val_adj<0.01)
 
 colnames(assay.averages$RNA) <- str_replace_all(colnames(assay.averages$RNA), pattern = "-", replacement = "_")
 
