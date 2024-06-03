@@ -101,10 +101,15 @@ drawTargetLinePlot <- function(DEG.res, gene_name2id, gene_id2name,limits.to.plo
   
   deg.data <- DEG.res$d1 %>% filter(p_val_adj<0.01) %>% mutate(rank = dense_rank(avg_log2FC)) %>% select(ensg_id,rank,SR2_exp_avg_log2,SR3_exp_avg_log2) %>% pivot_longer(cols = where(is.double), names_to = "cell_group", values_to = "exp_avg_log2")
   
+  limits.to.plot <- DEG.res$limits
+  
   mid.upper.limit=limits.to.plot$mid.upper.limit
   mid.lower.limit=limits.to.plot$mid.lower.limit
   upper.limit=limits.to.plot$upper.limit
   lower.limit=limits.to.plot$lower.limit
+  upper.pos=limits.to.plot$upper.pos
+  lower.pos=limits.to.plot$lower.pos
+  xmax.right=nrow(DEG.res$d1 %>% filter(p_val_adj<0.01))
   
   ggplot(deg.data, aes(x=rank,y=exp_avg_log2, group=cell_group)) + geom_line(aes(colour = cell_group)) + theme_minimal() + theme(
     axis.text.x = element_text(size = 18),
@@ -115,7 +120,7 @@ geom_rect(aes(xmin=lower.pos,xmax=xmax.right,ymin=-0.05,ymax=0.05), fill="red", 
   
   # TODO: add colored boxes? Ratio to another y-axis?
   
-  
+  # No, tables data is needed to make plots, wewrite these alltogether!!
 
   
   target.genes.in.order <- names(sort(DEG.res[target.genes], decreasing = TRUE))
@@ -243,7 +248,7 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
   #   
   xmax.right <- nrow(DEG.res)
   # 
-  limits <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
+  limits <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit,upper.pos=upper.pos,lower.pos=lower.pos)
   
   
   p1 <- plotEnrichment(targets, DEG.res.GSEA) + ggtitle(paste(TF.name,"target enrichments in", comp.title)) + geom_rect(aes(xmin=0,xmax=upper.pos,ymin=-0.05,ymax=0.05), fill="blue", alpha=0.002) +
@@ -446,10 +451,9 @@ mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
 limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
 
 for (i in 1:length(set1.GSEA)){
-    h1 <- drawTargetHeatmap(DEG.res=DEG.res.GSEA.1, set1.GSEA[[i]]$d1$gene_name,assay.averages=assay.averages,gene_name2id=gene_name2id, gene_id2name=gene_id2name,limits.to.plot=limits.to.plot, cell.groups=c("SR1","SR2","SR3"))
-    heatmap_grob <- grid::grid.grabExpr(draw(h1))
+    h1 <- drawTargetLinePlot(DEG.res=set1.GSEA[[i]], limits.to.plot, cell.groups=c("SR1","SR2"))
     p1 <- set1.GSEA[[i]]$p1
-  print(plot_grid(plotlist = list(p1, heatmap_grob), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
+  print(plot_grid(plotlist = list(p1, h1), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
 }
 ```
 
