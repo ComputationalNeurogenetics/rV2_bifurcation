@@ -97,6 +97,37 @@ extract_gene_enrichments <- function(ranks,gene_sets){
   return(list(combined_edges=combined_edges, positive_peak_index=positive_peak_index, negative_peak_index=negative_trough_index))
 }
 
+drawTargetLinePlot <- function(DEG.res, target.genes, assay.averages,gene_name2id, gene_id2name,limits.to.plot, cell.groups){
+  
+  # Just take DEG res with p-value filter, pivot long and create geom_line plot with group colros
+  
+  mid.upper.limit=limits.to.plot$mid.upper.limit
+  mid.lower.limit=limits.to.plot$mid.lower.limit
+  upper.limit=limits.to.plot$upper.limit
+  lower.limit=limits.to.plot$lower.limit
+  
+  target.genes.in.order <- names(sort(DEG.res[target.genes], decreasing = TRUE))
+Targets.expression.avg <- log1p(t(assay.averages$RNA[sapply(target.genes.in.order,function(id){gene_name2id[[id]]}),cell.groups]))
+colnames(Targets.expression.avg) <- sapply(colnames(Targets.expression.avg),function(id){gene_id2name[[id]]})
+col_fun = colorRamp2(c(min(Targets.expression.avg), median(Targets.expression.avg),max(Targets.expression.avg)), c("white", "red","darkred"))
+
+color_factor <- factor(
+  ifelse(DEG.res[target.genes.in.order] > upper.limit, "GA leading edge",
+    ifelse(DEG.res[target.genes.in.order] <= mid.lower.limit & DEG.res[target.genes.in.order] >= mid.upper.limit, "Neutral",
+      ifelse(DEG.res[target.genes.in.order] < lower.limit, "GL trailing edge", "white")
+    )
+  ),
+  levels = c("GL trailing edge", "white", "Neutral", "GA leading edge")
+)
+
+col_anno <- HeatmapAnnotation(target_gene_group = color_factor,
+  col = list(target_gene_group = c("GL trailing edge"="red" , "white" = "white", "Neutral" = "green", "GA leading edge" = "blue")),
+  annotation_legend_param = list(target_gene_group = list(title = "Target gene group")))
+
+h1 <- Heatmap(as.matrix(Targets.expression.avg), cluster_columns = FALSE,col=col_fun, show_column_names = FALSE,bottom_annotation = col_anno,heatmap_legend_param = list(title = "Target Expression (log1p)"))
+  return(h1)
+}
+
 
 drawTargetHeatmap <- function(DEG.res, target.genes, assay.averages,gene_name2id, gene_id2name,limits.to.plot, cell.groups){
   
@@ -421,10 +452,14 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 
 DEG.res.subset <- lapply(targetGenes.set.3, function(p){
-  left_join(filter(DEG.res.1, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  full_join(filter(DEG.res.1, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
 
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
@@ -485,10 +520,14 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 
 DEG.res.subset <- lapply(targetGenes.set.3, function(p){
-  left_join(filter(DEG.res.2, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  full_join(filter(DEG.res.2, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
 
 combined_tibble <- combined_tibble %>%
   rowwise() %>%

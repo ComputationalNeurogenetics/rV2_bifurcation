@@ -188,8 +188,6 @@ do.GSEA <- function(targets,DEG.res,TF.name, comp.title){
 cores <- 6
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 options(timeout = 30000)
-
-plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/training/"
 ```
 
 # Target counts {.tabset}
@@ -287,7 +285,7 @@ names(DEG.res.GSEA.2) <- DEG.res.2$gene_name
 DEG.res.GSEA.2<- DEG.res.GSEA.2[DEG.res.2$p_val_adj < 0.01]
 ```
 
-```{r Correlations between target genes and selector genes, warning=FALSE}
+```{r Correlations between target genes and selector genes, warning=FALSE, eval=TRUE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
 CO_GA.subset <- subset(merged.datasets, idents=c("CO1_2","GA1_2"))
@@ -367,11 +365,15 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 
 DEG.res.subset <- lapply(targetGenes.set.3, function(p){
-  left_join(filter(DEG.res.1, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  full_join(filter(DEG.res.1, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
+  
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
   mutate(TF.cor.CO.GA = TF.cors.CO_GA[[TF]][[ensg_id]]) %>%
@@ -426,10 +428,12 @@ results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3))
 create_dt(results)
 
 DEG.res.subset <- lapply(targetGenes.set.3, function(p){
-  left_join(filter(DEG.res.2, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
+  full_join(filter(DEG.res.2, gene_name %in% p$targets),p$target.data, by=c("gene_name"="gene_name"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
 
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
