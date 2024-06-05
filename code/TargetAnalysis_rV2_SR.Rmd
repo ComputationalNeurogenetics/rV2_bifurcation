@@ -20,8 +20,6 @@ library(hash)
 #library(biomaRt)
 library(presto)
 library(purrr)
-library(circlize)
-library(ComplexHeatmap)
 library(patchwork)
 library(parallel)
 library(topGO)
@@ -93,7 +91,7 @@ merged.datasets <- merge(rV2.dataset,serot.dataset)
 
 merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage_re, merged.datasets$sero.lineage), levels=c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6","GL1_2","GL3_4","GL5","SR1","SR2","SR3"))
 
-merged.datasets$merged.groups <- fct_collapse(merged.datasets$merged.groups, SR2_3 = c("SR2", "SR3"))
+#merged.datasets$merged.groups <- fct_collapse(merged.datasets$merged.groups, SR2_3 = c("SR2", "SR3"))
 
 gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
 gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
@@ -148,6 +146,8 @@ DEG.res.3$GA1_2_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"GA1_2"]
 DEG.res.3$gene_name <- sapply(DEG.res.3$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
+
+
 
 ```{r Correlations between target genes and selector genes, warning=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
