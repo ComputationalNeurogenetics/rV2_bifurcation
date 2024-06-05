@@ -17,6 +17,11 @@ library(EnsDb.Mmusculus.v79)
 library(hash)
 library(ChIPpeakAnno)
 cores<-10
+source("~/Workspace/AuxCode/TOBIAS_tools.R")
+source("~/Workspace/AuxCode/AuxFunctions.R")
+library(rtracklayer)
+library(plyranges)
+library(data.table)
 ```
 
 ```{r Additional functions}
@@ -36,7 +41,7 @@ gene_id2name <- hash(rownames(dataset[['RNA']][[]]),dataset[['RNA']][[]][,1])
 gene_name2id <- hash(dataset[['RNA']][[]][,1],rownames(dataset[['RNA']][[]]))
 ```
 
-```{r Reading Tobias results and H12 metadata, eval=FALSE}
+```{r Reading Tobias results and H12 metadata, eval=TRUE}
 #rV2.groups.tobias.h12.gr.dr <- qread("../analysis/rV2.groups.tobias.h12.gr.dr.regrouped.qs", nthreads = 8)
 
 serot.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/Volumes/MyBookDuo/Data/TOBIAS_input_output/E12SR_280424/TFBS/",parallel=F, mc.cores=2, HOCOMOCO=12)
@@ -47,13 +52,14 @@ serot.groups.tobias.h12.gr.dr <- get_BINDetect_snakemake_results_gr(res_path="/V
 H12.metadata <- read_delim("../metadata/H12.data_INSM1_added.csv", col_names = TRUE, delim = ";")
 ```
 
-```{r Transform tobias gr to tb, eval=FALSE}
+```{r Transform tobias gr to tb, eval=TRUE}
 tobias.tb.list <- lapply(serot.groups.tobias.h12.gr.dr, as_tibble)
 tobias.tb <- do.call(rbind,tobias.tb.list)
+tobias.tb$start <- tobias.tb$start+1
 qsave(tobias.tb, file = "../analysis/Tobias.serot.h12.dr.tb.qs",nthreads = 10)
 ```
 
-```{r Finding TFBS to feature matches, eval=FALSE}
+```{r Finding TFBS to feature matches, eval=TRUE}
 TFBS.pos.tb <- tobias.tb %>% dplyr::select(seqnames, start, end, TFBS_name)
 TFBS.to.features <- mergeByOverlaps(query = makeGRangesFromDataFrame(TFBS.pos.tb, keep.extra.columns = T), subject = all.features,type="within")
 
@@ -69,18 +75,18 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.serot.h12.dr.tb.qs",nthreads = 10)
 ```
 
 ```{r Connection to SQLite}
-dbname <- "~/Workspace/TOBIAS.serot.h12_210324.sqlite"
+dbname <- "~/Workspace/TOBIAS.serot.h12_230524.sqlite"
 serot.con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
 ```
 
 ```{r Write gene.metadata into SQlite}
-gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% rename("feature_symbol"="gene_name")
+gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% rename("gene_name"="feature_symbol")
 dbWriteTable(serot.con, "gene_metadata", gene.metadata, overwrite=TRUE)
 dbExecute(serot.con, 'CREATE INDEX ensg_id3 ON gene_metadata (ensg_id);')
 dbExecute(serot.con, 'CREATE INDEX gene_name3 ON gene_metadata (gene_name);')
 ```
 
-```{r Write features table into SQLite, eval=FALSE}
+```{r Write features table into SQLite, eval=TRUE}
 features.tb <- as_tibble(all.features)
 features.tb$feature <- paste(features.tb$seqnames,"-",features.tb$start,"-",features.tb$end,sep="")
 
@@ -91,14 +97,14 @@ dbExecute(serot.con, 'CREATE INDEX start2 ON feature (start);')
 dbExecute(serot.con, 'CREATE INDEX end2 ON feature (end);')
 ```
 
-```{r Write TOBIAS data into SQlite, eval=FALSE}
+```{r Write TOBIAS data into SQlite, eval=TRUE}
 dbWriteTable(serot.con, "tobias", tobias.tb.2, overwrite=TRUE)
 dbListTables(serot.con)
 rm(tobias.tb.2)
 gc()
 ```
 
-```{r Build indeces, eval=FALSE}
+```{r Build indeces, eval=TRUE}
 dbExecute(serot.con, 'CREATE INDEX seqname 
 ON tobias (seqnames);')
 
@@ -112,7 +118,7 @@ dbExecute(serot.con, 'CREATE INDEX features
 ON tobias (features);')
 ```
 
-```{r}
+```{r Make gene name corrections}
 tobias.tm <- dbGetQuery(serot.con, 'SELECT TFBS_name FROM tobias')
 
 tobias.tm <- left_join(tobias.tm, dplyr::select(H12.metadata, TF.rep, masterlist_info.tf,ensg_id), by=c("TFBS_name"="TF.rep")) %>% distinct()
@@ -146,38 +152,67 @@ dbExecute(serot.con, 'CREATE INDEX ensg_id ON tobias (ensg_id);')
 gc()
 ```
 
-```{r Reading conservation data}
-cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
-```
+```{r Calculate conservation scores as averages, eval=FALSE}
+# Function to load conservation data one chromosome at a time to manage memory use
+import_bw_chunk <- function(chromosome) {
+  gr <- GRanges(seqnames = chromosome, ranges = IRanges(start = 1, end = seqlengths(BSgenome.Mmusculus.UCSC.mm10)[chromosome]))
+  import(con = "../metadata/mm10.60way.phastCons.bw", which = gr)
+}
 
-```{r}
-TFBS.loc <- dbGetQuery(serot.con, 'SELECT seqnames, start, end FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
-```
+# Read TFBS locations from the database
+TFBS.loc <- dbGetQuery(serot.con, 'SELECT seqnames, start, end, TFBS_name FROM tobias WHERE seqnames IN ("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chrX","chrY");')
 
-```{r }
-uniq.seq.names <- unique(pull(TFBS.loc,seqnames))
+# Use data.table for efficient data manipulation
+TFBS.loc <- as.data.table(TFBS.loc)
+uniq.seq.names <- unique(TFBS.loc$seqnames)
 
-TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
-  message_parallel(paste("Processing",seq.name,sep=" "))
+# Function to process each chromosome
+process_chromosome <- function(seq.name) {
+  message_parallel(paste("Processing", seq.name))
   gc()
-  TFBS.tmp <- makeGRangesFromDataFrame(filter(TFBS.loc, seqnames==seq.name))
-  cons.subset <- cons.gr[seqnames(cons.gr)==seq.name]
-  TFBS.cons <- mergeByOverlaps(query = cons.subset, subject = TFBS.tmp, type="within")
-  mcols(TFBS.cons$TFBS.tmp)$score <- TFBS.cons$score
-  TFBS.cons.means <- as_tibble(TFBS.cons$TFBS.tmp %>% plyranges::group_by(start,end) %>% summarize(mean.cons=mean(score)))
-  TFBS.cons.means$seqnames <-seq.name
+
+  # Load conservation data for the chromosome
+  cons.gr <- import_bw_chunk(seq.name)
+  if (length(cons.gr) == 0) return(NULL)
+
+  # Subset TFBS for the chromosome
+  TFBS.tmp <- TFBS.loc[seqnames == seq.name]
+  if (nrow(TFBS.tmp) == 0) return(NULL)
+
+  TFBS.gr <- makeGRangesFromDataFrame(TFBS.tmp)
+
+  # Find overlaps
+  overlaps <- findOverlaps(query = cons.gr, subject = TFBS.gr, type = "within")
+
+  # Merge overlaps and compute mean conservation score
+  if (length(overlaps) == 0) return(NULL)
+
+  cons.subset <- cons.gr[queryHits(overlaps)]
+  TFBS.subset <- TFBS.gr[subjectHits(overlaps)]
+  TFBS.subset$score <- cons.subset$score
+
+  TFBS.cons.means <- as_tibble(TFBS.subset %>% plyranges::group_by(start, end) %>% summarize(mean.cons = mean(score)))
+  TFBS.cons.means$seqnames <- seq.name
+
   return(TFBS.cons.means)
-}, mc.cores = 1)
+}
 
+# Process each chromosome in parallel
+TFBS.loc.cons.list <- mclapply(uniq.seq.names, process_chromosome, mc.cores = 2)
 
-TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list)
-colnames(TFBS.loc.cons.tb) <- c("start","end","mean_cons","seqnames")
-tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end"))
+# Filter out NULL results
+TFBS.loc.cons.list <- Filter(Negate(is.null), TFBS.loc.cons.list)
 
-dbWriteTable(serot.con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite=TRUE)
-dbExecute(serot.con, 'CREATE INDEX TFBS_loc_2
-ON TFBS_pos_cons_tmp (seqnames, start, end);')
+# Combine results into one table
+TFBS.loc.cons.tb <- rbindlist(TFBS.loc.cons.list, fill = TRUE)
+colnames(TFBS.loc.cons.tb) <- c("start", "end", "mean_cons", "seqnames")
 
+# Merge results back to original TFBS locations
+tobias.cons.tmp <- merge(TFBS.loc, TFBS.loc.cons.tb, by = c("seqnames", "start", "end"), all.x = TRUE)
+
+# Write results back to the database
+dbWriteTable(serot.con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite = TRUE)
+dbExecute(serot.con, 'CREATE INDEX TFBS_loc_2 ON TFBS_pos_cons_tmp (seqnames, start, end);')
 dbExecute(serot.con, 'ALTER TABLE tobias ADD COLUMN mean_cons REAL;')
 
 dbExecute(serot.con, '
@@ -188,11 +223,180 @@ SET mean_cons = (
     WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end
 )')
 
+dbExecute(serot.con, 'DROP TABLE TFBS_pos_cons_tmp;')
 
-# Not all TFBS get conservation score, is this becuase of the conservation source data??
+# Cleanup
+gc()
+```
+
+```{r}
+parse_meme_file <- function(file_path) {
+  # Read the file content
+  lines <- readLines(file_path)
+  
+  # Initialize variables
+  motifs <- list()
+  motif_name <- NULL
+  matrix_start <- FALSE
+  matrix_data <- NULL
+  
+  # Loop through each line to parse motifs and matrices
+  for (line in lines) {
+    if (startsWith(line, "MOTIF")) {
+      # Save the previous matrix if we were reading one
+      if (!is.null(motif_name) && !is.null(matrix_data)) {
+        motifs[[motif_name]] <- matrix(matrix_data, ncol = ncol(matrix_data), byrow = TRUE)
+      }
+      # Start a new motif
+      motif_name <- strsplit(line, " ")[[1]][2]
+      matrix_data <- NULL
+    } else if (startsWith(line, "letter-probability matrix")) {
+      matrix_start <- TRUE
+      next
+    } else if (matrix_start) {
+      if (line == "") {
+        matrix_start <- FALSE
+      } else {
+        # Convert line to numeric and check if valid
+        numeric_line <- as.numeric(unlist(strsplit(line, "\\s+")))
+        if (all(!is.na(numeric_line))) {
+          # Append the line to the matrix data
+          matrix_data <- rbind(matrix_data, numeric_line)
+        }
+      }
+    }
+  }
+  
+  # Save the last matrix
+  if (!is.null(motif_name) && !is.null(matrix_data)) {
+    motifs[[motif_name]] <- matrix(matrix_data, ncol = ncol(matrix_data), byrow = TRUE)
+  }
+  
+  return(motifs)
+}
+
+# Example usage
+file_path <- "../mm10/Hocomoco.v12/H12CORE_meme_format.meme"
+motifs.h12 <- parse_meme_file(file_path)
+
+# Example usage
+file_path.h11 <- "../mm10/Hocomoco.v11/HOCOMOCOv11_core_MOUSE_mono_meme_format.meme"
+motifs.h11 <- parse_meme_file(file_path.h11)
+
+motifs.h12[["INSM1_MOUSE.H11MO.0.C"]] <- motifs.h11[["INSM1_MOUSE.H11MO.0.C"]]
+
+# Print the list of motifs and their matrices
+tail(motifs.h12)
+
+positional.mean.weights <- lapply(motifs.h12,rowMax)
+names(positional.mean.weights) <- paste(names(positional.mean.weights),names(positional.mean.weights),sep="_")
+
+```
+
+```{r, eval=TRUE}
+# Define a function to calculate the weighted mean for each group
+calculate_weighted_mean <- function(data,positional.mean.weights) {
+  TFBS_name <- unique(data$TFBS_name)
+  if (length(TFBS_name) != 1) {
+    stop("Each group should have exactly one TFB_name.")
+  }
+  weights <- positional.mean.weights[[TFBS_name]]
+  if (is.null(weights)) {
+    stop(paste("No weights found for TFB_name:", TFBS_name))
+  }
+  if (length(weights) != nrow(data)) {
+    # Store information about the problematic group
+    # Return NA
+    mean.cons <- NA
+  } else {
+    # Calculate weighted mean
+    mean.cons <- weighted.mean(data$score, weights)
+  }
+  tibble(start = unique(data$start), end = unique(data$end), TFBS_name = TFBS_name, mean.cons = mean.cons)
+}
+uniq.seq.names <- unique(pull(TFBS.loc,seqnames))
+
+TFBS.loc.cons.list <- mclapply(uniq.seq.names, function(seq.name){
+  message_parallel(paste("Processing",seq.name,sep=" "))
+  gc()
+  TFBS.tmp <- makeGRangesFromDataFrame(dplyr::filter(TFBS.loc, seqnames==seq.name), keep.extra.columns = T)
+  cons.subset <- import_bw_chunk(seq.name)
+
+  # Split TFBS.tmp into single-base intervals
+  TFBS.tmp.split <- unlist(tile(TFBS.tmp, width=1))
+
+  # Replicate metadata to each single-base interval
+  metadata <- as.data.frame(mcols(TFBS.tmp))
+  metadata_rep <- metadata[rep(1:nrow(metadata), lengths(tile(TFBS.tmp, width=1))), ]
+  mcols(TFBS.tmp.split) <- metadata_rep
+
+  # Find overlaps between single-base intervals and cons.subset
+  overlaps <- findOverlaps(query = cons.subset, subject = TFBS.tmp.split)
+
+  # Create a data frame from TFBS.tmp.split
+  TFBS.df <- as.data.frame(TFBS.tmp.split)
+  colnames(TFBS.df)[colnames(TFBS.df) == "X"] <- "TFBS_name"
+
+  # Initialize the score column with NA
+  TFBS.df$score <- NA
+
+  # Get the indices of the overlapping regions
+  query_hits <- queryHits(overlaps)
+  subject_hits <- subjectHits(overlaps)
+
+  # Copy the score from cons.subset to TFBS.df
+  TFBS.df$score[subject_hits] <- mcols(cons.subset)$score[query_hits]
+
+  # Create a grouping variable to identify consecutive ranges
+  TFBS.df <- TFBS.df %>%
+  arrange(TFBS_name, start, end) %>%
+  mutate(group = cumsum(c(1, diff(start) != 1 | diff(as.numeric(factor(TFBS_name))) != 0)))
+
+# TFBS.df <- TFBS.df %>%
+#   arrange(TFBS_name, start) %>%
+#   dplyr::select(-is_consecutive)
+
+# TFBS.df <- TFBS.df %>%
+#   arrange(TFBS_name, start) %>%
+#   mutate(is_consecutive = (start == dplyr::lag(end, default = dplyr::first(start))) & (TFBS_name == dplyr::lag(TFBS_name, default = dplyr::first(TFBS_name))), group = cumsum(!is_consecutive)) %>%
+#   dplyr::select(-is_consecutive)
+
+  # Update each row within the group to have the smallest start and largest end
+  TFBS.df <- TFBS.df %>%
+  group_by(group, TFBS_name) %>%
+  mutate(start = min(start), end = max(end)) %>%
+  ungroup() %>%
+  dplyr::select(-group)  # Remove the temporary group column
+
+  TFBS.cons.means <- TFBS.df %>% group_by(start,end,TFBS_name) %>% group_split() %>%
+  map_dfr(~ calculate_weighted_mean(.x,positional.mean.weights=positional.mean.weights))
+  TFBS.cons.means$seqnames <-seq.name
+  return(TFBS.cons.means)
+}, mc.cores = 2)
+
+TFBS.loc.cons.tb <- do.call(rbind,TFBS.loc.cons.list)
+colnames(TFBS.loc.cons.tb) <- c("start","end","TFBS_name","w.mean_cons","seqnames")
+tobias.cons.tmp <- left_join(TFBS.loc, TFBS.loc.cons.tb, by=c("seqnames","start","end","TFBS_name"))
+
+tobias.cons.tmp <- rename(tobias.cons.tmp, "w_mean_cons"="w.mean_cons")
+
+dbWriteTable(serot.con, "TFBS_pos_cons_tmp", tobias.cons.tmp, overwrite=TRUE)
+dbExecute(serot.con, 'CREATE INDEX TFBS_loc_2_2
+ON TFBS_pos_cons_tmp (seqnames, start, end);')
+
+dbExecute(serot.con, 'ALTER TABLE tobias ADD COLUMN w_mean_cons REAL;')
+
+dbExecute(serot.con, '
+UPDATE tobias
+SET w_mean_cons = (
+    SELECT w_mean_cons
+    FROM TFBS_pos_cons_tmp
+    WHERE TFBS_pos_cons_tmp.seqnames = tobias.seqnames AND TFBS_pos_cons_tmp.start = tobias.start AND TFBS_pos_cons_tmp.end = tobias.end
+)')
 
 dbExecute(serot.con, 'DROP TABLE TFBS_pos_cons_tmp;')
 ```
+
 
 # Calculate expression and accessibility information into the database
 
@@ -249,64 +453,78 @@ SET TF_gene_name = 'MAD4'
 WHERE TF_gene_name LIKE '4,0%MAD';")
 ```
 
-
-```{r Calculating LinkPeaks within TADs}
+```{r}
 DefaultAssay(dataset) <- "peaks"
-
 Links(dataset) <- GenomicRanges::GRanges()
 
 mm10.v79.genome.GR <- toGRanges(
   EnsDb.Mmusculus.v79,
   feature = c("gene", "transcript", "exon", "disjointExons")
 )
-
 mm10.v79.genome.GR$gene_id <- names(mm10.v79.genome.GR)
-
 DefaultAssay(dataset) <- "RNA"
 
-gene_ids <- unique(intersect(names(mm10.v79.genome.GR),rownames(dataset)))
+gene_ids <- unique(intersect(names(mm10.v79.genome.GR), rownames(dataset)))
 
-#the information about TAD areas - https://cb.csail.mit.edu/cb/tadmap/
+# Read TAD map
 TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end")) %>% GRanges()
 
-#Function
-links.within.TADs <- mclapply(gene_ids, function(idx){
-  message_parallel(idx)
-  con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
-  
-  #first we find the TAD - topologically associated domain - for gene in a question
-  gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
+# Open database connection
+#con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+#dbExecute(serot.con, 'DROP TABLE links;')
 
-  TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
-  tryCatch({
-    Link.Seurat <- LinkPeaks(object = dataset, peak.assay = "peaks", expression.assay = "RNA", genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
+# Function to process each gene ID
+process_gene_id <- function(i) {
+  idx <- gene_ids[i]
+  message_parallel(paste(i,"/",length(gene_ids),sep=""))
   
-    links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
+  # Find the TAD for the gene in question
+  gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
+  TAD.overlap <- plyranges::filter_by_overlaps(TAD.map, gene.range)
+  
+  tryCatch({
+    Link.Seurat <- LinkPeaks(
+      object = dataset, peak.assay = "peaks", expression.assay = "RNA",
+      genes.use = idx, gene.id = TRUE, distance = width(TAD.overlap),
+      gene.coords = mm10.v79.genome.GR, peak.slot = "counts",
+      expression.slot = "data", method = "pearson"
+    )
+    
+  links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("feature"="peak") %>% rename("ensg_id"="gene")
+    
     success <- FALSE
-    while(!success & base::exists("links.tb")) {
+    con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
+    while (!success) {
       tryCatch({
-       dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
-        success<-TRUE
+        dbWriteTable(con.obj, "links", links.tb, overwrite = FALSE, append = TRUE)
+        success <- TRUE
       }, error = function(e) {
         Sys.sleep(0.25)
       })
     }
-    },
-  error = function(e) {
+  }, error = function(e) {
     cat("An error occurred:", e$message, "\n")
-    },
-  warning = function(w) {
+  }, warning = function(w) {
     cat("A warning occurred:", w$message, "\n")
   })
-  # Handle warning if necessary)
   DBI::dbDisconnect(con.obj)
-  #return(links)
-}, mc.cores = cores)
+}
 
-dbExecute(con, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
-dbExecute(con, 'CREATE INDEX feature4 ON links (feature);')
-dbExecute(con, 'CREATE INDEX zscore1 ON links (zscore);')
-dbExecute(con, 'CREATE INDEX links_pvalue ON links (pvalue);')
+# Process gene IDs in parallel
+mclapply(1:length(gene_ids), process_gene_id, mc.cores = 3)
+
+# Close the database connection
+#DBI::dbDisconnect(con.obj)
+
+# Cleanup
+#rm(TFBS.to.features.tb)
+#rm(tobias.tb)
+#gc()
+
+dbExecute(serot.con, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
+dbExecute(serot.con, 'CREATE INDEX feature4 ON links (feature);')
+dbExecute(serot.con, 'CREATE INDEX zscore1 ON links (zscore);')
+dbExecute(serot.con, 'CREATE INDEX links_pvalue ON links (pvalue);')
 ```
 
 ```{r Calculating LinkPeaks within TADs}
@@ -334,13 +552,13 @@ links.within.TADs <- mclapply(gene_ids, function(idx){
 
   TAD.overlap <-plyranges::filter_by_overlaps(TAD.map,gene.range)
   tryCatch({
-    Link.Seurat <- LinkPeaks(object = dataset, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "pearson")
+    Link.Seurat <- LinkPeaks(object = dataset, peak.assay = "peaks", expression.assay = "RNA",genes.use = idx, gene.id = T, distance = width(TAD.overlap), gene.coords = mm10.v79.genome.GR,  peak.slot = "counts", expression.slot = "data", method = "spearman")
   
     links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
       success <- FALSE
     while(!success & base::exists("links.tb")) {
       tryCatch({
-        dbWriteTable(con.obj, "links", links.tb, overwrite=FALSE, append=TRUE)
+        dbWriteTable(con.obj, "links_s", links.tb, overwrite=FALSE, append=TRUE)
         success <- TRUE # If dbWriteTable succeeds, set success to TRUE
       }, error = function(e) {
         Sys.sleep(0.25) # Wait for 1 seconds before retrying
@@ -358,14 +576,14 @@ links.within.TADs <- mclapply(gene_ids, function(idx){
   #return(links)
 }, mc.cores = cores)
 
-dbExecute(serot.con, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
-dbExecute(serot.con, 'CREATE INDEX feature4 ON links (feature);')
-dbExecute(serot.con, 'CREATE INDEX zscore1 ON links (zscore);')
-dbExecute(serot.con, 'CREATE INDEX links_pvalue ON links (pvalue);')
+dbExecute(serot.con, 'CREATE INDEX ensg_id5 ON links_s (ensg_id);')
+dbExecute(serot.con, 'CREATE INDEX feature4 ON links_s (feature);')
+dbExecute(serot.con, 'CREATE INDEX zscore1 ON links_s (zscore);')
+dbExecute(serot.con, 'CREATE INDEX links_pvalue ON links_s (pvalue);')
 ```
 
 ```{r C&T data import}
-consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_080324/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
+consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
 
 consensus.beds <- lapply(consensus.beds.path, function(path){
   tmp.1 <- read_delim(file = path, col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_names","consensus_replicate_count"))
@@ -392,6 +610,7 @@ normalized_data <- consensus.beds.tb %>%
   ungroup()
 
 normalized_data<-normalized_data[!is.na(normalized_data$chr),]
+normalized_data$start <- normalized_data$start+1
 ```
 
 ```{r}
@@ -429,8 +648,9 @@ dbExecute(serot.con, 'CREATE INDEX CT_data_max_signals ON CT_data (max_signals);
 dbExecute(serot.con, 'CREATE INDEX CT_data_target_gene_name ON CT_data (target_gene_name);')
 ```
 
+# Misc
 
-```{r Feature to gene correlation}
+```{r Feature to gene correlation, eval=FALSE}
 DefaultAssay(dataset) <- "peaks"
 acc.data.matrix <- FetchData(dataset, vars = rownames(dataset))
 zero.test <- apply(acc.data.matrix,2,function(col){!all(col==0)})
@@ -476,7 +696,7 @@ dbExecute(serot.con, 'CREATE INDEX gene2feat_cor_feature ON gene2feat_cor (featu
 ```
 
 
-```{r Finding consequent motif areas}
+```{r Finding consequent motif areas, eval=FALSE}
 tobias.table <- tbl(serot.con, "tobias")
 exp.table <- tbl(serot.con, "exp")
 acc.table <- tbl(serot.con, "acc")
@@ -511,7 +731,7 @@ mcols(plyranges::filter_by_overlaps(reduced_grB_with_map,StringToGRanges("chr4-1
 saveRDS(reduced_grB_with_map,"../analysis/TFBS_reduced_positions_120324.Rds")
 ```
 
-```{r Calculating TFBS binding probability background}
+```{r Calculating TFBS binding probability background, eval=FALSE}
 genes_TF_count <- dbGetQuery(serot.con, 'SELECT li.ensg_id,
        tb.TF_gene_name,
        COUNT(tb.TF_gene_name) AS count
