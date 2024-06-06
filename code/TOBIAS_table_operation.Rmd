@@ -251,7 +251,7 @@ gc()
 <!-- dbExecute(con, 'DROP TABLE TFBS_pos_cons_tmp;') -->
 <!-- ``` -->
 
-```{r}
+```{r Conservation data}
 
 # Function to load conservation data one chromosome at a time to manage memory use
 import_bw_chunk <- function(chromosome) {
@@ -570,7 +570,7 @@ TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm
 
 # Open database connection
 #con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
-dbExecute(con.obj, 'DROP TABLE links;')
+#dbExecute(con.obj, 'DROP TABLE links;')
 
 # Function to process each gene ID
 process_gene_id <- function(i) {
@@ -586,16 +586,16 @@ process_gene_id <- function(i) {
       object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",
       genes.use = idx, gene.id = TRUE, distance = width(TAD.overlap),
       gene.coords = mm10.v79.genome.GR, peak.slot = "counts",
-      expression.slot = "data", method = "pearson"
+      expression.slot = "data", method = "spearman"
     )
     
-  links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("feature"="peak") %>% rename("ensg_id"="gene")
+  links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
     
     success <- FALSE
     con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
     while (!success) {
       tryCatch({
-        dbWriteTable(con.obj, "links", links.tb, overwrite = FALSE, append = TRUE)
+        dbWriteTable(con.obj, "links_s", links.tb, overwrite = FALSE, append = TRUE)
         success <- TRUE
       }, error = function(e) {
         Sys.sleep(0.25)
@@ -620,10 +620,10 @@ mclapply(1:length(gene_ids), process_gene_id, mc.cores = 6)
 #rm(tobias.tb)
 #gc()
 
-dbExecute(con.obj, 'CREATE INDEX ensg_id5 ON links (ensg_id);')
-dbExecute(con.obj, 'CREATE INDEX feature4 ON links (feature);')
-dbExecute(con.obj, 'CREATE INDEX zscore1 ON links (zscore);')
-dbExecute(con.obj, 'CREATE INDEX links_pvalue ON links (pvalue);')
+dbExecute(con.obj, 'CREATE INDEX ensg_id5_s ON links_s (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX feature4_s ON links_s (feature);')
+dbExecute(con.obj, 'CREATE INDEX zscore1_s ON links_s (zscore);')
+dbExecute(con.obj, 'CREATE INDEX links_pvalue_s ON links_s (pvalue);')
 ```
 
 
@@ -772,7 +772,6 @@ normalized_data_expanded <- normalized_data %>%
   right_join(overlap_info, by = "row_id")
 
 normalized_data_expanded <- normalized_data_expanded %>% mutate(start=as.integer(start), end=as.integer(end), total_signals=as.numeric(total_signals), max_signals=as.numeric(max_signals), consensus_replicate_count=as.integer(consensus_replicate_count))
-
 ```
 
 ```{r}
