@@ -33,8 +33,7 @@ source(paste(auxcode.path,"AuxFunctions.R",sep=""))
 source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
 ```
 
-```{r Setting variables, include=FALSE}
-
+```{r Setting DBI options, include=FALSE}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname=paste(db.path,dbname.rV2,sep=""))
 con.sr <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.sr,sep=""))
 options(timeout = 30000)
