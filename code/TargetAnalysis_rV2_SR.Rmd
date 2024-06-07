@@ -1,11 +1,15 @@
 ---
-title: "R Notebook for selector gene target analysis in rV2"
+title: "R Notebook for dplyr::selector gene target analysis in rV2"
 author: Sami Kilpinen
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
   html_notebook:
     code_folding: hide
 ---
+
+```{r Local settings}
+source("local_settings.R")
+```
 
 ```{r Packages, include=FALSE}
 library(tidyverse)
@@ -25,14 +29,14 @@ library(parallel)
 library(topGO)
 library(dplyr)
 library(cowplot)
-source("../../AuxCode/AuxFunctions.R")
-source("../../AuxCode/TargetAnalysis.R")
+source(paste(auxcode.path,"AuxFunctions.R",sep=""))
+source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
 ```
 
 ```{r Setting variables, include=FALSE}
-cores <- 6
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "../../TOBIAS.dr.h12_140524.sqlite")
-con.sr <- DBI::dbConnect(RSQLite::SQLite(), dbname = "../../TOBIAS.serot.h12_230524.sqlite")
+
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname=paste(db.path,dbname.rV2,sep=""))
+con.sr <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.sr,sep=""))
 options(timeout = 30000)
 ```
 
@@ -82,7 +86,8 @@ rV2.dataset$rv2.lineage_re <- case_when(
 DefaultAssay(rV2.dataset) <- "RNA"
 
 gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
-gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
+gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))qsave(gene_id2name,file="gene_id2name.qs")
+qsave(gene_name2id,file="gene_name2id.qs")
 ```
 
 ```{r reading Serot data and merging, warning=FALSE, eval=FALSE}
@@ -91,22 +96,14 @@ merged.datasets <- merge(rV2.dataset,serot.dataset)
 
 merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage_re, merged.datasets$sero.lineage), levels=c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6","GL1_2","GL3_4","GL5","SR1","SR2","SR3"))
 
-#merged.datasets$merged.groups <- fct_collapse(merged.datasets$merged.groups, SR2_3 = c("SR2", "SR3"))
-
-gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
-gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
-
 DefaultAssay(merged.datasets) <- "RNA"
-
-qsave(merged.datasets, file="merged.datasets.qs",nthreads = 10)
-qsave(gene_id2name,file="gene_id2name.qs")
-qsave(gene_name2id,file="gene_name2id.qs")
+qsave(merged.datasets, file="merged.datasets.qs",nthreads = cores)
 ```
 
 ```{r}
-merged.datasets <- qread(file="merged.datasets.qs",nthreads = 10)
-gene_id2name <- qread(file="gene_id2name.qs")
-gene_name2id <- qread(file="gene_name2id.qs")
+merged.datasets <- qread(file=paste(data.path,"merged.datasets.qs",sep=""),nthreads = cores)
+gene_id2name <- qread(file=paste(data.path,"gene_id2name.qs",sep=""))
+gene_name2id <- qread(file=paste(data.path,"gene_name2id.qs",sep=""))
 ```
 
 ```{r Calculating averages and DEG for GA/GL axis, include=FALSE}
@@ -145,19 +142,19 @@ DEG.res.2 <- DEG.res.2 %>% mutate(across(where(is.numeric), \(x) round(x, digits
 assay.averages.merged <- AverageExpression(merged.datasets,group.by = "merged.groups")
 
 Idents(merged.datasets) <- merged.datasets$merged.groups
-DEG.res.3 <- FindMarkers(merged.datasets, ident.1="SR1", ident.2 = "SR2",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
+DEG.res.3 <- FindMarkers(merged.datasets, ident.1="SR2", ident.2 = "SR3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
 
 colnames(assay.averages.merged$RNA) <- str_replace_all(colnames(assay.averages.merged$RNA), pattern = "-", replacement = "_")
 
 DEG.res.3$SR2_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]+1,base=2)
-DEG.res.3$SR1_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR1"]+1, base=2)
-DEG.res.3$SR1_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR1"]
+DEG.res.3$SR3_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR3"]+1, base=2)
+DEG.res.3$SR3_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR3"]
 DEG.res.3$SR2_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]
 DEG.res.3$gene_name <- sapply(DEG.res.3$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
 
-```{r Correlations between target genes and selector genes, warning=FALSE, eval=FALSE}
+```{r Correlations between target genes and selector genes in rV2, warning=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
 CO_GA.subset <- subset(merged.datasets, idents=c("CO1_2","GA1_2"))
@@ -195,20 +192,86 @@ TF.cors.CO_GL <- lapply(TF_names,function(TF){
 })
 names(TF.cors.CO_GL) <- TF_names
 
-qsave(TF.cors.CO_GA,"../analysis/TF.cors.CO_GA.qs", nthreads = cores)
-qsave(TF.cors.CO_GL,"../analysis/TF.cors.CO_GL.qs", nthreads = cores)
+qsave(TF.cors.CO_GA,paste(data.path,"TF.cors.CO_GA.qs",sep=""), nthreads = cores)
+qsave(TF.cors.CO_GL,paste(data.path,"TF.cors.CO_GL.qs",sep=""), nthreads = cores)
 ```
 
-```{r Loading precalculated correlations}
-TF.cors.CO_GA <- qread("../analysis/TF.cors.CO_GA.qs", nthreads = cores)
-TF.cors.CO_GL <- qread("../analysis/TF.cors.CO_GL.qs", nthreads = cores)
+```{r Loading precalculated correlations rV2}
+TF.cors.CO_GA <- qread(paste(data.path,"TF.cors.CO_GA.qs",sep=""), nthreads = cores)
+TF.cors.CO_GL <- qread(paste(data.path,"TF.cors.CO_GL.qs",sep=""), nthreads = cores)
+```
+
+```{r Correlations between target genes and selector genes in SR, warning=FALSE, eval=FALSE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
+
+#SR1.subset <- subset(merged.datasets, idents=c("SR1"))
+SR2_3.subset <- subset(merged.datasets, idents=c("SR2","SR3"))
+#SR3.subset <- subset(merged.datasets, idents=c("SR3"))
+
+# SR1.correlations 
+# expression_matrix <- GetAssayData(SR1.subset, slot = "data")
+# TF.cors.SR1 <- lapply(TF_names,function(TF){
+#     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
+#       gene_expr <- expression_matrix[i,]
+#       if (sd(gene_expr) == 0) {
+#         return(NA)
+#       } else {
+#         cor(expression_matrix[gene_name2id[[TF]], ], gene_expr, method = "spearman")
+#       }
+#     }, mc.cores=8)
+#     names(correlations) <- rownames(expression_matrix)
+#     return(correlations)
+# })
+# names(TF.cors.SR1) <- TF_names
+
+# SR2.correlations 
+expression_matrix <- GetAssayData(SR2_3.subset, slot = "data")
+TF.cors.SR2_3 <- lapply(TF_names,function(TF){
+    correlations <- mclapply(1:nrow(expression_matrix), function(i) {
+      gene_expr <- expression_matrix[i,]
+      if (sd(gene_expr) == 0) {
+        return(NA)
+      } else {
+        cor(expression_matrix[gene_name2id[[TF]], ], gene_expr, method = "spearman")
+      }
+    }, mc.cores=8)
+    names(correlations) <- rownames(expression_matrix)
+    return(correlations)
+})
+names(TF.cors.SR2_3) <- TF_names
+
+# SR3.correlations 
+# expression_matrix <- GetAssayData(SR3.subset, slot = "data")
+# TF.cors.SR3 <- lapply(TF_names,function(TF){
+#     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
+#       gene_expr <- expression_matrix[i,]
+#       if (sd(gene_expr) == 0) {
+#         return(NA)
+#       } else {
+#         cor(expression_matrix[gene_name2id[[TF]], ], gene_expr, method = "spearman")
+#       }
+#     }, mc.cores=8)
+#     names(correlations) <- rownames(expression_matrix)
+#     return(correlations)
+# })
+# names(TF.cors.SR3) <- TF_names
+
+#qsave(TF.cors.SR1,paste(data.path,"TF.cors.SR1.qs",sep=""), nthreads = cores)
+qsave(TF.cors.SR2_3,paste(data.path,"TF.cors.SR2_3.qs",sep=""), nthreads = cores)
+#qsave(TF.cors.SR3,paste(data.path,"TF.cors.SR3.qs",sep=""), nthreads = cores)
+```
+
+```{r Loading precalculated correlations SR}
+#TF.cors.SR1 <- qread(paste(data.path,"TF.cors.SR1.qs",sep=""))
+TF.cors.SR2_3 <- qread(paste(data.path,"TF.cors.SR2_3.qs",sep=""))
+#TF.cors.SR3 <- qread(paste(data.path,"TF.cors.SR3.qs",sep=""))
 ```
 
 ## rV2 target tables with GA1_2 and GL1_2 information
 
 ```{r}
 DEG.res.subset <- lapply(targetGenes.set, function(p){
-  full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id),select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
+  full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id),dplyr::select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
@@ -266,11 +329,11 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
-## Serot target tables with SR1, SR2 and SR3 information
+## Serot target tables with SR2 and SR3 information
 
 ```{r}
 DEG.res.subset <- lapply(targetGenes.set.SR, function(p){
-  full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id),  select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
+  full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id),  dplyr::select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
@@ -281,12 +344,7 @@ combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
   
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
-  mutate(TF.cor.CO.GA = TF.cors.CO_GA[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.CO.GL = TF.cors.CO_GL[[TF]][[ensg_id]]) %>%
+  mutate(TF.cor.SR2.SR3 = TF.cors.SR2_3[[TF]][[ensg_id]]) %>%
   ungroup()
 
 combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
@@ -389,11 +447,11 @@ create_dt(results)
 ## Counts & densities (Tal1)
 
 ```{r}
-Tal1.exp <- as_tibble(dbGetQuery(con, 'SELECT exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Tal1");')) %>% distinct()
+Tal1.exp <- as_tibble(dbGetQuery(con, 'dplyr::select exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Tal1");')) %>% distinct()
 
-Tal1.tb.data <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ac.features=tb.features;')) %>% distinct()
+Tal1.tb.data <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ac.features=tb.features;')) %>% distinct()
 
-Tal1.tb.data.ct <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ct.feature=tb.features AND ct.target_gene_name="Tal1" AND ac.features=tb.features;')) %>% distinct()
+Tal1.tb.data.ct <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ct.feature=tb.features AND ct.target_gene_name="Tal1" AND ac.features=tb.features;')) %>% distinct()
 ```
 
 ```{r}
@@ -439,7 +497,7 @@ Tal1.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(Tal1.exp), y=r)
 })
 
@@ -451,7 +509,7 @@ Tal1.cor.li <- sapply(Tal1.cor.tests,function(p){
 
 Tal1.tb.data$cor.test <- Tal1.cor.li
 
-Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data.ct %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(Tal1.exp), y=r)
 })
 
@@ -468,7 +526,7 @@ Tal1.tb.data.ct$cor.test <- Tal1.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with Tal1 average expression (please note, only three datapoints)
 
 ```{r}
-results <- Tal1.tb.data %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- Tal1.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -487,7 +545,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with Tal1 average expression (please note, only three datapoints)
 
 ```{r}
-results <- Tal1.tb.data.ct %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- Tal1.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -514,7 +572,7 @@ data <- Tal1.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -542,7 +600,7 @@ data <- Tal1.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -570,7 +628,7 @@ data <- Tal1.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -598,7 +656,7 @@ data <- Tal1.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -617,11 +675,11 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 ## Counts & densities (Gata2)
 
 ```{r}
-gene.exp <- as_tibble(dbGetQuery(con, 'SELECT exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Gata2");')) %>% distinct()
+gene.exp <- as_tibble(dbGetQuery(con, 'dplyr::select exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Gata2");')) %>% distinct()
 
-gene.tb.data <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("GATA2") AND ac.features=tb.features;')) %>% distinct()
+gene.tb.data <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("GATA2") AND ac.features=tb.features;')) %>% distinct()
 
-gene.tb.data.ct <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("GATA2") AND ct.feature=tb.features AND ct.target_gene_name="Gata2" AND ac.features=tb.features;')) %>% distinct()
+gene.tb.data.ct <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("GATA2") AND ct.feature=tb.features AND ct.target_gene_name="Gata2" AND ac.features=tb.features;')) %>% distinct()
 ```
 
 
@@ -668,7 +726,7 @@ gene.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -680,7 +738,7 @@ gene.cor.li <- sapply(gene.cor.tests,function(p){
 
 gene.tb.data$cor.test <- gene.cor.li
 
-gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -697,7 +755,7 @@ gene.tb.data.ct$cor.test <- gene.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -716,7 +774,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data.ct %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -743,7 +801,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -771,7 +829,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -799,7 +857,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -827,7 +885,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -847,11 +905,11 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 ## Counts & densities (Gata3)
 
 ```{r}
-gene.exp <- as_tibble(dbGetQuery(con, 'SELECT exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Gata3");')) %>% distinct()
+gene.exp <- as_tibble(dbGetQuery(con, 'dplyr::select exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Gata3");')) %>% distinct()
 
-gene.tb.data <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("GATA3") AND ac.features=tb.features;')) %>% distinct()
+gene.tb.data <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("GATA3") AND ac.features=tb.features;')) %>% distinct()
 
-gene.tb.data.ct <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("GATA3") AND ct.feature=tb.features AND ct.target_gene_name="Gata3" AND ac.features=tb.features;')) %>% distinct()
+gene.tb.data.ct <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("GATA3") AND ct.feature=tb.features AND ct.target_gene_name="Gata3" AND ac.features=tb.features;')) %>% distinct()
 ```
 
 
@@ -898,7 +956,7 @@ gene.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -910,7 +968,7 @@ gene.cor.li <- sapply(gene.cor.tests,function(p){
 
 gene.tb.data$cor.test <- gene.cor.li
 
-gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -927,7 +985,7 @@ gene.tb.data.ct$cor.test <- gene.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -946,7 +1004,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data.ct %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -973,7 +1031,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1001,7 +1059,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1029,7 +1087,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1057,7 +1115,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1076,11 +1134,11 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 ## Counts & densities (Vsx2)
 
 ```{r}
-gene.exp <- as_tibble(dbGetQuery(con, 'SELECT exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Vsx2");')) %>% distinct()
+gene.exp <- as_tibble(dbGetQuery(con, 'dplyr::select exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Vsx2");')) %>% distinct()
 
-gene.tb.data <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("VSX2") AND ac.features=tb.features;')) %>% distinct()
+gene.tb.data <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("VSX2") AND ac.features=tb.features;')) %>% distinct()
 
-gene.tb.data.ct <- as_tibble(dbGetQuery(con, 'SELECT tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("VSX2") AND ct.feature=tb.features AND ct.target_gene_name="Vsx2" AND ac.features=tb.features;')) %>% distinct()
+gene.tb.data.ct <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("VSX2") AND ct.feature=tb.features AND ct.target_gene_name="Vsx2" AND ac.features=tb.features;')) %>% distinct()
 ```
 
 
@@ -1127,7 +1185,7 @@ gene.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -1139,7 +1197,7 @@ gene.cor.li <- sapply(gene.cor.tests,function(p){
 
 gene.tb.data$cor.test <- gene.cor.li
 
-gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -1156,7 +1214,7 @@ gene.tb.data.ct$cor.test <- gene.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -1175,7 +1233,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data.ct %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -1202,7 +1260,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1230,7 +1288,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1258,7 +1316,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1286,7 +1344,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1348,7 +1406,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Neutral -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Tal1, gene_name), DEG.res$gene_name[mid.lower.index:mid.upper.index]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1375,7 +1433,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GL -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Tal1, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC<lower.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1404,7 +1462,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GA -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Gata2, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC>upper.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1430,7 +1488,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Neutral -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Gata2, gene_name), DEG.res$gene_name[mid.lower.index:mid.upper.index]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1457,7 +1515,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GL -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Gata2, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC<lower.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1487,7 +1545,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GA -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Gata3, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC>upper.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1513,7 +1571,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Neutral -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Gata3, gene_name), DEG.res$gene_name[mid.lower.index:mid.upper.index]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1540,7 +1598,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GL -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Gata3, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC<lower.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1571,7 +1629,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GA -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Vsx2, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC>upper.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1598,7 +1656,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Neutral -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Vsx2, gene_name), DEG.res$gene_name[mid.lower.index:mid.upper.index]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1625,7 +1683,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GL -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Vsx2, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC<lower.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1655,7 +1713,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GA -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Sox4, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC>upper.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1681,7 +1739,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Neutral -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Sox4, gene_name), DEG.res$gene_name[mid.lower.index:mid.upper.index]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
@@ -1708,7 +1766,7 @@ ggsave("Footprint_scores_CT.png", width = 8, height = 6, dpi = 300)
 <!-- ### Up in GL -->
 
 <!-- ```{r} -->
-<!-- allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
+<!-- allGenes.list <- unique(dbGetQuery(con, 'dplyr::select DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1]) -->
 
 <!-- geneList.fac <- as.factor(ifelse(allGenes.list %in% intersect(pull(targets.Sox4, gene_name), DEG.res$gene_name[DEG.res$avg_log2FC<lower.limit]), 1,0)) -->
 <!-- names(geneList.fac) <- allGenes.list -->
