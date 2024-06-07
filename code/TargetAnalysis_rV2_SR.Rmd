@@ -58,7 +58,7 @@ sapply(targetGenes.set.SR,function(p){length(p$targets_gene_name)})
 
 # Expression analysis of target genes {.tabset}
 
-```{r Reading rV2 data, include=FALSE}
+```{r Reading rV2 data, include=FALSE, eval=FALSE}
 rV2.dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 
 rV2.dataset$rv2.lineage_re <- case_when(
@@ -85,7 +85,7 @@ gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]]
 gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
 ```
 
-```{r reading Serot data and merging, warning=FALSE}
+```{r reading Serot data and merging, warning=FALSE, eval=FALSE}
 serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
 merged.datasets <- merge(rV2.dataset,serot.dataset)
 
@@ -95,8 +95,18 @@ merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineag
 
 gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
 gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
-  
+
 DefaultAssay(merged.datasets) <- "RNA"
+
+qsave(merged.datasets, file="merged.datasets.qs",nthreads = 10)
+qsave(gene_id2name,file="gene_id2name.qs")
+qsave(gene_name2id,file="gene_name2id.qs")
+```
+
+```{r}
+merged.datasets <- qread(file="merged.datasets.qs",nthreads = 10)
+gene_id2name <- qread(file="gene_id2name.qs")
+gene_name2id <- qread(file="gene_name2id.qs")
 ```
 
 ```{r Calculating averages and DEG for GA/GL axis, include=FALSE}
@@ -139,15 +149,13 @@ DEG.res.3 <- FindMarkers(merged.datasets, ident.1="SR1", ident.2 = "SR2",logfc.t
 
 colnames(assay.averages.merged$RNA) <- str_replace_all(colnames(assay.averages.merged$RNA), pattern = "-", replacement = "_")
 
-DEG.res.3$SR2_3_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]+1,base=2)
-DEG.res.3$GA1_2_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"GA1_2"]+1, base=2)
-DEG.res.3$SR2_3_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]
-DEG.res.3$GA1_2_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"GA1_2"]
+DEG.res.3$SR2_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]+1,base=2)
+DEG.res.3$SR1_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR1"]+1, base=2)
+DEG.res.3$SR1_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR1"]
+DEG.res.3$SR2_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]
 DEG.res.3$gene_name <- sapply(DEG.res.3$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
-
-
 
 ```{r Correlations between target genes and selector genes, warning=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
@@ -187,13 +195,13 @@ TF.cors.CO_GL <- lapply(TF_names,function(TF){
 })
 names(TF.cors.CO_GL) <- TF_names
 
-qsave(TF.cors.CO_GA,"../analysis/TF.cors.PRO_GA.qs", nthreads = cores)
-qsave(TF.cors.CO_GL,"../analysis/TF.cors.PRO_GL.qs", nthreads = cores)
+qsave(TF.cors.CO_GA,"../analysis/TF.cors.CO_GA.qs", nthreads = cores)
+qsave(TF.cors.CO_GL,"../analysis/TF.cors.CO_GL.qs", nthreads = cores)
 ```
 
 ```{r Loading precalculated correlations}
-TF.cors.CO_GA <- qread("../analysis/TF.cors.PRO_GA.qs", nthreads = cores)
-TF.cors.CO_GL <- qread("../analysis/TF.cors.PRO_GL.qs", nthreads = cores)
+TF.cors.CO_GA <- qread("../analysis/TF.cors.CO_GA.qs", nthreads = cores)
+TF.cors.CO_GL <- qread("../analysis/TF.cors.CO_GL.qs", nthreads = cores)
 ```
 
 ## rV2 target tables with GA1_2 and GL1_2 information
@@ -229,7 +237,7 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 
 ## rV2 target tables with GA1_2 and SR2 information
 
-```{r}
+```{r, eval=FALSE}
 DEG.res.subset <- lapply(targetGenes.set, function(p){
   full_join(filter(DEG.res.2, ensg_id %in% p$targets_gene.id),p$target.data, by=c("ensg_id"="ensg_id"))
   })
@@ -262,7 +270,7 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 
 ```{r}
 DEG.res.subset <- lapply(targetGenes.set.SR, function(p){
-  full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id),p$target.data, by=c("ensg_id"="ensg_id"))
+  full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id),  select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
@@ -341,7 +349,7 @@ create_dt(results)
 
 ### GA/SR
 
-```{r GA/SR GSEA plots, warning=FALSE, echo=FALSE}
+```{r GA/SR GSEA plots, warning=FALSE, echo=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set[[target]]$targets_gene_name,DEG.res=DEG.res.2,TF.name=target,comp.title="GA/SR DEG")}))
 
@@ -365,7 +373,7 @@ for (i in 1:length(set1.GSEA)){
 }
 ```
 
-```{r GA/SR GSEA tables, warning=FALSE, echo=FALSE}
+```{r GA/SR GSEA tables, warning=FALSE, echo=FALSE, eval=FALSE}
 tmp.1 <- lapply(targetGenes.set,function(p){p$targets_gene_name})
 names(tmp.1) <- names(targetGenes.set)
 results <- fgsea(pathways = tmp.1, 
