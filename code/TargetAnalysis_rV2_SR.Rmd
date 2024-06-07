@@ -85,7 +85,8 @@ rV2.dataset$rv2.lineage_re <- case_when(
 DefaultAssay(rV2.dataset) <- "RNA"
 
 gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
-gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))qsave(gene_id2name,file="gene_id2name.qs")
+gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
+qsave(gene_id2name,file="gene_id2name.qs")
 qsave(gene_name2id,file="gene_name2id.qs")
 ```
 
@@ -297,7 +298,7 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
-## rV2 target tables with GA1_2 and SR2 information
+
 
 ```{r, eval=FALSE}
 DEG.res.subset <- lapply(targetGenes.set, function(p){
@@ -369,7 +370,7 @@ DEG.res.GSEA.2<- DEG.res.GSEA.2[DEG.res.2$p_val_adj < 0.01]
 
 ### GA/GL
 
-```{r GA/GL GSEA for Set 3 plots, warning=FALSE}
+```{r GA/GL GSEA for Set 3 plots, warning=FALSE,fig.height=5,fig.width=7}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set[[target]]$targets_gene_name,DEG.res=DEG.res.1,TF.name=target, comp.title="GA/GL DEG")}))
 
@@ -385,11 +386,9 @@ mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
 limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
 
 for (i in 1:length(set1.GSEA)){
-   # h1 <- drawTargetHeatmap(DEG.res=DEG.res.GSEA.1, set1.GSEA[[i]]$d1$gene_name,assay.averages=assay.averages.rV2,gene_name2id=gene_name2id, gene_id2name=gene_id2name,limits.to.plot=limits.to.plot, cell.groups=c("PRO1_2","CO1_2","GA1_2","GL1_2"))
-   # heatmap_grob <- grid::grid.grabExpr(draw(h1))
-    p1 <- set1.GSEA[[i]]$p1
-    print(p1)
-  #print(plot_grid(plotlist = list(p1, heatmap_grob), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
+  l1 <- drawTargetLinePlot(DEG.res=set1.GSEA[[i]], gene_name2id=gene_name2id, gene_id2name=gene_id2name, limits.to.plot=limits.to.plot, cell.groups=c("GA1_2","GL1_2"))
+  p1 <- set1.GSEA[[i]]$p1
+  print(plot_grid(plotlist = list(p1, l1), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
 }
 ```
 
@@ -403,8 +402,6 @@ results <- fgsea(pathways = tmp.1,
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 ```
-
-### GA/SR
 
 ```{r GA/SR GSEA plots, warning=FALSE, echo=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
@@ -445,7 +442,7 @@ create_dt(results)
 
 ## Counts & densities (Tal1)
 
-```{r}
+```{r, eval=FALSE}
 Tal1.exp <- as_tibble(dbGetQuery(con, 'dplyr::select exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Tal1");')) %>% distinct()
 
 Tal1.tb.data <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ac.features=tb.features;')) %>% distinct()
@@ -453,7 +450,7 @@ Tal1.tb.data <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_
 Tal1.tb.data.ct <- as_tibble(dbGetQuery(con, 'dplyr::select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ct.feature=tb.features AND ct.target_gene_name="Tal1" AND ac.features=tb.features;')) %>% distinct()
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Calculate increases from PRO1_2 to CO1_2 and from CO1_2 to GA1_2
 Tal1.tb.data <- Tal1.tb.data %>%
   mutate(
@@ -496,7 +493,7 @@ Tal1.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(Tal1.exp), y=r)
 })
 
@@ -508,7 +505,7 @@ Tal1.cor.li <- sapply(Tal1.cor.tests,function(p){
 
 Tal1.tb.data$cor.test <- Tal1.cor.li
 
-Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+Tal1.cor.tests <- apply(as.matrix(Tal1.tb.data.ct %>% dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(Tal1.exp), y=r)
 })
 
@@ -525,7 +522,7 @@ Tal1.tb.data.ct$cor.test <- Tal1.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with Tal1 average expression (please note, only three datapoints)
 
 ```{r}
-results <- Tal1.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- Tal1.tb.data %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -544,7 +541,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with Tal1 average expression (please note, only three datapoints)
 
 ```{r}
-results <- Tal1.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- Tal1.tb.data.ct %>% dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -571,7 +568,7 @@ data <- Tal1.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -599,7 +596,7 @@ data <- Tal1.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -627,7 +624,7 @@ data <- Tal1.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -655,7 +652,7 @@ data <- Tal1.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -725,7 +722,7 @@ gene.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -737,7 +734,7 @@ gene.cor.li <- sapply(gene.cor.tests,function(p){
 
 gene.tb.data$cor.test <- gene.cor.li
 
-gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -754,7 +751,7 @@ gene.tb.data.ct$cor.test <- gene.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data %>% dplyr::::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -773,7 +770,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data.ct %>% dplyr::::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -800,7 +797,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -828,7 +825,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -856,7 +853,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -884,7 +881,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -955,7 +952,7 @@ gene.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -967,7 +964,7 @@ gene.cor.li <- sapply(gene.cor.tests,function(p){
 
 gene.tb.data$cor.test <- gene.cor.li
 
-gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -984,7 +981,7 @@ gene.tb.data.ct$cor.test <- gene.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data %>% dplyr::::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -1003,7 +1000,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data.ct %>% dplyr::::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -1030,7 +1027,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1058,7 +1055,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1086,7 +1083,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1114,7 +1111,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1184,7 +1181,7 @@ gene.tb.data.ct
 ```
 
 ```{r, include=FALSE}
-gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data %>% dplyr::::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -1196,7 +1193,7 @@ gene.cor.li <- sapply(gene.cor.tests,function(p){
 
 gene.tb.data$cor.test <- gene.cor.li
 
-gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
+gene.cor.tests <- apply(as.matrix(gene.tb.data.ct %>% dplyr::::select(PRO1_2_score,CO1_2_score,GA1_2_score)),1,function(r){
   cor.test(x=unlist(gene.exp), y=r)
 })
 
@@ -1213,7 +1210,7 @@ gene.tb.data.ct$cor.test <- gene.cor.ct.li
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data %>% dplyr::::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -1232,7 +1229,7 @@ create_dt(results)
 #### cor.test = >.75 correlation with p-value <0.05 with gene average expression (please note, only three datapoints)
 
 ```{r}
-results <- gene.tb.data.ct %>% dplyr::dplyr::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
+results <- gene.tb.data.ct %>% dplyr::::select(PRO1_2_bound, CO1_2_bound, GA1_2_bound,cor.test) %>% 
   mutate(
     all_zeros = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 0),
     all_ones = if_all(c(PRO1_2_bound, CO1_2_bound, GA1_2_bound), ~ .x == 1),
@@ -1259,7 +1256,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1287,7 +1284,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2, CO1_2, GA1_2) %>%
+  dplyr::::select(PRO1_2, CO1_2, GA1_2) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "Accessibility")
 
 # Create the density plot
@@ -1315,7 +1312,7 @@ data <- gene.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -1343,7 +1340,7 @@ data <- gene.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
