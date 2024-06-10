@@ -271,7 +271,7 @@ TF.cors.SR2_3 <- qread(paste(data.path,"TF.cors.SR2_3.qs",sep=""))
 
 ```{r}
 DEG.res.subset <- lapply(targetGenes.set, function(p){
-  full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id),dplyr::select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
+  full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
@@ -333,7 +333,7 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 
 ```{r}
 DEG.res.subset <- lapply(targetGenes.set.SR, function(p){
-  full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id),  dplyr::select(p$target.data,-gene_name), by=c("ensg_id"="ensg_id"))
+  full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name), p$target.data, by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
