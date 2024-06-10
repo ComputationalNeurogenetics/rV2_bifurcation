@@ -142,7 +142,7 @@ DEG.res.2 <- DEG.res.2 %>% mutate(across(where(is.numeric), \(x) round(x, digits
 assay.averages.merged <- AverageExpression(merged.datasets,group.by = "merged.groups")
 
 Idents(merged.datasets) <- merged.datasets$merged.groups
-DEG.res.3 <- FindMarkers(merged.datasets, ident.1="SR2", ident.2 = "SR3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
+DEG.res.3 <- FindMarkers(merged.datasets, ident.1="SR2", ident.2 = "SR3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn, min.pct = 0) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
 
 colnames(assay.averages.merged$RNA) <- str_replace_all(colnames(assay.averages.merged$RNA), pattern = "-", replacement = "_")
 
@@ -361,18 +361,18 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 ```{r Data for GSEA}
 DEG.res.GSEA.1 <- DEG.res.1$avg_log2FC
 names(DEG.res.GSEA.1) <- DEG.res.1$gene_name
-DEG.res.GSEA.1<- DEG.res.GSEA.1[DEG.res.1$p_val_adj < 0.01]
+DEG.res.GSEA.1<- DEG.res.GSEA.1[DEG.res.1$p_val_adj < 0.01 & (DEG.res.1$pct.1 > 0.1 | DEG.res.1$pct.2 >0.1)]
 
 DEG.res.GSEA.2 <- DEG.res.2$avg_log2FC
 names(DEG.res.GSEA.2) <- DEG.res.2$gene_name
-DEG.res.GSEA.2<- DEG.res.GSEA.2[DEG.res.2$p_val_adj < 0.01]
+DEG.res.GSEA.2<- DEG.res.GSEA.2[DEG.res.2$p_val_adj < 0.01 & (DEG.res.2$pct.1 > 0.1 | DEG.res.2$pct.2 >0.1)]
 ```
 
 ### GA/GL
 
-```{r GA/GL GSEA for Set 3 plots, warning=FALSE,fig.height=5,fig.width=7}
+```{r GA/GL GSEA plots, warning=FALSE,fig.height=5,fig.width=7}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set[[target]]$targets_gene_name,DEG.res=DEG.res.1,TF.name=target, comp.title="GA/GL DEG")}))
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set[[target]]$targets_gene_name,DEG.res=filter(DEG.res.1,p_val_adj < 0.01 & (pct.1 > 0.1 | pct.2 >0.1)),TF.name=target, comp.title="GA/GL DEG")}))
 
 limits <- sapply(set1.GSEA,function(p){p$limits})
 colnames(limits) <- TF_names
@@ -405,7 +405,7 @@ create_dt(results)
 
 ```{r GA/SR GSEA plots, warning=FALSE, echo=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set[[target]]$targets_gene_name,DEG.res=DEG.res.2,TF.name=target,comp.title="GA/SR DEG")}))
+set1.GSEA <- invisible(lapply(TF_names, function(target){do.GSEA(targets=targetGenes.set[[target]]$targets_gene_name,DEG.res=filter(DEG.res.2,p_val_adj < 0.01 & (pct.1 > 0.1 | pct.2 >0.1)),TF.name=target,comp.title="GA/SR DEG")}))
 
 limits <- sapply(set1.GSEA,function(p){p$limits})
 colnames(limits) <- TF_names
