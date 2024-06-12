@@ -21,7 +21,7 @@ library(hash)
 library(fgsea)
 library(DBI)
 library(hash)
-#library(biomaRt)
+library(biomaRt)
 library(presto)
 library(purrr)
 library(patchwork)
@@ -37,6 +37,10 @@ source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname=paste(db.path,dbname.rV2,sep=""))
 con.sr <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.sr,sep=""))
 options(timeout = 30000)
+```
+
+```{r}
+plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig5/"
 ```
 
 # Target counts {.tabset}
@@ -388,7 +392,9 @@ limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower
 for (i in 1:length(set1.GSEA)){
   l1 <- drawTargetLinePlot(DEG.res=set1.GSEA[[i]], gene_name2id=gene_name2id, gene_id2name=gene_id2name, limits.to.plot=limits.to.plot, cell.groups=c("GA1_2","GL1_2"))
   p1 <- set1.GSEA[[i]]$p1
-  print(plot_grid(plotlist = list(p1, l1), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2))
+  p.final <- plot_grid(plotlist = list(p1, l1), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2)
+  print(p.final)
+  ggsave(plot=p.final, device = "pdf", path = plot_loc, file=paste(i,".pdf",sep=""), width = unit(12,"inch"), height = unit(6,"inch"))
 }
 ```
 
@@ -437,6 +443,248 @@ results <- fgsea(pathways = tmp.1,
 results <- results %>% mutate(across(where(is.numeric), \(x) round(x, digits=3)))
 create_dt(results)
 ```
+
+# GO enrichments of leading and trailing edge target genes {.tabset}
+
+```{r Connect Ensembl to fetch GO and set thresholds}
+# Connect to the Ensembl database
+ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="https://nov2020.archive.ensembl.org")
+gene_names_with_go <- getBM(attributes = c('external_gene_name', 'go_id'),
+                       filters = 'with_go', # This dplyr::filter is to only fetch genes with GO IDs
+                       values = TRUE,
+                       mart = ensembl)
+# Split the data.frame into a list where each element is a character vector of GO IDs,
+# and the names of the list elements are the Ensembl gene IDs
+geneID2GO <- split(gene_names_with_go$go_id, gene_names_with_go$external_gene_name)
+GO2geneID <- split(gene_names_with_go$external_gene_name,gene_names_with_go$go_id)
+# Optionally, you can remove genes with no GO IDs if any exist
+geneID2GO <- geneID2GO[sapply(geneID2GO, length) > 0]
+```
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm;')[,1])
+```
+
+## Tal1 targets
+
+### Up in GA
+
+```{r}
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[1]]$edges$combined_edges$positive_leading_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+### Up in GL
+
+```{r}
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[1]]$edges$combined_edges$negative_trailing_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+## Gata2 targets
+
+### Up in GA
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[2]]$edges$combined_edges$positive_leading_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+### Up in GL
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[2]]$edges$combined_edges$negative_trailing_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+## Gata3 targets
+
+### Up in GA
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[3]]$edges$combined_edges$positive_leading_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+### Up in GL
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[3]]$edges$combined_edges$negative_trailing_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+## Vsx2 targets
+
+### Up in GA
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[4]]$edges$combined_edges$positive_leading_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
+### Up in GL
+
+```{r}
+allGenes.list <- unique(dbGetQuery(con, 'SELECT DISTINCT gene_name FROM gene_metadata as gm, links as li WHERE li.ensg_id=gm.ensg_id AND li.zscore>2;')[,1])
+
+geneList.fac <- as.factor(ifelse(allGenes.list %in% set1.GSEA[[4]]$edges$combined_edges$negative_trailing_edge, 1,0))
+names(geneList.fac) <- allGenes.list
+
+sampleGOdata <- new("topGOdata", description = "Simple session", ontology = "BP",
+allGenes = geneList.fac,
+nodeSize = 5,
+annot = annFUN.gene2GO, gene2GO = geneID2GO)
+
+resultFisher <- runTest(sampleGOdata, algorithm = "classic", statistic = "fisher")
+allRes <- as_tibble(GenTable(sampleGOdata, classicFisher = resultFisher, ranksOf = "classicFisher", topNodes = 50))
+
+genes.in.classes <- sapply(allRes$GO.ID,function(GO_id){
+  tmp.genes <- intersect(genesInTerm(sampleGOdata, GO_id)[[1]], sigGenes(sampleGOdata))
+  return(paste(tmp.genes, collapse = ", "))
+  })
+
+allRes$genes.in.classes <- genes.in.classes
+
+create_dt(allRes)
+sigGenes(sampleGOdata)
+```
+
 
 # FT-score analysis {.tabset}
 
@@ -624,7 +872,7 @@ data <- Tal1.tb.data
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
@@ -652,7 +900,7 @@ data <- Tal1.tb.data.ct
 # Assuming 'PRO1_2', 'CO1_2', 'GA1_2' are the chromatin accessibility columns for each group
 # We need to reshape the data from wide to long format to use in ggplot
 data_long <- data %>%
-  dplyr::::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
+  dplyr::select(PRO1_2_score, CO1_2_score, GA1_2_score) %>%
   pivot_longer(cols = everything(), names_to = "Cell_Group", values_to = "FT")
 
 # Create the density plot
