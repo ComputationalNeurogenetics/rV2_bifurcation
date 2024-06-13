@@ -65,7 +65,7 @@ sapply(targetGenes.set.SR,function(p){length(p$targets_gene_name)})
 
 # Expression analysis of target genes {.tabset}
 
-```{r Reading rV2 data, include=FALSE, eval=FALSE}
+```{r Reading rV2 data, include=FALSE, eval=TRUE}
 rV2.dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 
 rV2.dataset$rv2.lineage_re <- case_when(
@@ -94,7 +94,7 @@ qsave(gene_id2name,file="gene_id2name.qs")
 qsave(gene_name2id,file="gene_name2id.qs")
 ```
 
-```{r reading Serot data and merging, warning=FALSE, eval=FALSE}
+```{r reading Serot data and merging, warning=FALSE, eval=TRUE}
 serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
 # merged.datasets <- merge(rV2.dataset,serot.dataset)
 # 
