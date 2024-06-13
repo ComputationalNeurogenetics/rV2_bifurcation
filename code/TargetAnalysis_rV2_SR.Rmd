@@ -161,12 +161,12 @@ DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits
 ```{r Correlations between target genes and selector genes in rV2, warning=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
-CO_GA.subset <- subset(rV2.dataset, idents=c("CO1_2","GA1_2"))
-CO_GL.subset <- subset(rV2.dataset, idents=c("CO1_2","GL1_2"))
+PRO_GA.subset <- subset(rV2.dataset, idents=c("PRO1_2","GA1_2"))
+PRO_GL.subset <- subset(rV2.dataset, idents=c("PRO1_2","GL1_2"))
 
 # CO_GA.correlations 
 expression_matrix <- GetAssayData(CO_GA.subset, slot = "data")
-TF.cors.CO_GA <- lapply(TF_names,function(TF){
+TF.cors.PRO_GA <- lapply(TF_names,function(TF){
     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
       gene_expr <- expression_matrix[i,]
       if (sd(gene_expr) == 0) {
@@ -178,11 +178,11 @@ TF.cors.CO_GA <- lapply(TF_names,function(TF){
     names(correlations) <- rownames(expression_matrix)
     return(correlations)
 })
-names(TF.cors.CO_GA) <- TF_names
+names(TF.cors.PRO_GA) <- TF_names
 
 # CO_GL.correlations 
 expression_matrix <- GetAssayData(CO_GL.subset, slot = "data")
-TF.cors.CO_GL <- lapply(TF_names,function(TF){
+TF.cors.PRO_GL <- lapply(TF_names,function(TF){
     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
       gene_expr <- expression_matrix[i,]
       if (sd(gene_expr) == 0) {
@@ -194,22 +194,22 @@ TF.cors.CO_GL <- lapply(TF_names,function(TF){
     names(correlations) <- rownames(expression_matrix)
     return(correlations)
 })
-names(TF.cors.CO_GL) <- TF_names
+names(TF.cors.PRO_GL) <- TF_names
 
-qsave(TF.cors.CO_GA,paste(data.path,"TF.cors.CO_GA.qs",sep=""), nthreads = cores)
-qsave(TF.cors.CO_GL,paste(data.path,"TF.cors.CO_GL.qs",sep=""), nthreads = cores)
+qsave(TF.cors.PRO_GA,paste(data.path,"TF.cors.PRO_GA.qs",sep=""), nthreads = cores)
+qsave(TF.cors.PRO_GL,paste(data.path,"TF.cors.PRO_GL.qs",sep=""), nthreads = cores)
 ```
 
 ```{r Loading precalculated correlations rV2}
-TF.cors.CO_GA <- qread(paste(data.path,"TF.cors.CO_GA.qs",sep=""), nthreads = cores)
-TF.cors.CO_GL <- qread(paste(data.path,"TF.cors.CO_GL.qs",sep=""), nthreads = cores)
+TF.cors.PRO_GA <- qread(paste(data.path,"TF.cors.PRO_GA.qs",sep=""), nthreads = cores)
+TF.cors.PRO_GL <- qread(paste(data.path,"TF.cors.PRO_GL.qs",sep=""), nthreads = cores)
 ```
 
 ```{r Correlations between target genes and selector genes in SR, warning=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
 #SR1.subset <- subset(merged.datasets, idents=c("SR1"))
-SR2_3.subset <- subset(serot.dataset, idents=c("SR2","SR3"))
+SR1_3.subset <- subset(serot.dataset, idents=c("SR1","SR2","SR3"))
 #SR3.subset <- subset(merged.datasets, idents=c("SR3"))
 
 # SR1.correlations 
@@ -229,8 +229,9 @@ SR2_3.subset <- subset(serot.dataset, idents=c("SR2","SR3"))
 # names(TF.cors.SR1) <- TF_names
 
 # SR2.correlations 
-expression_matrix <- GetAssayData(SR2_3.subset, slot = "data", assay = "RNA")
-TF.cors.SR2_3 <- lapply(TF_names,function(TF){
+expression_matrix <- GetAssayData(SR1_3.subset, slot = "data", assay = "RNA")
+#expression_matrix <- FetchData(serot.dataset, assay="RNA", vars=rownames("ENSMUSG00000015053","ENSMUSG00000055197"))
+TF.cors.SR1_3 <- lapply(TF_names,function(TF){
     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
       gene_expr <- expression_matrix[i,]
       if (sd(gene_expr) == 0) {
@@ -242,7 +243,7 @@ TF.cors.SR2_3 <- lapply(TF_names,function(TF){
     names(correlations) <- rownames(expression_matrix)
     return(correlations)
 })
-names(TF.cors.SR2_3) <- TF_names
+names(TF.cors.SR1_3) <- TF_names
 
 # SR3.correlations 
 # expression_matrix <- GetAssayData(SR3.subset, slot = "data")
@@ -261,13 +262,13 @@ names(TF.cors.SR2_3) <- TF_names
 # names(TF.cors.SR3) <- TF_names
 
 #qsave(TF.cors.SR1,paste(data.path,"TF.cors.SR1.qs",sep=""), nthreads = cores)
-qsave(TF.cors.SR2_3,paste(data.path,"TF.cors.SR2_3.qs",sep=""), nthreads = cores)
+qsave(TF.cors.SR1_3,paste(data.path,"TF.cors.SR1_3.qs",sep=""), nthreads = cores)
 #qsave(TF.cors.SR3,paste(data.path,"TF.cors.SR3.qs",sep=""), nthreads = cores)
 ```
 
 ```{r Loading precalculated correlations SR}
 #TF.cors.SR1 <- qread(paste(data.path,"TF.cors.SR1.qs",sep=""))
-TF.cors.SR2_3 <- qread(paste(data.path,"TF.cors.SR2_3.qs",sep=""))
+TF.cors.SR1_3 <- qread(paste(data.path,"TF.cors.SR1_3.qs",sep=""))
 #TF.cors.SR3 <- qread(paste(data.path,"TF.cors.SR3.qs",sep=""))
 ```
 
@@ -286,12 +287,12 @@ combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
   
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
-  mutate(TF.cor.CO.GA = TF.cors.CO_GA[[TF]][[ensg_id]]) %>%
+  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
   ungroup()
 
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
-  mutate(TF.cor.CO.GL = TF.cors.CO_GL[[TF]][[ensg_id]]) %>%
+  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
   ungroup()
 
 combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
@@ -348,7 +349,7 @@ combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
   
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
-  mutate(TF.cor.SR2.SR3 = TF.cors.SR2_3[[TF]][[ensg_id]]) %>%
+  mutate(TF.cor.SR1.SR3 = TF.cors.SR1_3[[TF]][[ensg_id]]) %>%
   ungroup()
 
 combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
