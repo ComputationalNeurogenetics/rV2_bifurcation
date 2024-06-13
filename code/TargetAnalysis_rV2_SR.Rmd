@@ -96,16 +96,16 @@ qsave(gene_name2id,file="gene_name2id.qs")
 
 ```{r reading Serot data and merging, warning=FALSE, eval=FALSE}
 serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
-merged.datasets <- merge(rV2.dataset,serot.dataset)
-
-merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage_re, merged.datasets$sero.lineage), levels=c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6","GL1_2","GL3_4","GL5","SR1","SR2","SR3"))
-
-DefaultAssay(merged.datasets) <- "RNA"
-qsave(merged.datasets, file="merged.datasets.qs",nthreads = cores)
+# merged.datasets <- merge(rV2.dataset,serot.dataset)
+# 
+# merged.datasets$merged.groups <- factor(ifelse(is.na(merged.datasets$sero.lineage), merged.datasets$rv2.lineage_re, merged.datasets$sero.lineage), levels=c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6","GL1_2","GL3_4","GL5","SR1","SR2","SR3"))
+# 
+# DefaultAssay(merged.datasets) <- "RNA"
+# qsave(merged.datasets, file="merged.datasets.qs",nthreads = cores)
 ```
 
 ```{r}
-merged.datasets <- qread(file=paste(data.path,"merged.datasets.qs",sep=""),nthreads = cores)
+#merged.datasets <- qread(file=paste(data.path,"merged.datasets.qs",sep=""),nthreads = cores)
 gene_id2name <- qread(file=paste(data.path,"gene_id2name.qs",sep=""))
 gene_name2id <- qread(file=paste(data.path,"gene_name2id.qs",sep=""))
 ```
@@ -126,7 +126,7 @@ DEG.res.1$gene_name <- sapply(DEG.res.1$ensg_id,function(ensg_id){hash::values(g
 DEG.res.1 <- DEG.res.1 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
 
-```{r Calculating averages and DEG for GA/Serot axis, include=FALSE}
+```{r Calculating averages and DEG for GA/Serot axis, include=FALSE, eval=FALSE}
 assay.averages.merged <- AverageExpression(merged.datasets,group.by = "merged.groups")
 
 Idents(merged.datasets) <- merged.datasets$merged.groups
@@ -143,17 +143,17 @@ DEG.res.2 <- DEG.res.2 %>% mutate(across(where(is.numeric), \(x) round(x, digits
 ```
 
 ```{r Calculating averages and DEG for SR1/SR2 axis, include=FALSE}
-assay.averages.merged <- AverageExpression(merged.datasets,group.by = "merged.groups")
+assay.averages.SR <- AverageExpression(serot.dataset,group.by = "sero.lineage")
 
-Idents(merged.datasets) <- merged.datasets$merged.groups
-DEG.res.3 <- FindMarkers(merged.datasets, ident.1="SR2", ident.2 = "SR3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn, min.pct = 0) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
+Idents(serot.dataset) <- serot.dataset$sero.lineage
+DEG.res.3 <- FindMarkers(serot.dataset, ident.1="SR2", ident.2 = "SR3",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn, min.pct = 0) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
 
-colnames(assay.averages.merged$RNA) <- str_replace_all(colnames(assay.averages.merged$RNA), pattern = "-", replacement = "_")
+colnames(assay.averages.SR$RNA) <- str_replace_all(colnames(assay.averages.SR$RNA), pattern = "-", replacement = "_")
 
-DEG.res.3$SR2_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]+1,base=2)
-DEG.res.3$SR3_exp_avg_log2 <- log(assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR3"]+1, base=2)
-DEG.res.3$SR3_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR3"]
-DEG.res.3$SR2_exp_avg <- assay.averages.merged$RNA[DEG.res.3$ensg_id,"SR2"]
+DEG.res.3$SR2_exp_avg_log2 <- log(assay.averages.SR$RNA[DEG.res.3$ensg_id,"SR2"]+1,base=2)
+DEG.res.3$SR3_exp_avg_log2 <- log(assay.averages.SR$RNA[DEG.res.3$ensg_id,"SR3"]+1, base=2)
+DEG.res.3$SR3_exp_avg <- assay.averages.SR$RNA[DEG.res.3$ensg_id,"SR3"]
+DEG.res.3$SR2_exp_avg <- assay.averages.SR$RNA[DEG.res.3$ensg_id,"SR2"]
 DEG.res.3$gene_name <- sapply(DEG.res.3$ensg_id,function(ensg_id){hash::values(gene_id2name[ensg_id])})
 DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
@@ -161,8 +161,8 @@ DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits
 ```{r Correlations between target genes and selector genes in rV2, warning=FALSE, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
-CO_GA.subset <- subset(merged.datasets, idents=c("CO1_2","GA1_2"))
-CO_GL.subset <- subset(merged.datasets, idents=c("CO1_2","GL1_2"))
+CO_GA.subset <- subset(rV2.dataset, idents=c("CO1_2","GA1_2"))
+CO_GL.subset <- subset(rV2.dataset, idents=c("CO1_2","GL1_2"))
 
 # CO_GA.correlations 
 expression_matrix <- GetAssayData(CO_GA.subset, slot = "data")
@@ -209,7 +209,7 @@ TF.cors.CO_GL <- qread(paste(data.path,"TF.cors.CO_GL.qs",sep=""), nthreads = co
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 
 #SR1.subset <- subset(merged.datasets, idents=c("SR1"))
-SR2_3.subset <- subset(merged.datasets, idents=c("SR2","SR3"))
+SR2_3.subset <- subset(serot.dataset, idents=c("SR2","SR3"))
 #SR3.subset <- subset(merged.datasets, idents=c("SR3"))
 
 # SR1.correlations 
@@ -229,7 +229,7 @@ SR2_3.subset <- subset(merged.datasets, idents=c("SR2","SR3"))
 # names(TF.cors.SR1) <- TF_names
 
 # SR2.correlations 
-expression_matrix <- GetAssayData(SR2_3.subset, slot = "data")
+expression_matrix <- GetAssayData(SR2_3.subset, slot = "data", assay = "RNA")
 TF.cors.SR2_3 <- lapply(TF_names,function(TF){
     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
       gene_expr <- expression_matrix[i,]
@@ -305,32 +305,32 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 
 
 ```{r, eval=FALSE}
-DEG.res.subset <- lapply(targetGenes.set, function(p){
-  full_join(filter(DEG.res.2, ensg_id %in% p$targets_gene.id),p$target.data, by=c("ensg_id"="ensg_id"))
-  })
-
-combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-
-ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
-
-combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
-  
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.CO.GA = TF.cors.CO_GA[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.CO.GL = TF.cors.CO_GL[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
-
-create_dt(filter(combined_tibble, TF=="Tal1"))
-create_dt(filter(combined_tibble, TF=="Gata2"))
-create_dt(filter(combined_tibble, TF=="Gata3"))
-create_dt(filter(combined_tibble, TF=="Vsx2"))
+# DEG.res.subset <- lapply(targetGenes.set, function(p){
+#   full_join(filter(DEG.res.2, ensg_id %in% p$targets_gene.id),p$target.data, by=c("ensg_id"="ensg_id"))
+#   })
+# 
+# combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+# 
+# ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+# 
+# combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
+#   
+# combined_tibble <- combined_tibble %>%
+#   rowwise() %>%
+#   mutate(TF.cor.CO.GA = TF.cors.CO_GA[[TF]][[ensg_id]]) %>%
+#   ungroup()
+# 
+# combined_tibble <- combined_tibble %>%
+#   rowwise() %>%
+#   mutate(TF.cor.CO.GL = TF.cors.CO_GL[[TF]][[ensg_id]]) %>%
+#   ungroup()
+# 
+# combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
+# 
+# create_dt(filter(combined_tibble, TF=="Tal1"))
+# create_dt(filter(combined_tibble, TF=="Gata2"))
+# create_dt(filter(combined_tibble, TF=="Gata3"))
+# create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
 ## Serot target tables with SR2 and SR3 information
