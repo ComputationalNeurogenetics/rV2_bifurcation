@@ -165,7 +165,7 @@ PRO_GA.subset <- subset(rV2.dataset, idents=c("PRO1_2","GA1_2"))
 PRO_GL.subset <- subset(rV2.dataset, idents=c("PRO1_2","GL1_2"))
 
 # CO_GA.correlations 
-expression_matrix <- GetAssayData(CO_GA.subset, slot = "data")
+expression_matrix <- GetAssayData(PRO_GA.subset, slot = "data")
 TF.cors.PRO_GA <- lapply(TF_names,function(TF){
     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
       gene_expr <- expression_matrix[i,]
@@ -181,7 +181,7 @@ TF.cors.PRO_GA <- lapply(TF_names,function(TF){
 names(TF.cors.PRO_GA) <- TF_names
 
 # CO_GL.correlations 
-expression_matrix <- GetAssayData(CO_GL.subset, slot = "data")
+expression_matrix <- GetAssayData(PRO_GL.subset, slot = "data")
 TF.cors.PRO_GL <- lapply(TF_names,function(TF){
     correlations <- mclapply(1:nrow(expression_matrix), function(i) {
       gene_expr <- expression_matrix[i,]
