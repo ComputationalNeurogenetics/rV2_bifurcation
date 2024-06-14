@@ -368,9 +368,9 @@ DEG.res.GSEA.1 <- DEG.res.1$avg_log2FC
 names(DEG.res.GSEA.1) <- DEG.res.1$gene_name
 DEG.res.GSEA.1<- DEG.res.GSEA.1[DEG.res.1$p_val_adj < 0.01 & (DEG.res.1$pct.1 > 0.1 | DEG.res.1$pct.2 >0.1)]
 
-DEG.res.GSEA.2 <- DEG.res.2$avg_log2FC
-names(DEG.res.GSEA.2) <- DEG.res.2$gene_name
-DEG.res.GSEA.2<- DEG.res.GSEA.2[DEG.res.2$p_val_adj < 0.01 & (DEG.res.2$pct.1 > 0.1 | DEG.res.2$pct.2 >0.1)]
+# DEG.res.GSEA.2 <- DEG.res.2$avg_log2FC
+# names(DEG.res.GSEA.2) <- DEG.res.2$gene_name
+# DEG.res.GSEA.2<- DEG.res.GSEA.2[DEG.res.2$p_val_adj < 0.01 & (DEG.res.2$pct.1 > 0.1 | DEG.res.2$pct.2 >0.1)]
 ```
 
 ### GA/GL
@@ -686,12 +686,97 @@ create_dt(allRes)
 sigGenes(sampleGOdata)
 ```
 
+# TF-FT_score to expression correlation analysis {.tabset}
+
+## Tal1 FT to correlation 
+```{r, eval=FALSE}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
+
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Tal1" & TF.cor.PRO.GA > 0.65) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GA1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
+
+## Gata2 FT to correlation 
+```{r, eval=FALSE}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
+
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Gata2" & TF.cor.PRO.GA > 0.65) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GA1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
+
+## Gata3 FT to correlation 
+```{r, eval=FALSE}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
+
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Gata3" & TF.cor.PRO.GA > 0.65) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GA1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
 
 # FT-score analysis {.tabset}
 
 ## Counts & densities (Tal1)
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 Tal1.exp <- as_tibble(dbGetQuery(con, 'select exp.PRO1_2,exp.CO1_2, exp.GA1_2 FROM exp, gene_metadata as gm WHERE exp.ensg_id=gm.ensg_id AND gm.gene_name IN ("Tal1");')) %>% distinct()
 
 Tal1.tb.data <- as_tibble(dbGetQuery(con, 'select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ac.features=tb.features;')) %>% distinct()
@@ -699,7 +784,7 @@ Tal1.tb.data <- as_tibble(dbGetQuery(con, 'select tb.features,tb.TF_gene_name, t
 Tal1.tb.data.ct <- as_tibble(dbGetQuery(con, 'select tb.features,tb.TF_gene_name, tb.PRO1_2_score, tb.CO1_2_score, tb.GA1_2_score, tb.PRO1_2_bound, tb.CO1_2_bound, tb.GA1_2_bound, ac.PRO1_2, ac.CO1_2, ac.GA1_2 FROM tobias as tb, CT_data as ct, acc as ac WHERE tb.TF_gene_name IN ("TAL1") AND ct.feature=tb.features AND ct.target_gene_name="Tal1" AND ac.features=tb.features;')) %>% distinct()
 ```
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 # Calculate increases from PRO1_2 to CO1_2 and from CO1_2 to GA1_2
 Tal1.tb.data <- Tal1.tb.data %>%
   mutate(
