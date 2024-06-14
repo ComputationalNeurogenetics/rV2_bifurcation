@@ -23,6 +23,7 @@ library(DBI)
 library(hash)
 library(biomaRt)
 library(presto)
+library(ggpubr)
 library(purrr)
 library(patchwork)
 library(parallel)
@@ -303,7 +304,153 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
+## Tal1 FT to correlation 
+```{r, eval=FALSE, fig.width=12, fig.height=12}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
 
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Tal1" & TF.cor.PRO.GA > 0.65 & TF.cor.PRO.GA < 1 & pct.1>0.1) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GA1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_FT_ratio)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
+
+```{r, fig.height=12, fig.width=12}
+library(ggrepel)
+# Filter and prepare the data
+Tal1.targets <- combined_tibble %>%
+  filter(TF == "Tal1" & TF.cor.PRO.GA > 0.25 & pct.1 > 0.1 & sum_GA1_2_bound>0) %>%
+  dplyr::select(gene_name, sum_GA1_2_bound, PRO1_2_GA_increase, TF.cor.PRO.GA)
+
+data <- as.data.frame(Tal1.targets[,-1])
+rownames(data) <- pull(Tal1.targets, gene_name)
+
+data <- na.omit(data)
+pca <- prcomp(data, scale. = TRUE)
+pca_data <- as.data.frame(pca$x)
+pca_data$gene_name <- rownames(pca_data)
+
+# Define a function to identify outliers
+identify_outliers <- function(pca_data, threshold = 2) {
+  pca_data %>%
+    rowwise() %>%
+    mutate(outlier = (abs(PC1) > threshold | abs(PC2) > threshold)) %>%
+    filter(outlier)
+}
+
+# Identify outliers
+outliers <- identify_outliers(pca_data)
+
+# Visualize PCA with names on outliers
+ggplot(pca_data, aes(PC1, PC2)) +
+  geom_point() +
+  geom_text_repel(data = outliers, aes(label = gene_name), max.overlaps = Inf) +
+  theme_minimal() +
+  labs(title = "PCA of Tal1 Targets",
+       x = "Principal Component 1",
+       y = "Principal Component 2")
+```
+
+## Gata2 FT to correlation 
+```{r, eval=FALSE, fig.width=12, fig.height=12}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
+
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Gata2" & TF.cor.PRO.GA > 0.65  & TF.cor.PRO.GA < 1) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GA1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
+
+## Gata3 FT to correlation 
+```{r, eval=FALSE, fig.width=12, fig.height=12}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
+
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Gata3" & TF.cor.PRO.GA > 0.65  & TF.cor.PRO.GA < 1) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GA1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
+
+## Vsx2 FT to correlation 
+```{r, eval=FALSE, fig.width=12, fig.height=12}
+# Generate a series of threshold values
+thresholds <- seq(0, 25, by = 1)
+
+# Create a new data frame with an added threshold condition column
+thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
+    combined_tibble %>%
+        filter(TF == "Vsx2" & TF.cor.PRO.GL > 0.65 & TF.cor.PRO.GL < 1) %>%
+        mutate(threshold = b.thr, 
+               meets_threshold = sum_GL1_2_bound > b.thr)
+}))
+
+# Filter the combined data to only include rows that meet the threshold condition
+thresholded_data <- thresholded_data %>% filter(meets_threshold)
+
+# Create the faceted plot
+plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GL, y = PRO1_2_GL_increase)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_minimal() +
+    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
+    facet_wrap(~ threshold, scales = "free")
+
+# Print the plot
+print(plot)
+```
 
 ```{r, eval=FALSE}
 # DEG.res.subset <- lapply(targetGenes.set, function(p){
@@ -684,36 +831,6 @@ allRes$genes.in.classes <- genes.in.classes
 
 create_dt(allRes)
 sigGenes(sampleGOdata)
-```
-
-# TF-FT_score to expression correlation analysis {.tabset}
-
-## Tal1 FT to correlation 
-```{r, eval=FALSE}
-# Generate a series of threshold values
-thresholds <- seq(0, 25, by = 1)
-
-# Create a new data frame with an added threshold condition column
-thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
-    combined_tibble %>%
-        filter(TF == "Tal1" & TF.cor.PRO.GA > 0.65) %>%
-        mutate(threshold = b.thr, 
-               meets_threshold = sum_GA1_2_bound > b.thr)
-}))
-
-# Filter the combined data to only include rows that meet the threshold condition
-thresholded_data <- thresholded_data %>% filter(meets_threshold)
-
-# Create the faceted plot
-plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    theme_minimal() +
-    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
-    facet_wrap(~ threshold, scales = "free")
-
-# Print the plot
-print(plot)
 ```
 
 ## Gata2 FT to correlation 
