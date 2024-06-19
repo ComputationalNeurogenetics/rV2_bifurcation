@@ -27,9 +27,12 @@ library(ggpubr)
 library(purrr)
 library(patchwork)
 library(parallel)
+library(umap)
 library(topGO)
+library(plotly)
 library(dplyr)
 library(cowplot)
+library(ggrepel)
 source(paste(auxcode.path,"AuxFunctions.R",sep=""))
 source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
 ```
@@ -304,6 +307,83 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
+```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif0}
+motif0.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B")
+targetGenes.set<-list(motif0.targets)
+names(targetGenes.set) <- "Tal1"
+DEG.res.subset <- lapply(targetGenes.set, function(p){full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
+  
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
+combined_tibble -> Tal1_motif0_targets
+create_dt(Tal1_motif0_targets)
+```
+```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif1}
+motif1.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.1.P.B_TAL1.H12CORE.1.P.B")
+targetGenes.set<-list(motif1.targets)
+names(targetGenes.set) <- "Tal1"
+DEG.res.subset <- lapply(targetGenes.set, function(p){full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
+  
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
+combined_tibble -> Tal1_motif1_targets
+create_dt(Tal1_motif1_targets)
+```
+
+```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif2}
+motif2.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.2.P.B_TAL1.H12CORE.2.P.B")
+targetGenes.set<-list(motif2.targets)
+names(targetGenes.set) <- "Tal1"
+DEG.res.subset <- lapply(targetGenes.set, function(p){full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))})
+combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+
+ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+
+combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
+  
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>%
+  rowwise() %>%
+  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
+  ungroup()
+
+combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
+combined_tibble -> Tal1_motif2_targets
+create_dt(Tal1_motif2_targets)
+```
+
 ## Tal1 FT to correlation 
 ```{r, eval=FALSE, fig.width=12, fig.height=12}
 # Generate a series of threshold values
@@ -312,7 +392,7 @@ thresholds <- seq(0, 25, by = 1)
 # Create a new data frame with an added threshold condition column
 thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
     combined_tibble %>%
-        filter(TF == "Tal1" & TF.cor.PRO.GA > 0.65 & TF.cor.PRO.GA < 1 & pct.1>0.1) %>%
+        filter(TF == "Tal1" & TF.cor.PRO.GA > 0.55 & TF.cor.PRO.GA <= 1 & pct.1>0.1) %>%
         mutate(threshold = b.thr, 
                meets_threshold = sum_GA1_2_bound > b.thr)
 }))
@@ -332,23 +412,57 @@ plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_FT_ratio))
 print(plot)
 ```
 
-```{r, fig.height=12, fig.width=12}
-library(ggrepel)
+```{r, fig.height=18, fig.width=18}
 # Filter and prepare the data
 Tal1.targets <- combined_tibble %>%
-  filter(TF == "Tal1" & TF.cor.PRO.GA > 0.25 & pct.1 > 0.1 & sum_GA1_2_bound>0) %>%
-  dplyr::select(gene_name, sum_GA1_2_bound, PRO1_2_GA_increase, TF.cor.PRO.GA)
+  filter(TF == "Tal1"  & pct.1 > 0.5 & sum_GA1_2_bound>0 & (TF.cor.PRO.GA >0.5 | TF.cor.PRO.GA < -0.5)) %>%
+  dplyr::select(gene_name, sum_GA1_2_bound, PRO1_2_GA_increase, TF.cor.PRO.GA,count_zscore_positive,count_zscore_negative) %>% mutate(pos_neg_feat=(count_zscore_positive-count_zscore_negative))
 
-data <- as.data.frame(Tal1.targets[,-1])
+data <- Tal1.targets %>%
+  select(-gene_name, -count_zscore_positive, -count_zscore_negative) %>%
+  as.data.frame()
 rownames(data) <- pull(Tal1.targets, gene_name)
 
 data <- na.omit(data)
-pca <- prcomp(data, scale. = TRUE)
+pca <- prcomp(data, scale. = TRUE, rank. = 3)
+
+# Calculate the proportion of variance explained
+pca_var <- pca$sdev^2
+pve <- pca_var / sum(pca_var)
+
+# Create a data frame for plotting
+pca_var_df <- data.frame(
+  Principal_Component = 1:length(pve),
+  Proportion_of_Variance_Explained = pve,
+  Cumulative_Proportion = cumsum(pve)
+)
+
+# Plot the elbow plot
+ggplot(pca_var_df, aes(x = Principal_Component, y = Proportion_of_Variance_Explained)) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Elbow Plot of PCA",
+       x = "Principal Component",
+       y = "Proportion of Variance Explained")
+
 pca_data <- as.data.frame(pca$x)
 pca_data$gene_name <- rownames(pca_data)
 
+# Match the TF.cor.PRO.GA values to pca_data
+pca_data$TF.cor.PRO.GA <- Tal1.targets$TF.cor.PRO.GA[match(rownames(pca_data), Tal1.targets$gene_name)]
+pca_data$FT_score_change_PRO_GA <- Tal1.targets$PRO1_2_GA_increase[match(rownames(pca_data), Tal1.targets$gene_name)]
+pca_data$sum_GA1_2_bound <- Tal1.targets$sum_GA1_2_bound[match(rownames(pca_data), Tal1.targets$gene_name)]
+pca_data$count_zscore_negative <- Tal1.targets$count_zscore_negative[match(rownames(pca_data), Tal1.targets$gene_name)]
+pca_data$count_zscore_positive <- Tal1.targets$count_zscore_positive[match(rownames(pca_data), Tal1.targets$gene_name)]
+pca_data$pos_neg_feat <- Tal1.targets$pos_neg_feat[match(rownames(pca_data), Tal1.targets$gene_name)]
+
+# Create a new column for shape based on pos_neg_feat
+pca_data <- pca_data %>%
+  mutate(feat_link_direction = ifelse(pos_neg_feat > 0, "Positive", "Negative"))
+
 # Define a function to identify outliers
-identify_outliers <- function(pca_data, threshold = 2) {
+identify_outliers <- function(pca_data, threshold = 1.2) {
   pca_data %>%
     rowwise() %>%
     mutate(outlier = (abs(PC1) > threshold | abs(PC2) > threshold)) %>%
@@ -359,14 +473,69 @@ identify_outliers <- function(pca_data, threshold = 2) {
 outliers <- identify_outliers(pca_data)
 
 # Visualize PCA with names on outliers
-ggplot(pca_data, aes(PC1, PC2)) +
+ggplot(pca_data, aes(PC1, PC2, color = TF.cor.PRO.GA, size = FT_score_change_PRO_GA, shape=feat_link_direction)) +
   geom_point() +
-  geom_text_repel(data = outliers, aes(label = gene_name), max.overlaps = Inf) +
+  geom_text_repel(data = outliers, aes(label = gene_name), max.overlaps = Inf, force = 1.5, size = 3) +
+  scale_color_gradient2(low = "blue", mid="black" ,high = "green") +
   theme_minimal() +
   labs(title = "PCA of Tal1 Targets",
        x = "Principal Component 1",
-       y = "Principal Component 2")
+       y = "Principal Component 2",
+       color = "TF.cor.PRO.GA")
 ```
+
+```{r}
+# Create 3D PCA plot
+p <- plot_ly(pca_data, x = ~PC1, y = ~PC2, z = ~PC3, color = ~TF.cor.PRO.GA, text = ~gene_name, 
+             colors = colorRamp(c("blue", "red")), type = "scatter3d", mode = "markers") %>%
+  layout(title = "3D PCA Plot",
+         scene = list(
+           xaxis = list(title = 'PC1'),
+           yaxis = list(title = 'PC2'),
+           zaxis = list(title = 'PC3')
+         ))
+
+# Display the plot
+p
+```
+
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Perform UMAP
+umap_results <- umap(pca_data[, 1:3])  # Adjust the number of PCA components if needed
+umap_data <- as.data.frame(umap_results$layout)
+colnames(umap_data) <- c("UMAP1", "UMAP2")
+umap_data$gene_name <- pca_data$gene_name
+umap_data$TF.cor.PRO.GA <- pca_data$TF.cor.PRO.GA
+```
+
+```{r}
+# Define a function to identify outliers
+identify_outliers <- function(umap_data, threshold = 10) {
+  umap_data %>%
+    rowwise() %>%
+    mutate(outlier = (abs(UMAP1) > threshold | abs(UMAP2) > threshold)) %>%
+    filter(outlier)
+}
+
+# Identify outliers
+outliers <- identify_outliers(umap_data)
+
+# Visualize UMAP with names on outliers and coloring by TF.cor.PRO.GA
+ggplot(umap_data, aes(x = UMAP1, y = UMAP2, color = TF.cor.PRO.GA)) +
+  geom_point() +
+  #geom_text_repel(data = outliers, aes(label = gene_name), max.overlaps = Inf) +
+  scale_color_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(title = "UMAP of PCA-Reduced Data",
+       x = "UMAP Dimension 1",
+       y = "UMAP Dimension 2",
+       color = "TF.cor.PRO.GA")
+```
+
 
 ## Gata2 FT to correlation 
 ```{r, eval=FALSE, fig.width=12, fig.height=12}
