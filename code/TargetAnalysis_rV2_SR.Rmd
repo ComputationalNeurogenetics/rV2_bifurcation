@@ -306,6 +306,7 @@ create_dt(filter(combined_tibble, TF=="Gata2"))
 create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
+## rV2 target tables with GA1_2 and GL1_2 information - Tal1 motifs separated
 
 ```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif0}
 motif0.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B")
