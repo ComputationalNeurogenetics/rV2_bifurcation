@@ -1,0 +1,79 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta name="description" content="nf-core/cutandrun: Analysis pipeline for CUT&RUN and CUT&TAG experiments that includes sequencing QC, spike-in normalisation, IgG control normalisation, peak calling and downstream peak analysis.">
+  <title>nf-core/cutandrun Pipeline Report</title>
+</head>
+<body>
+<div style="font-family: Helvetica, Arial, sans-serif; padding: 30px; max-width: 800px; margin: 0 auto;">
+
+<img src="cid:nfcorepipelinelogo">
+
+<h1>nf-core/cutandrun vv3.2.1-g2727de3</h1>
+<h2>Run Name: irreverent_hamilton</h2>
+
+
+    <div style="color: #3c763d; background-color: #dff0d8; border-color: #d6e9c6; padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px;">
+        nf-core/cutandrun execution completed successfully!
+    </div>
+    
+
+<p>The workflow was completed at <strong>2024-05-03T20:47:57.553207Z</strong> (duration: <strong>7h 8m 14s</strong>)</p>
+<p>The command used to launch the workflow was as follows:</p>
+<pre style="white-space: pre-wrap; overflow: visible; background-color: #ededed; padding: 15px; border-radius: 4px; margin-bottom:30px;">nextflow run nf-core/cutandrun -r 3.2.1 -profile singularity --max_memory 145.GB --max_cpus 32 --dedup_target_reads --input /home/kaia/kaia/Data/samplesheet_0305.csv --outdir /home/kilpinen/nf-core-pipelines/outdir/out_030524 --genome mm10 --blacklist /home/kilpinen/metadata/mm10-blacklist.v2.bed --peakcaller SEACR --normalisation_mode CPM --use_control false --seacr_peak_threshold 0.01 --bowtie2 /home/kilpinen/refgenomes/alias/mm10/bowtie2_index/default/ --minimum_alignment_q_score 30 --replicate_threshold 2</pre>
+
+<h3>Pipeline Configuration:</h3>
+<table style="width:100%; max-width:100%; border-spacing: 0; border-collapse: collapse; border:0; margin-bottom: 30px;">
+    <tbody style="border-bottom: 1px solid #ddd;">
+        <tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>revision</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>3.2.1</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>runName</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>irreverent_hamilton</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>containerEngine</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>singularity</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>launchDir</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/home/kaia/kaia/Data</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>workDir</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/home/kaia/kaia/Data/work</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>projectDir</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/root/.nextflow/assets/nf-core/cutandrun</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>userName</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>root</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>profile</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>singularity</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>configFiles</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'></pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>input</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/home/kaia/kaia/Data/samplesheet_0305.csv</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>outdir</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/home/kilpinen/nf-core-pipelines/outdir/out_030524</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>genome</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>mm10</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>bowtie2</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/home/kilpinen/refgenomes/alias/mm10/bowtie2_index/default/</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>gtf</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>s3://ngi-igenomes/igenomes//Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>blacklist</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/home/kilpinen/metadata/mm10-blacklist.v2.bed</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>fasta</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>s3://ngi-igenomes/igenomes//Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>minimum_alignment_q_score</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>30</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>dedup_target_reads</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>true</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>normalisation_mode</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>CPM</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>normalisation_binsize</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>50</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>peakcaller</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>SEACR</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>use_control</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>false</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>seacr_peak_threshold</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>0.01</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>macs_gsize</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>2.7E+9</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>replicate_threshold</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>2</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>min_frip_overlap</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>0.20</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>min_peak_overlap</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>0.20</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>max_cpus</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>32</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>max_memory</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>145.GB</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Date Started</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>2024-05-03T13:39:43.766979Z</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Date Completed</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>2024-05-03T20:47:57.553207Z</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Pipeline script file path</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>/root/.nextflow/assets/nf-core/cutandrun/main.nf</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Pipeline script hash ID</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>a66ae707c5d290c58a2aa74b993ca462</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Pipeline repository Git URL</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>https://github.com/nf-core/cutandrun</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Pipeline repository Git Commit</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>2727de382fb7df8f37fc4c6dbde99c979be04e77</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Pipeline Git branch/tag</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>3.2.1</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Nextflow Version</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>23.04.2</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Nextflow Build</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>5870</pre></td></tr>
+<tr><th style='text-align:left; padding: 8px 0; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'>Nextflow Compile Timestamp</th><td style='text-align:left; padding: 8px; line-height: 1.42857143; vertical-align: top; border-top: 1px solid #ddd;'><pre style='white-space: pre-wrap; overflow: visible;'>08-06-2023 08:29 UTC</pre></td></tr>
+    </tbody>
+</table>
+
+<p>nf-core/cutandrun</p>
+<p><a href="https://github.com/nf-core/cutandrun">https://github.com/nf-core/cutandrun</a></p>
+
+</div>
+
+</body>
+</html>

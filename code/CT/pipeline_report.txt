@@ -1,0 +1,66 @@
+----------------------------------------------------
+                                        ,--./,-.
+        ___     __   __   __   ___     /,-._.--~\
+  |\ | |__  __ /  ` /  \ |__) |__         }  {
+  | \| |       \__, \__/ |  \ |___     \`-._,-`-,
+                                        `._,._,'
+  nf-core/cutandrun vv3.2.1-g2727de3
+----------------------------------------------------
+Run Name: irreverent_hamilton
+
+## nf-core/cutandrun execution completed successfully! ##
+
+
+The workflow was completed at 2024-05-03T20:47:57.553207Z (duration: 7h 8m 14s)
+
+The command used to launch the workflow was as follows:
+
+  nextflow run nf-core/cutandrun -r 3.2.1 -profile singularity --max_memory 145.GB --max_cpus 32 --dedup_target_reads --input /home/kaia/kaia/Data/samplesheet_0305.csv --outdir /home/kilpinen/nf-core-pipelines/outdir/out_030524 --genome mm10 --blacklist /home/kilpinen/metadata/mm10-blacklist.v2.bed --peakcaller SEACR --normalisation_mode CPM --use_control false --seacr_peak_threshold 0.01 --bowtie2 /home/kilpinen/refgenomes/alias/mm10/bowtie2_index/default/ --minimum_alignment_q_score 30 --replicate_threshold 2
+
+
+
+Pipeline Configuration:
+-----------------------
+ - revision: 3.2.1
+ - runName: irreverent_hamilton
+ - containerEngine: singularity
+ - launchDir: /home/kaia/kaia/Data
+ - workDir: /home/kaia/kaia/Data/work
+ - projectDir: /root/.nextflow/assets/nf-core/cutandrun
+ - userName: root
+ - profile: singularity
+ - configFiles: 
+ - input: /home/kaia/kaia/Data/samplesheet_0305.csv
+ - outdir: /home/kilpinen/nf-core-pipelines/outdir/out_030524
+ - genome: mm10
+ - bowtie2: /home/kilpinen/refgenomes/alias/mm10/bowtie2_index/default/
+ - gtf: s3://ngi-igenomes/igenomes//Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf
+ - blacklist: /home/kilpinen/metadata/mm10-blacklist.v2.bed
+ - fasta: s3://ngi-igenomes/igenomes//Mus_musculus/UCSC/mm10/Sequence/WholeGenomeFasta/genome.fa
+ - minimum_alignment_q_score: 30
+ - dedup_target_reads: true
+ - normalisation_mode: CPM
+ - normalisation_binsize: 50
+ - peakcaller: SEACR
+ - use_control: false
+ - seacr_peak_threshold: 0.01
+ - macs_gsize: 2.7E+9
+ - replicate_threshold: 2
+ - min_frip_overlap: 0.20
+ - min_peak_overlap: 0.20
+ - max_cpus: 32
+ - max_memory: 145.GB
+ - Date Started: 2024-05-03T13:39:43.766979Z
+ - Date Completed: 2024-05-03T20:47:57.553207Z
+ - Pipeline script file path: /root/.nextflow/assets/nf-core/cutandrun/main.nf
+ - Pipeline script hash ID: a66ae707c5d290c58a2aa74b993ca462
+ - Pipeline repository Git URL: https://github.com/nf-core/cutandrun
+ - Pipeline repository Git Commit: 2727de382fb7df8f37fc4c6dbde99c979be04e77
+ - Pipeline Git branch/tag: 3.2.1
+ - Nextflow Version: 23.04.2
+ - Nextflow Build: 5870
+ - Nextflow Compile Timestamp: 08-06-2023 08:29 UTC
+
+--
+nf-core/cutandrun
+https://github.com/nf-core/cutandrun
