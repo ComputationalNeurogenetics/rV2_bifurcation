@@ -9,11 +9,13 @@ library(Seurat)
 library(Signac)
 library(qs)
 library(viridis)
-source("AuxFunctions.R")
+library(future)
+source("../../AuxCode/AuxFunctions.R")
 ```
 
 ```{r Set parameters}
 threads <- 6
+plan("multisession", workers = 8)
 ```
 
 ```{r Load data, eval=FALSE, include=FALSE}
@@ -36,10 +38,16 @@ e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = threads)
 e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
 ```
 
+```{r Markers for r1 scRNA clusters}
+r1.markers <- as_tibble(FindAllMarkers(e.e12.r1)) %>%  mutate(across(where(is.numeric),round,digits = 3))
+r1.markers$gene_name <- convert_feature_identity(e.e12.r1,assay = "RNA", features = r1.markers$gene, feature.format = "ens")
+create_dt(r1.markers %>% filter(p_val_adj<0.05) %>% group_by(cluster) %>%  arrange(desc(avg_log2FC)) %>%  slice_head(n = 25) %>% ungroup())
+```
+
 ```{r Markers for rV2 scRNA clusters}
 rV2.markers <- as_tibble(FindAllMarkers(e12.rv2.ss)) %>%  mutate(across(where(is.numeric),round,digits = 3))
 rV2.markers$gene_name <- convert_feature_identity(e12.rv2.ss,assay = "RNA", features = rV2.markers$gene, feature.format = "ens")
-create_dt(rV2.markers)
+create_dt(rV2.markers %>% filter(p_val_adj<0.05) %>% group_by(cluster) %>%  arrange(desc(avg_log2FC)) %>%  slice_head(n = 25) %>%  ungroup())
 ```
 
 ```{r scRNA UMAP}
