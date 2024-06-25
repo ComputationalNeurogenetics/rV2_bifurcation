@@ -36,6 +36,12 @@ e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = threads)
 e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
 ```
 
+```{r Markers for rV2 scRNA clusters}
+rV2.markers <- as_tibble(FindAllMarkers(e12.rv2.ss)) %>%  mutate(across(where(is.numeric),round,digits = 3))
+rV2.markers$gene_name <- convert_feature_identity(e12.rv2.ss,assay = "RNA", features = rV2.markers$gene, feature.format = "ens")
+create_dt(rV2.markers)
+```
+
 ```{r scRNA UMAP}
 pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scRNA_UMAP_rV2.pdf", width = 8, height = 8)
 
