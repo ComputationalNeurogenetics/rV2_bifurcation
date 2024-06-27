@@ -33,8 +33,13 @@ library(plotly)
 library(dplyr)
 library(cowplot)
 library(ggrepel)
+library(future)
 source(paste(auxcode.path,"AuxFunctions.R",sep=""))
 source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
+```
+
+```{r}
+plan("multisession",workers=cores)
 ```
 
 ```{r Setting DBI options, include=FALSE}
@@ -306,86 +311,8 @@ create_dt(filter(combined_tibble, TF=="Gata2"))
 create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
-## rV2 target tables with GA1_2 and GL1_2 information - Tal1 motifs separated
 
-```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif0}
-motif0.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.0.P.B_TAL1.H12CORE.0.P.B")
-targetGenes.set<-list(motif0.targets)
-names(targetGenes.set) <- "Tal1"
-DEG.res.subset <- lapply(targetGenes.set, function(p){full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))})
-combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 
-ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
-
-combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
-  
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
-combined_tibble -> Tal1_motif0_targets
-create_dt(Tal1_motif0_targets)
-```
-```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif1}
-motif1.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.1.P.B_TAL1.H12CORE.1.P.B")
-targetGenes.set<-list(motif1.targets)
-names(targetGenes.set) <- "Tal1"
-DEG.res.subset <- lapply(targetGenes.set, function(p){full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))})
-combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-
-ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
-
-combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
-  
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
-combined_tibble -> Tal1_motif1_targets
-create_dt(Tal1_motif1_targets)
-```
-
-```{r rV2 target tables with GA1_2 and GL1_2 information Tal1 motif2}
-motif2.targets <- getTargets_rV2_TFBS_level("Tal1",con, motif="TAL1.H12CORE.2.P.B_TAL1.H12CORE.2.P.B")
-targetGenes.set<-list(motif2.targets)
-names(targetGenes.set) <- "Tal1"
-DEG.res.subset <- lapply(targetGenes.set, function(p){full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))})
-combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-
-ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
-
-combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
-  
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>%
-  rowwise() %>%
-  mutate(TF.cor.PRO.GL = TF.cors.PRO_GL[[TF]][[ensg_id]]) %>%
-  ungroup()
-
-combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
-combined_tibble -> Tal1_motif2_targets
-create_dt(Tal1_motif2_targets)
-```
-
-## Tal1 FT to correlation 
 ```{r, eval=FALSE, fig.width=12, fig.height=12}
 # Generate a series of threshold values
 thresholds <- seq(0, 25, by = 1)
@@ -413,7 +340,7 @@ plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_FT_ratio))
 print(plot)
 ```
 
-```{r, fig.height=18, fig.width=18}
+```{r, fig.height=18, fig.width=18, eval=FALSE}
 # Filter and prepare the data
 Tal1.targets <- combined_tibble %>%
   filter(TF == "Tal1"  & pct.1 > 0.5 & sum_GA1_2_bound>0 & (TF.cor.PRO.GA >0.5 | TF.cor.PRO.GA < -0.5)) %>%
@@ -485,7 +412,7 @@ ggplot(pca_data, aes(PC1, PC2, color = TF.cor.PRO.GA, size = FT_score_change_PRO
        color = "TF.cor.PRO.GA")
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Create 3D PCA plot
 p <- plot_ly(pca_data, x = ~PC1, y = ~PC2, z = ~PC3, color = ~TF.cor.PRO.GA, text = ~gene_name, 
              colors = colorRamp(c("blue", "red")), type = "scatter3d", mode = "markers") %>%
@@ -501,7 +428,7 @@ p
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 # Set seed for reproducibility
 set.seed(123)
 
@@ -513,7 +440,7 @@ umap_data$gene_name <- pca_data$gene_name
 umap_data$TF.cor.PRO.GA <- pca_data$TF.cor.PRO.GA
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Define a function to identify outliers
 identify_outliers <- function(umap_data, threshold = 10) {
   umap_data %>%
@@ -537,8 +464,6 @@ ggplot(umap_data, aes(x = UMAP1, y = UMAP2, color = TF.cor.PRO.GA)) +
        color = "TF.cor.PRO.GA")
 ```
 
-
-## Gata2 FT to correlation 
 ```{r, eval=FALSE, fig.width=12, fig.height=12}
 # Generate a series of threshold values
 thresholds <- seq(0, 25, by = 1)
@@ -566,7 +491,7 @@ plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase))
 print(plot)
 ```
 
-## Gata3 FT to correlation 
+
 ```{r, eval=FALSE, fig.width=12, fig.height=12}
 # Generate a series of threshold values
 thresholds <- seq(0, 25, by = 1)
@@ -594,7 +519,7 @@ plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase))
 print(plot)
 ```
 
-## Vsx2 FT to correlation 
+
 ```{r, eval=FALSE, fig.width=12, fig.height=12}
 # Generate a series of threshold values
 thresholds <- seq(0, 25, by = 1)
@@ -620,35 +545,6 @@ plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GL, y = PRO1_2_GL_increase))
 
 # Print the plot
 print(plot)
-```
-
-```{r, eval=FALSE}
-# DEG.res.subset <- lapply(targetGenes.set, function(p){
-#   full_join(filter(DEG.res.2, ensg_id %in% p$targets_gene.id),p$target.data, by=c("ensg_id"="ensg_id"))
-#   })
-# 
-# combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
-# 
-# ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
-# 
-# combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
-#   
-# combined_tibble <- combined_tibble %>%
-#   rowwise() %>%
-#   mutate(TF.cor.CO.GA = TF.cors.CO_GA[[TF]][[ensg_id]]) %>%
-#   ungroup()
-# 
-# combined_tibble <- combined_tibble %>%
-#   rowwise() %>%
-#   mutate(TF.cor.CO.GL = TF.cors.CO_GL[[TF]][[ensg_id]]) %>%
-#   ungroup()
-# 
-# combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
-# 
-# create_dt(filter(combined_tibble, TF=="Tal1"))
-# create_dt(filter(combined_tibble, TF=="Gata2"))
-# create_dt(filter(combined_tibble, TF=="Gata3"))
-# create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
 ## Serot target tables with SR2 and SR3 information
@@ -1003,7 +899,6 @@ create_dt(allRes)
 sigGenes(sampleGOdata)
 ```
 
-## Gata2 FT to correlation 
 ```{r, eval=FALSE}
 # Generate a series of threshold values
 thresholds <- seq(0, 25, by = 1)
@@ -1031,7 +926,6 @@ plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase))
 print(plot)
 ```
 
-## Gata3 FT to correlation 
 ```{r, eval=FALSE}
 # Generate a series of threshold values
 thresholds <- seq(0, 25, by = 1)
