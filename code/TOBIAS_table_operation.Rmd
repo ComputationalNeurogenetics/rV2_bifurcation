@@ -779,7 +779,21 @@ dbWriteTable(con.obj, "CT_data", normalized_data_expanded, overwrite=TRUE)
 dbExecute(con.obj, 'CREATE INDEX CT_data_feature ON CT_data (feature);')
 dbExecute(con.obj, 'CREATE INDEX CT_data_max_signals ON CT_data (max_signals);')
 dbExecute(con.obj, 'CREATE INDEX CT_data_target_gene_name ON CT_data (target_gene_name);')
+dbExecute(con.obj, 'CREATE INDEX CT_feature_target_gene_name ON CT_data (feature, target_gene_name);')
 ```
+
+```{r Ensure all indeces are in place}
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_tobias_TF_gene_name ON Tobias(TF_gene_name);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_tobias_features ON Tobias(features);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_tobias_TFBS_name ON Tobias(TFBS_name);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_links_s_feature ON links_s(feature);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_links_s_zscore ON links_s(zscore);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_links_s_pvalue ON links_s(pvalue);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_CT_data_feature ON CT_data(feature);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_CT_data_target_gene_name ON CT_data(target_gene_name);")
+dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_gene_metadata_ensg_id ON gene_metadata(ensg_id);")
+```
+
 
 # Misc
 
