@@ -1,0 +1,54 @@
+---
+title: "VIA preparation"
+output: html_document
+date: '2022-04-12'
+---
+
+```{r}
+library(Signac)
+library(Seurat)
+library(dplyr)
+library(tidyverse)
+library(RColorBrewer)
+library(ComplexHeatmap)
+library(GenomicRanges)
+source("/Volumes/T7 Touch/scataq_seq_apr21/AuxCode/AuxFunctions.R")
+```
+
+```{r}
+rv2.ss <- readRDS("/Volumes/T7 Touch/Gradu_stash/nmm_rV2_subset_relabeled_110522.Rds")
+```
+
+```{r Variables}
+run.date <- format(Sys.time(), "%d.%m.%y")
+sample <- "E12R1_rV2"
+```
+
+### 1. Creating the csv directly from rv2.ss
+
+```{r}
+Idents(rv2.ss) <- rv2.ss$rv2.lineage
+DimPlot(rv2.ss, label = T)
+```
+
+```{r}
+df.for.via <- data.frame(Cells(rv2.ss), rv2.ss$rv2.lineage)
+umap.for.via <- rv2.ss@reductions$umap@cell.embeddings
+cell.embeddings.for.via <- rv2.ss@reductions$lsi@cell.embeddings[,2:30]
+colors.umap.via <- bind_rows(lapply(color.vector(Idents(rv2.ss)), function (x) { col2rgb(x)[,1] / 255 }))
+```
+
+```{r}
+via.data <- data.frame(df.for.via, umap.for.via)
+colnames(via.data) <- c("barcode", "label", "UMAP_1", "UMAP_2")
+```
+
+```{r}
+embeddings.tmp <- as.tibble(rownames_to_column(cbind(cell.embeddings.for.via, colors.umap.via), "barcode"))
+
+embeddings.out <- left_join(via.data, embeddings.tmp, by = ("barcode" = "barcode"))
+
+write.csv(x = embeddings.out, row.names = FALSE, file = paste("Cell.embeddings.pro.pre.rv2.", sample, ".", run.date, ".csv", sep = ""))
+```
+
+Next, swap to jupyter and do VIA...
