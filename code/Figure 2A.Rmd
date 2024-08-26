@@ -101,14 +101,53 @@ peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
 peak_track$labels$y <- "Feat."
 ```
 
-```{r C&T peaks}
+```{r Tal1 CT}
 Tal1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Tal1.seacr.consensus.peaks.awk.bed")
 
 DefaultAssay(rV2.data) <- "peaks"
-ct.tr <- PeakPlot(rV2.data, peaks = Tal1.ct, region=f2.range, color="darkred")
-ct.tr$labels$y <- "C&T Tal1"
+ct.tal1 <- PeakPlot(rV2.data, peaks = Tal1.ct, region=f2.range, color="darkred")
+ct.tal1$labels$y <- "C&T Tal1"
 ```
 
+```{r Gata2 CT}
+gata2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata2 <- PeakPlot(rV2.data, peaks = gata2.ct, region=f2.range, color="darkred")
+ct.gata2$labels$y <- "C&T Gata2"
+```
+
+```{r Gata3 CT}
+Gata3.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata3.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata3 <- PeakPlot(rV2.data, peaks = Gata3.ct, region=f2.range, color="darkred")
+ct.gata3$labels$y <- "C&T Gata3"
+```
+
+```{r Vsx2 CT}
+Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Vsx2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
+ct.vsx2$labels$y <- "C&T Gata3"
+```
+
+```{r Ebf1 CT}
+Ebf1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Ebf1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.ebf1 <- PeakPlot(rV2.data, peaks = Ebf1.ct, region=f2.range, color="darkred")
+ct.ebf1$labels$y <- "C&T Ebf1"
+```
+
+```{r Insm1 CT}
+Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Insm1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
+ct.insm1$labels$y <- "C&T Ebf1"
+```
 
 ```{r Expression plot}
 expression_plot_data <- ExpressionPlot(object = rV2.data, features=convert_feature_identity(rV2.data, "RNA", c(gene.of.interest,"Pdzk1ip1")), assay="RNA", group.by="rv2.lineage")# & plot_annotation(c(gene.of.interest,"Pdzk1ip1"))
@@ -133,9 +172,9 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
 
 combined.p <- CombineTracks(
-  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr,ct.tr),
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr,ct.tal1,ct.gata2,ct.gata3,ct.vsx2,ct.ebf1,ct.insm1),
   expression.plot = expression_plot_data,
-  heights = c(.75,0.05,0.05,0.05,0.05,0.05),
+  heights = c(.5,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05),
   widths = c(10,5)
 ) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
 
@@ -144,13 +183,12 @@ ggsave(filename = plot_name,
          path = plot_loc,
          device = "pdf",
          width = 15,
-         height = 15,
+         height = 18,
          units = "in")
 
 ```
 
 # Gata2 region plot
-
 
 ```{r Set gene regions}
 gene.of.interest <- "Gata2"
@@ -202,12 +240,52 @@ peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
 peak_track$labels$y <- "Feat."
 ```
 
-```{r C&T peaks}
-# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
-# 
-# DefaultAssay(rV2.data) <- "peaks"
-# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
-# ct.tr$labels$y <- "C&T Gata2"
+```{r Tal1 CT}
+Tal1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Tal1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.tal1 <- PeakPlot(rV2.data, peaks = Tal1.ct, region=f2.range, color="darkred")
+ct.tal1$labels$y <- "C&T Tal1"
+```
+
+```{r Gata2 CT}
+gata2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata2 <- PeakPlot(rV2.data, peaks = gata2.ct, region=f2.range, color="darkred")
+ct.gata2$labels$y <- "C&T Gata2"
+```
+
+```{r Gata3 CT}
+Gata3.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata3.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata3 <- PeakPlot(rV2.data, peaks = Gata3.ct, region=f2.range, color="darkred")
+ct.gata3$labels$y <- "C&T Gata3"
+```
+
+```{r Vsx2 CT}
+Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Vsx2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
+ct.vsx2$labels$y <- "C&T Gata3"
+```
+
+```{r Ebf1 CT}
+Ebf1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Ebf1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.ebf1 <- PeakPlot(rV2.data, peaks = Ebf1.ct, region=f2.range, color="darkred")
+ct.ebf1$labels$y <- "C&T Ebf1"
+```
+
+```{r Insm1 CT}
+Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Insm1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
+ct.insm1$labels$y <- "C&T Ebf1"
 ```
 
 
@@ -234,9 +312,9 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
 
 combined.p <- CombineTracks(
-  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr,ct.tal1,ct.gata2,ct.gata3,ct.vsx2,ct.ebf1,ct.insm1),
   expression.plot = expression_plot_data,
-  heights = c(.75,0.05,0.05,0.05,0.05),
+  heights = c(.5,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05),
   widths = c(10,5)
 ) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
 
@@ -245,7 +323,7 @@ ggsave(filename = plot_name,
          path = plot_loc,
          device = "pdf",
          width = 15,
-         height = 15,
+         height = 18,
          units = "in")
 
 ```
@@ -302,13 +380,55 @@ peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
 peak_track$labels$y <- "Feat."
 ```
 
-```{r C&T peaks}
-# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
-# 
-# DefaultAssay(rV2.data) <- "peaks"
-# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
-# ct.tr$labels$y <- "C&T Gata2"
+
+```{r Tal1 CT}
+Tal1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Tal1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.tal1 <- PeakPlot(rV2.data, peaks = Tal1.ct, region=f2.range, color="darkred")
+ct.tal1$labels$y <- "C&T Tal1"
 ```
+
+```{r Gata2 CT}
+gata2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata2 <- PeakPlot(rV2.data, peaks = gata2.ct, region=f2.range, color="darkred")
+ct.gata2$labels$y <- "C&T Gata2"
+```
+
+```{r Gata3 CT}
+Gata3.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata3.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata3 <- PeakPlot(rV2.data, peaks = Gata3.ct, region=f2.range, color="darkred")
+ct.gata3$labels$y <- "C&T Gata3"
+```
+
+```{r Vsx2 CT}
+Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Vsx2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
+ct.vsx2$labels$y <- "C&T Gata3"
+```
+
+```{r Ebf1 CT}
+Ebf1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Ebf1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.ebf1 <- PeakPlot(rV2.data, peaks = Ebf1.ct, region=f2.range, color="darkred")
+ct.ebf1$labels$y <- "C&T Ebf1"
+```
+
+```{r Insm1 CT}
+Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Insm1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
+ct.insm1$labels$y <- "C&T Ebf1"
+```
+
 
 
 ```{r Expression plot}
@@ -334,9 +454,9 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
 
 combined.p <- CombineTracks(
-  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr,ct.tal1,ct.gata2,ct.gata3,ct.vsx2,ct.ebf1,ct.insm1),
   expression.plot = expression_plot_data,
-  heights = c(.75,0.05,0.05,0.05,0.05),
+  heights = c(.5,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05),
   widths = c(10,5)
 ) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
 
@@ -345,7 +465,7 @@ ggsave(filename = plot_name,
          path = plot_loc,
          device = "pdf",
          width = 15,
-         height = 15,
+         height = 18,
          units = "in")
 
 ```
@@ -402,14 +522,53 @@ peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
 peak_track$labels$y <- "Feat."
 ```
 
-```{r C&T peaks}
-# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
-# 
-# DefaultAssay(rV2.data) <- "peaks"
-# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
-# ct.tr$labels$y <- "C&T Gata2"
+```{r Tal1 CT}
+Tal1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Tal1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.tal1 <- PeakPlot(rV2.data, peaks = Tal1.ct, region=f2.range, color="darkred")
+ct.tal1$labels$y <- "C&T Tal1"
 ```
 
+```{r Gata2 CT}
+gata2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata2 <- PeakPlot(rV2.data, peaks = gata2.ct, region=f2.range, color="darkred")
+ct.gata2$labels$y <- "C&T Gata2"
+```
+
+```{r Gata3 CT}
+Gata3.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Gata3.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.gata3 <- PeakPlot(rV2.data, peaks = Gata3.ct, region=f2.range, color="darkred")
+ct.gata3$labels$y <- "C&T Gata3"
+```
+
+```{r Vsx2 CT}
+Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/E12R1_Vsx2.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
+ct.vsx2$labels$y <- "C&T Gata3"
+```
+
+```{r Ebf1 CT}
+Ebf1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Ebf1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.ebf1 <- PeakPlot(rV2.data, peaks = Ebf1.ct, region=f2.range, color="darkred")
+ct.ebf1$labels$y <- "C&T Ebf1"
+```
+
+```{r Insm1 CT}
+Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_130824/03_peak_calling/05_consensus_peaks/E12R1_Insm1.seacr.consensus.peaks.awk.bed")
+
+DefaultAssay(rV2.data) <- "peaks"
+ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
+ct.insm1$labels$y <- "C&T Ebf1"
+```
 
 ```{r Expression plot}
 expression_plot_data <- ExpressionPlot(object = rV2.data, features=convert_feature_identity(rV2.data, "RNA", c(gene.of.interest)), assay="RNA", group.by="rv2.lineage")# & plot_annotation(c(gene.of.interest,"Pdzk1ip1"))
@@ -434,9 +593,9 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
 
 combined.p <- CombineTracks(
-  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr,ct.tal1,ct.gata2,ct.gata3,ct.vsx2,ct.ebf1,ct.insm1),
   expression.plot = expression_plot_data,
-  heights = c(.75,0.05,0.05,0.05,0.05),
+  heights = c(.5,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05),
   widths = c(10,5)
 ) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
 
@@ -445,7 +604,7 @@ ggsave(filename = plot_name,
          path = plot_loc,
          device = "pdf",
          width = 15,
-         height = 15,
+         height = 18,
          units = "in")
 
 ```
