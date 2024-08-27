@@ -28,7 +28,7 @@ cores<-8
 
 ```{r Connection to SQLite}
 
-dbname="~/Workspace/TOBIAS.dr.h12_210324.sqlite"
+dbname="~/Workspace/TOBIAS.dr.h12_140524.sqlite"
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
 
 tobias.table <- tbl(con, "tobias")
@@ -54,7 +54,6 @@ vsx2.feat17 <- "chr12-84589595-84590947"
 ```{r Thresholds}
 acc.thr <- quantile(acc.table %>% dplyr::select(!starts_with("features")) %>% pull(),.25)
 ```
-
 
 ```{r}
 plot_loc_tal1 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Tal1/"
