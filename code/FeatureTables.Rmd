@@ -11,14 +11,14 @@ library(writexl)
 ```
 
 ```{r}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_110424.sqlite")
-table.loc <- "/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Finals/"
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+table.loc <- "/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Per gene feature tables/"
 ```
 
 ## Gata2
 
 ```{r}
-Gata2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Gata2 feature summary_new.xlsx", sheet = "Sheet1")
+Gata2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Gata2 feature summary_new.xlsx", sheet = "Sheet1")
 ```
 
 ```{r}
@@ -37,7 +37,7 @@ writexl::write_xlsx(Gata2.tb.out, path=paste(table.loc,"Gata2_features.xlsx",sep
 ## Gata3
 
 ```{r}
-Gata3.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Gata3 feature summary_new.xlsx", sheet = "Sheet1")
+Gata3.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Gata3 feature summary_new.xlsx", sheet = "Sheet1")
 ```
 
 ```{r}
@@ -56,7 +56,7 @@ writexl::write_xlsx(Gata3.tb.out, path=paste(table.loc,"Gata3_features.xlsx",sep
 ## Tal1
 
 ```{r}
-Tal1.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Tal1 feature summary_new_2.xlsx", sheet = "Sheet1")
+Tal1.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Tal1 feature summary_new_2.xlsx", sheet = "Sheet1")
 ```
 
 ```{r}
@@ -68,7 +68,7 @@ Tal1.features <- distinct(left_join(Tal1.features, distinct(dplyr::filter(links.
 ```
 
 ```{r}
-Tal1.tb.out <- Gata3.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
+Tal1.tb.out <- Tal1.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
 writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep=""))
 ```
 
@@ -76,7 +76,7 @@ writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep="
 ## Vsx2
 
 ```{r}
-Vsx2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Vsx2 feature summary_new.xlsx", sheet = "Sheet1")
+Vsx2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Vsx2 feature summary_new.xlsx", sheet = "Sheet1")
 ```
 
 ```{r}
