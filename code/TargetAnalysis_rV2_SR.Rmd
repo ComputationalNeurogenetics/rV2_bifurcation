@@ -81,6 +81,21 @@ names(targetGenes.set.feat) <- TF_names
 sapply(targetGenes.set.feat,function(p){length(p$targets_gene_name)})
 ```
 
+```{r}
+Tal1_target_granges <- StringToGRanges(targetGenes.set.feat$Tal1$target.data$feature, sep = c("-", "-"))
+query <- 'SELECT chr, start, end FROM ct_data WHERE target_gene_name = "Gata2"'
+Gata2_cnt <- as_tibble(dbGetQuery(con, query),.name_repair = "unique")
+Gata2_granges <- makeGRangesFromDataFrame(Gata2_cnt)
+query <- 'SELECT chr, start, end FROM ct_data WHERE target_gene_name = "Gata3"'
+Gata3_cnt <- as_tibble(dbGetQuery(con, query),.name_repair = "unique")
+Gata3_granges <- makeGRangesFromDataFrame(Gata3_cnt)
+gata2_overlap <- countOverlaps(Tal1_target_granges, Gata2_granges, minoverlap = 1)
+targetGenes.set.feat[["Tal1"]][["target.data"]][["Gata2_ct_overlap"]] <- replace(gata2_overlap, which(gata2_overlap > 0), 1)
+gata3_overlap <- countOverlaps(Tal1_target_granges, Gata3_granges, minoverlap = 1)
+targetGenes.set.feat[["Tal1"]][["target.data"]][["Gata3_ct_overlap"]] <- replace(gata3_overlap, which(gata3_overlap > 0), 1)
+```
+
+
 # Expression analysis of target genes {.tabset}
 
 ```{r Reading rV2 data, include=FALSE, eval=TRUE}
