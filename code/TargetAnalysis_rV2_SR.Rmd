@@ -1,5 +1,5 @@
 ---
-title: "R Notebook for dplyr::selector gene target analysis in rV2"
+title: "R Notebook for selector gene target analysis in rV2"
 author: Sami Kilpinen
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
@@ -70,6 +70,15 @@ TF_names <- c("Tal1","Gata2","Gata3")
 targetGenes.set.SR <- lapply(TF_names,getTargets_SR,con=con.sr)
 names(targetGenes.set.SR) <- TF_names
 sapply(targetGenes.set.SR,function(p){length(p$targets_gene_name)})
+```
+
+# Feature level targets
+
+```{r}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
+targetGenes.set.feat <- lapply(TF_names,getTargets_rV2_feature_level,con=con)
+names(targetGenes.set.feat) <- TF_names
+sapply(targetGenes.set.feat,function(p){length(p$targets_gene_name)})
 ```
 
 # Expression analysis of target genes {.tabset}
