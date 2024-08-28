@@ -31,9 +31,26 @@ distance2D <- function(point1, point2) {
   y2 <- point2[2]
   
   # Calculating distance
-  distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2)*(211.30/2048))
-  
+  distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2))
+  # distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2)*(211.30/2048))
   return(distance)
+}
+
+distanceToCircle <- function(p1, p2, p3, x, y) {
+  # Step 1: Find the center of the circle
+  center <- findCircleCenter(p1, p2, p3)
+  
+  # Step 2: Calculate the radius of the circle
+  radius <- distance2D(center, p1)
+  
+  # Step 3: Calculate the distance from the given point to the center of the circle
+  point <- c(x, y)
+  dist_to_center <- distance2D(center, point)
+  
+  # Step 4: Calculate the distance from the point to the circle's circumference
+  distance_to_circumference <- abs(dist_to_center - radius)
+  
+  return(distance_to_circumference)
 }
 
 # Function to find centroids of polygons in a spatstat 'owin' object
@@ -73,10 +90,36 @@ tess2SP <- function(x) {
     z[[i]] <- owin2Polygons(y[[i]], nam[i])
   return(SpatialPolygons(z))
 }
-""
+
 owin2SP <- function(x) {
   stopifnot(is.owin(x))
   y <- owin2Polygons(x)
   z <- SpatialPolygons(list(y))
   return(z)
 }
+
+# Function to calculate the average diameter of cells based on pairwise distances
+average_cell_diameter <- function(polygon) {
+  coords <- polygon$coords
+  
+  if (nrow(coords) < 2) {
+    stop("Not enough points to calculate a diameter")
+  }
+  
+  total_dist <- 0
+  count <- 0
+  
+  for (i in 1:(nrow(coords)-1)) {
+    for (j in (i+1):nrow(coords)) {
+      dist <- sqrt((coords[i,1] - coords[j,1])^2 + (coords[i,2] - coords[j,2])^2)
+      total_dist <- total_dist + dist
+      count <- count + 1
+    }
+  }
+  
+  # Calculate the average diameter
+  average_diameter <- total_dist / count
+  
+  return(average_diameter)
+}
+
