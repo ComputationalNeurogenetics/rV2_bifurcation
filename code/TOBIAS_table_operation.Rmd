@@ -126,11 +126,18 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.2.qs",nthread
 
 ```{r Connection to SQLite}
 #con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_300824.sqlite")
 ```
 
 ```{r Write gene.metadata into SQlite}
-gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% rename("feature_symbol"="gene_name")
+gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% plotly::rename("gene_name"="feature_symbol")
+
+TSS.positions <- GetTSSPositions(Annotation(dataset)) %>% as_tibble()
+
+gene.metadata <- left_join(gene.metadata, select(TSS.positions,seqnames,start,gene_id), by=c("ensg_id"="gene_id"))
+
+gene.metadata <- gene.metadata %>% plotly::rename("TSS_start"="start")
+
 dbWriteTable(con.obj, "gene_metadata", gene.metadata, overwrite=TRUE)
 dbExecute(con.obj, 'CREATE INDEX ensg_id3 ON gene_metadata (ensg_id);')
 dbExecute(con.obj, 'CREATE INDEX gene_name3 ON gene_metadata (gene_name);')
