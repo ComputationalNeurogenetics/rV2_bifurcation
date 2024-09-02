@@ -33,7 +33,9 @@ library(plotly)
 library(dplyr)
 library(cowplot)
 library(ggrepel)
+library(ComplexHeatmap)
 library(future)
+library(circlize)
 source(paste(auxcode.path,"AuxFunctions.R",sep=""))
 source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
 ```
@@ -56,7 +58,7 @@ plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regu
 
 ## Counts with C&T True and Cons True FT True in rV2
 
-```{r}
+```{r, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
 targetGenes.set <- lapply(TF_names,getTargets_rV2,con=con)
 names(targetGenes.set) <- TF_names
@@ -65,7 +67,7 @@ sapply(targetGenes.set,function(p){length(p$targets_gene_name)})
 
 ## Counts with C&T True and Cons True FT True in Serot
 
-```{r}
+```{r, eval=FALSE}
 TF_names <- c("Tal1","Gata2","Gata3")
 targetGenes.set.SR <- lapply(TF_names,getTargets_SR,con=con.sr)
 names(targetGenes.set.SR) <- TF_names
@@ -76,13 +78,13 @@ sapply(targetGenes.set.SR,function(p){length(p$targets_gene_name)})
 
 ```{r}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
-targetGenes.set.feat <- lapply(TF_names,getTargets_rV2_feature_level,con=con)
-names(targetGenes.set.feat) <- TF_names
-sapply(targetGenes.set.feat,function(p){length(p$targets_gene_name)})
+targetGenes.set <- lapply(TF_names,getTargets_rV2_feature_level,con=con)
+names(targetGenes.set) <- TF_names
+sapply(targetGenes.set,function(p){length(p$targets_gene_name)})
 ```
 
-```{r}
-Tal1_target_granges <- StringToGRanges(targetGenes.set.feat$Tal1$target.data$feature, sep = c("-", "-"))
+```{r Adding C&T from Gata2/3 for Tal1 targets}
+Tal1_target_granges <- StringToGRanges(targetGenes.set$Tal1$target.data$feature, sep = c("-", "-"))
 query <- 'SELECT chr, start, end FROM ct_data WHERE target_gene_name = "Gata2"'
 Gata2_cnt <- as_tibble(dbGetQuery(con, query),.name_repair = "unique")
 Gata2_granges <- makeGRangesFromDataFrame(Gata2_cnt)
@@ -90,11 +92,10 @@ query <- 'SELECT chr, start, end FROM ct_data WHERE target_gene_name = "Gata3"'
 Gata3_cnt <- as_tibble(dbGetQuery(con, query),.name_repair = "unique")
 Gata3_granges <- makeGRangesFromDataFrame(Gata3_cnt)
 gata2_overlap <- countOverlaps(Tal1_target_granges, Gata2_granges, minoverlap = 1)
-targetGenes.set.feat[["Tal1"]][["target.data"]][["Gata2_ct_overlap"]] <- replace(gata2_overlap, which(gata2_overlap > 0), 1)
+targetGenes.set[["Tal1"]][["target.data"]][["Gata2_ct_overlap"]] <- replace(gata2_overlap, which(gata2_overlap > 0), 1)
 gata3_overlap <- countOverlaps(Tal1_target_granges, Gata3_granges, minoverlap = 1)
-targetGenes.set.feat[["Tal1"]][["target.data"]][["Gata3_ct_overlap"]] <- replace(gata3_overlap, which(gata3_overlap > 0), 1)
+targetGenes.set[["Tal1"]][["target.data"]][["Gata3_ct_overlap"]] <- replace(gata3_overlap, which(gata3_overlap > 0), 1)
 ```
-
 
 # Expression analysis of target genes {.tabset}
 
@@ -127,7 +128,7 @@ qsave(gene_id2name,file="gene_id2name.qs")
 qsave(gene_name2id,file="gene_name2id.qs")
 ```
 
-```{r reading Serot data and merging, warning=FALSE, eval=TRUE}
+```{r reading Serot data and merging, warning=FALSE, eval=FALSE}
 serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
 # merged.datasets <- merge(rV2.dataset,serot.dataset)
 # 
@@ -135,9 +136,7 @@ serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cor
 # 
 # DefaultAssay(merged.datasets) <- "RNA"
 # qsave(merged.datasets, file="merged.datasets.qs",nthreads = cores)
-```
 
-```{r}
 #merged.datasets <- qread(file=paste(data.path,"merged.datasets.qs",sep=""),nthreads = cores)
 gene_id2name <- qread(file=paste(data.path,"gene_id2name.qs",sep=""))
 gene_name2id <- qread(file=paste(data.path,"gene_name2id.qs",sep=""))
@@ -299,7 +298,7 @@ qsave(TF.cors.SR1_3,paste(data.path,"TF.cors.SR1_3.qs",sep=""), nthreads = cores
 #qsave(TF.cors.SR3,paste(data.path,"TF.cors.SR3.qs",sep=""), nthreads = cores)
 ```
 
-```{r Loading precalculated correlations SR}
+```{r Loading precalculated correlations SR, eval=FALSE}
 #TF.cors.SR1 <- qread(paste(data.path,"TF.cors.SR1.qs",sep=""))
 TF.cors.SR1_3 <- qread(paste(data.path,"TF.cors.SR1_3.qs",sep=""))
 #TF.cors.SR3 <- qread(paste(data.path,"TF.cors.SR3.qs",sep=""))
@@ -314,9 +313,9 @@ DEG.res.subset <- lapply(targetGenes.set, function(p){
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 
-ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
+#ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
 
-combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
+#combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
   
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
@@ -330,250 +329,18 @@ combined_tibble <- combined_tibble %>%
 
 combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
 
+combined_tibble <- combined_tibble %>%
+  mutate(linkage_kbp = linkage_dist / 1000)
+
 create_dt(filter(combined_tibble, TF=="Tal1"))
 create_dt(filter(combined_tibble, TF=="Gata2"))
 create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
 ```
 
-
-```{r, eval=FALSE, fig.width=12, fig.height=12}
-# Generate a series of threshold values
-thresholds <- seq(0, 25, by = 1)
-
-# Create a new data frame with an added threshold condition column
-thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
-    combined_tibble %>%
-        filter(TF == "Tal1" & TF.cor.PRO.GA > 0.55 & TF.cor.PRO.GA <= 1 & pct.1>0.1) %>%
-        mutate(threshold = b.thr, 
-               meets_threshold = sum_GA1_2_bound > b.thr)
-}))
-
-# Filter the combined data to only include rows that meet the threshold condition
-thresholded_data <- thresholded_data %>% filter(meets_threshold)
-
-# Create the faceted plot
-plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_FT_ratio)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    theme_minimal() +
-    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
-    facet_wrap(~ threshold, scales = "free")
-
-# Print the plot
-print(plot)
-```
-
-```{r, fig.height=18, fig.width=18, eval=FALSE}
-# Filter and prepare the data
-Tal1.targets <- combined_tibble %>%
-  filter(TF == "Tal1"  & pct.1 > 0.5 & sum_GA1_2_bound>0 & (TF.cor.PRO.GA >0.5 | TF.cor.PRO.GA < -0.5)) %>%
-  dplyr::select(gene_name, sum_GA1_2_bound, PRO1_2_GA_increase, TF.cor.PRO.GA,count_zscore_positive,count_zscore_negative) %>% mutate(pos_neg_feat=(count_zscore_positive-count_zscore_negative))
-
-data <- Tal1.targets %>%
-  select(-gene_name, -count_zscore_positive, -count_zscore_negative) %>%
-  as.data.frame()
-rownames(data) <- pull(Tal1.targets, gene_name)
-
-data <- na.omit(data)
-pca <- prcomp(data, scale. = TRUE, rank. = 3)
-
-# Calculate the proportion of variance explained
-pca_var <- pca$sdev^2
-pve <- pca_var / sum(pca_var)
-
-# Create a data frame for plotting
-pca_var_df <- data.frame(
-  Principal_Component = 1:length(pve),
-  Proportion_of_Variance_Explained = pve,
-  Cumulative_Proportion = cumsum(pve)
-)
-
-# Plot the elbow plot
-ggplot(pca_var_df, aes(x = Principal_Component, y = Proportion_of_Variance_Explained)) +
-  geom_point() +
-  geom_line() +
-  theme_minimal() +
-  labs(title = "Elbow Plot of PCA",
-       x = "Principal Component",
-       y = "Proportion of Variance Explained")
-
-pca_data <- as.data.frame(pca$x)
-pca_data$gene_name <- rownames(pca_data)
-
-# Match the TF.cor.PRO.GA values to pca_data
-pca_data$TF.cor.PRO.GA <- Tal1.targets$TF.cor.PRO.GA[match(rownames(pca_data), Tal1.targets$gene_name)]
-pca_data$FT_score_change_PRO_GA <- Tal1.targets$PRO1_2_GA_increase[match(rownames(pca_data), Tal1.targets$gene_name)]
-pca_data$sum_GA1_2_bound <- Tal1.targets$sum_GA1_2_bound[match(rownames(pca_data), Tal1.targets$gene_name)]
-pca_data$count_zscore_negative <- Tal1.targets$count_zscore_negative[match(rownames(pca_data), Tal1.targets$gene_name)]
-pca_data$count_zscore_positive <- Tal1.targets$count_zscore_positive[match(rownames(pca_data), Tal1.targets$gene_name)]
-pca_data$pos_neg_feat <- Tal1.targets$pos_neg_feat[match(rownames(pca_data), Tal1.targets$gene_name)]
-
-# Create a new column for shape based on pos_neg_feat
-pca_data <- pca_data %>%
-  mutate(feat_link_direction = ifelse(pos_neg_feat > 0, "Positive", "Negative"))
-
-# Define a function to identify outliers
-identify_outliers <- function(pca_data, threshold = 1.2) {
-  pca_data %>%
-    rowwise() %>%
-    mutate(outlier = (abs(PC1) > threshold | abs(PC2) > threshold)) %>%
-    filter(outlier)
-}
-
-# Identify outliers
-outliers <- identify_outliers(pca_data)
-
-# Visualize PCA with names on outliers
-ggplot(pca_data, aes(PC1, PC2, color = TF.cor.PRO.GA, size = FT_score_change_PRO_GA, shape=feat_link_direction)) +
-  geom_point() +
-  geom_text_repel(data = outliers, aes(label = gene_name), max.overlaps = Inf, force = 1.5, size = 3) +
-  scale_color_gradient2(low = "blue", mid="black" ,high = "green") +
-  theme_minimal() +
-  labs(title = "PCA of Tal1 Targets",
-       x = "Principal Component 1",
-       y = "Principal Component 2",
-       color = "TF.cor.PRO.GA")
-```
-
-```{r, eval=FALSE}
-# Create 3D PCA plot
-p <- plot_ly(pca_data, x = ~PC1, y = ~PC2, z = ~PC3, color = ~TF.cor.PRO.GA, text = ~gene_name, 
-             colors = colorRamp(c("blue", "red")), type = "scatter3d", mode = "markers") %>%
-  layout(title = "3D PCA Plot",
-         scene = list(
-           xaxis = list(title = 'PC1'),
-           yaxis = list(title = 'PC2'),
-           zaxis = list(title = 'PC3')
-         ))
-
-# Display the plot
-p
-```
-
-
-```{r, eval=FALSE}
-# Set seed for reproducibility
-set.seed(123)
-
-# Perform UMAP
-umap_results <- umap(pca_data[, 1:3])  # Adjust the number of PCA components if needed
-umap_data <- as.data.frame(umap_results$layout)
-colnames(umap_data) <- c("UMAP1", "UMAP2")
-umap_data$gene_name <- pca_data$gene_name
-umap_data$TF.cor.PRO.GA <- pca_data$TF.cor.PRO.GA
-```
-
-```{r, eval=FALSE}
-# Define a function to identify outliers
-identify_outliers <- function(umap_data, threshold = 10) {
-  umap_data %>%
-    rowwise() %>%
-    mutate(outlier = (abs(UMAP1) > threshold | abs(UMAP2) > threshold)) %>%
-    filter(outlier)
-}
-
-# Identify outliers
-outliers <- identify_outliers(umap_data)
-
-# Visualize UMAP with names on outliers and coloring by TF.cor.PRO.GA
-ggplot(umap_data, aes(x = UMAP1, y = UMAP2, color = TF.cor.PRO.GA)) +
-  geom_point() +
-  #geom_text_repel(data = outliers, aes(label = gene_name), max.overlaps = Inf) +
-  scale_color_gradient(low = "blue", high = "red") +
-  theme_minimal() +
-  labs(title = "UMAP of PCA-Reduced Data",
-       x = "UMAP Dimension 1",
-       y = "UMAP Dimension 2",
-       color = "TF.cor.PRO.GA")
-```
-
-```{r, eval=FALSE, fig.width=12, fig.height=12}
-# Generate a series of threshold values
-thresholds <- seq(0, 25, by = 1)
-
-# Create a new data frame with an added threshold condition column
-thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
-    combined_tibble %>%
-        filter(TF == "Gata2" & TF.cor.PRO.GA > 0.65  & TF.cor.PRO.GA < 1) %>%
-        mutate(threshold = b.thr, 
-               meets_threshold = sum_GA1_2_bound > b.thr)
-}))
-
-# Filter the combined data to only include rows that meet the threshold condition
-thresholded_data <- thresholded_data %>% filter(meets_threshold)
-
-# Create the faceted plot
-plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    theme_minimal() +
-    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
-    facet_wrap(~ threshold, scales = "free")
-
-# Print the plot
-print(plot)
-```
-
-
-```{r, eval=FALSE, fig.width=12, fig.height=12}
-# Generate a series of threshold values
-thresholds <- seq(0, 25, by = 1)
-
-# Create a new data frame with an added threshold condition column
-thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
-    combined_tibble %>%
-        filter(TF == "Gata3" & TF.cor.PRO.GA > 0.65  & TF.cor.PRO.GA < 1) %>%
-        mutate(threshold = b.thr, 
-               meets_threshold = sum_GA1_2_bound > b.thr)
-}))
-
-# Filter the combined data to only include rows that meet the threshold condition
-thresholded_data <- thresholded_data %>% filter(meets_threshold)
-
-# Create the faceted plot
-plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GA, y = PRO1_2_GA_increase)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    theme_minimal() +
-    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
-    facet_wrap(~ threshold, scales = "free")
-
-# Print the plot
-print(plot)
-```
-
-
-```{r, eval=FALSE, fig.width=12, fig.height=12}
-# Generate a series of threshold values
-thresholds <- seq(0, 25, by = 1)
-
-# Create a new data frame with an added threshold condition column
-thresholded_data <- do.call(rbind, lapply(thresholds, function(b.thr) {
-    combined_tibble %>%
-        filter(TF == "Vsx2" & TF.cor.PRO.GL > 0.65 & TF.cor.PRO.GL < 1) %>%
-        mutate(threshold = b.thr, 
-               meets_threshold = sum_GL1_2_bound > b.thr)
-}))
-
-# Filter the combined data to only include rows that meet the threshold condition
-thresholded_data <- thresholded_data %>% filter(meets_threshold)
-
-# Create the faceted plot
-plot <- ggplot(thresholded_data, aes(x = TF.cor.PRO.GL, y = PRO1_2_GL_increase)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    theme_minimal() +
-    stat_cor(label.x = 0.65, label.y = 1.3, aes(label = after_stat(r.label)), method = "spearman") +
-    facet_wrap(~ threshold, scales = "free")
-
-# Print the plot
-print(plot)
-```
-
 ## Serot target tables with SR2 and SR3 information
 
-```{r}
+```{r, eval=FALSE}
 DEG.res.subset <- lapply(targetGenes.set.SR, function(p){
   full_join(filter(DEG.res.3, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name), p$target.data, by=c("ensg_id"="ensg_id"))
   })
@@ -595,6 +362,49 @@ create_dt(filter(combined_tibble, TF=="Tal1"))
 create_dt(filter(combined_tibble, TF=="Gata2"))
 create_dt(filter(combined_tibble, TF=="Gata3"))
 ```
+
+# Target gene expression
+
+```{r Expression averages rV2}
+assay.averages.rV2 <- AverageExpression(rV2.dataset,group.by = "rv2.lineage")
+```
+
+```{r Tal1 targets, fig.height=20, fig.width=8}
+pos.targets <- combined_tibble %>%
+  filter(TF == "Tal1" & zscore > 0) %>%
+  group_by(ensg_id) %>%
+  summarize(linkage_kbp = min(linkage_kbp)) %>% 
+  mutate(bin_category = case_when(
+    linkage_kbp <= 5 ~ "0-5 kbp",
+    linkage_kbp > 5 & linkage_kbp <= 50 ~ "> 5 kbp - 50 kbp",
+    linkage_kbp > 50 ~ "> 50 kbp"
+  )) %>%
+  ungroup()
+
+exp.filt <- rownames(assay.averages.rV2$RNA[rowSums(assay.averages.rV2$RNA>1.2)>0,])
+
+pos.targets <- pos.targets %>% filter(ensg_id %in% exp.filt)
+
+data2plot <- log1p(assay.averages.rV2$RNA[pos.targets$ensg_id,c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4","GA5","GA6","GL1","GL2","GL3","GL4","GL5")])
+
+color_scale <- colorRamp2(c(min(data2plot), max(data2plot)), c("white", "red"))
+
+Heatmap(
+  data2plot,
+  name = "RNA expression",
+  row_split = pos.targets$bin_category,  # Split rows by bin_category
+  cluster_rows = TRUE,                   # Cluster rows within each bin_category
+  cluster_columns = FALSE,               # Remove column clustering
+  show_row_names = TRUE,                 # Show row names (optional)
+  show_column_names = TRUE,               # Show column names (optional)
+  clustering_distance_rows = "euclidean",
+  row_names_gp = gpar(fontsize = 8),
+  clustering_method_rows = "ward.D2",
+  col = color_scale
+)
+```
+
+
 
 # GSEA analysis of target genes in rV2
 
@@ -688,7 +498,7 @@ create_dt(results)
 # Connect to the Ensembl database
 ensembl <- useMart("ENSEMBL_MART_ENSEMBL", dataset = "mmusculus_gene_ensembl", host="https://nov2020.archive.ensembl.org")
 gene_names_with_go <- getBM(attributes = c('external_gene_name', 'go_id'),
-                       filters = 'with_go', # This dplyr::filter is to only fetch genes with GO IDs
+                       filters = 'with_go',
                        values = TRUE,
                        mart = ensembl)
 # Split the data.frame into a list where each element is a character vector of GO IDs,
