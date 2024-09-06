@@ -723,7 +723,7 @@ dbExecute(con, 'CREATE INDEX links_pvalue ON links (pvalue);')
 DBI::dbDisconnect(con)
 ```
 
-```{r C&T data import}
+```{r C&T data import 1}
 consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
 
 consensus.beds <- lapply(consensus.beds.path, function(path){
@@ -752,9 +752,7 @@ normalized_data <- consensus.beds.tb %>%
 
 normalized_data<-normalized_data[!is.na(normalized_data$chr),]
 normalized_data$start <- normalized_data$start+1
-```
 
-```{r}
 ct.gr <- makeGRangesFromDataFrame(normalized_data,na.rm=T, keep.extra.columns = T)
 feat.gr <- all.features
 
@@ -779,14 +777,70 @@ normalized_data_expanded <- normalized_data %>%
   right_join(overlap_info, by = "row_id")
 
 normalized_data_expanded <- normalized_data_expanded %>% mutate(start=as.integer(start), end=as.integer(end), total_signals=as.numeric(total_signals), max_signals=as.numeric(max_signals), consensus_replicate_count=as.integer(consensus_replicate_count))
-```
 
-```{r}
 dbWriteTable(con.obj, "CT_data", normalized_data_expanded, overwrite=TRUE)
 dbExecute(con.obj, 'CREATE INDEX CT_data_feature ON CT_data (feature);')
 dbExecute(con.obj, 'CREATE INDEX CT_data_max_signals ON CT_data (max_signals);')
 dbExecute(con.obj, 'CREATE INDEX CT_data_target_gene_name ON CT_data (target_gene_name);')
 dbExecute(con.obj, 'CREATE INDEX CT_feature_target_gene_name ON CT_data (feature, target_gene_name);')
+```
+
+```{r C&T data import 2}
+consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_030924/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
+
+consensus.beds <- lapply(consensus.beds.path, function(path){
+  tmp.1 <- read_delim(file = path, col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_names","consensus_replicate_count"))
+  if (nrow(tmp.1)>0){
+  tmp.1$target_gene_name <- str_extract(string=tmp.1$sample_names, pattern = "(?<=_)[^_]+(?=_)")
+  return(tmp.1)
+  } else {
+    return(NA)
+  }
+  })
+
+consensus.beds.tb <- do.call(rbind,consensus.beds)
+consensus.beds.tb <- consensus.beds.tb %>% mutate(row_id = row_number()) 
+
+# Normalize the data (in SQL sense)
+normalized_data <- consensus.beds.tb %>%
+  # Create an index to keep track of the original row positions
+  # Expand the rows based on the comma-separated values
+  separate_rows(total_signals, max_signals, max_signal_regions,sample_names, sep = ",") %>%
+  # Group by the original row index to ensure correct order
+  group_by(row_id) %>%
+  # Create a new ID to ensure uniqueness
+  mutate(normalized_id = row_number()) %>%
+  ungroup()
+
+normalized_data<-normalized_data[!is.na(normalized_data$chr),]
+normalized_data$start <- normalized_data$start+1
+
+ct.gr <- makeGRangesFromDataFrame(normalized_data,na.rm=T, keep.extra.columns = T)
+feat.gr <- all.features
+
+# Assuming ct.gr and feat.gr are already defined GRanges objects
+# Find overlaps
+overlaps <- findOverlaps(ct.gr, feat.gr)
+
+# Assuming 'A' is your original tibble that corresponds to ct.gr
+# Let's add an identifier to 'A' for the linkage
+normalized_data <- normalized_data %>% mutate(row_id = row_number())
+
+# Extract overlapping information with a new 'feature' column that combines 'chr', 'start', 'end'
+overlap_info <- tibble(
+  row_id = queryHits(overlaps),
+  feature = paste(seqnames(feat.gr)[subjectHits(overlaps)], 
+                  start(feat.gr)[subjectHits(overlaps)], 
+                  end(feat.gr)[subjectHits(overlaps)], 
+                  sep = "-")
+)
+
+normalized_data_expanded <- normalized_data %>%
+  right_join(overlap_info, by = "row_id")
+
+normalized_data_expanded <- normalized_data_expanded %>% mutate(start=as.integer(start), end=as.integer(end), total_signals=as.numeric(total_signals), max_signals=as.numeric(max_signals), consensus_replicate_count=as.integer(consensus_replicate_count))
+
+dbWriteTable(con.obj, "CT_data", normalized_data_expanded, append=TRUE)
 ```
 
 ```{r Ensure all indeces are in place}
