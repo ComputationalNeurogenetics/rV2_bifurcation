@@ -77,7 +77,7 @@ sapply(targetGenes.set.SR,function(p){length(p$targets_gene_name)})
 # Feature level targets
 
 ```{r}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Insm1","Ebf1","Tead2")
 targetGenes.set <- lapply(TF_names,getTargets_rV2_feature_level,con=con)
 names(targetGenes.set) <- TF_names
 sapply(targetGenes.set,function(p){length(p$targets_gene_name)})
@@ -95,6 +95,27 @@ gata2_overlap <- countOverlaps(Tal1_target_granges, Gata2_granges, minoverlap = 
 targetGenes.set[["Tal1"]][["target.data"]][["Gata2_ct_overlap"]] <- replace(gata2_overlap, which(gata2_overlap > 0), 1)
 gata3_overlap <- countOverlaps(Tal1_target_granges, Gata3_granges, minoverlap = 1)
 targetGenes.set[["Tal1"]][["target.data"]][["Gata3_ct_overlap"]] <- replace(gata3_overlap, which(gata3_overlap > 0), 1)
+```
+
+```{r}
+TF_names <- c("Tal1","Gata2")
+targetGenes.set_v2 <- lapply(TF_names,getTargets_rV2_feature_level_v2,con=con)
+names(targetGenes.set_v2) <- TF_names
+sapply(targetGenes.set_v2,function(p){nrow(p)})
+```
+
+```{r Adding C&T from Gata2/3 for Tal1 targets}
+Tal1_target_granges <- StringToGRanges(targetGenes.set_v2$Tal1$feature, sep = c("-", "-"))
+query <- 'SELECT chr, start, end FROM ct_data WHERE target_gene_name = "Gata2"'
+Gata2_cnt <- as_tibble(dbGetQuery(con, query),.name_repair = "unique")
+Gata2_granges <- makeGRangesFromDataFrame(Gata2_cnt)
+query <- 'SELECT chr, start, end FROM ct_data WHERE target_gene_name = "Gata3"'
+Gata3_cnt <- as_tibble(dbGetQuery(con, query),.name_repair = "unique")
+Gata3_granges <- makeGRangesFromDataFrame(Gata3_cnt)
+gata2_overlap <- countOverlaps(Tal1_target_granges, Gata2_granges, minoverlap = 1)
+targetGenes.set_v2[["Tal1"]][["Gata2_ct_overlap"]] <- replace(gata2_overlap, which(gata2_overlap > 0), 1)
+gata3_overlap <- countOverlaps(Tal1_target_granges, Gata3_granges, minoverlap = 1)
+targetGenes.set_v2[["Tal1"]][["Gata3_ct_overlap"]] <- replace(gata3_overlap, which(gata3_overlap > 0), 1)
 ```
 
 # Expression analysis of target genes {.tabset}
@@ -127,6 +148,74 @@ gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][
 qsave(gene_id2name,file="gene_id2name.qs")
 qsave(gene_name2id,file="gene_name2id.qs")
 ```
+
+```{r Causality test 1, include=FALSE}
+features <- as_tibble(read_clip_tbl(header=FALSE)) %>% pull(V1)
+
+bifurc.filt <- rV2.dataset$rv2.lineage_re %in% c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6")
+#bifurc.filt<-TRUE
+te.res.list <- lapply(features,function(f){
+  ccf.test.data <- tibble(rna=as.vector(rV2.dataset[["RNA"]][gene_name2id[["Tal1"]],bifurc.filt]),peaks=as.vector(rV2.dataset[["peaks"]][f,bifurc.filt]),pseudotime=rV2.dataset$pseudotime[bifurc.filt]) %>% arrange(pseudotime)
+  
+  ccf.test.data <- apply(ccf.test.data,MARGIN=2,FUN = function(vec){smoo <- smooth.spline(vec, cv = F, penalty = 0.8);smoo$y})
+  
+  #ccf(x=ccf.test.data$peaks, y=ccf.test.data$rna, lag.max = 20, main = "Cross-Correlation Function")
+  
+  #granger_result <- grangertest(ccf.test.data$rna ~ ccf.test.data$peaks, order = 5) 
+  #print(granger_result)
+  
+  #granger_result <- grangertest(ccf.test.data$peaks ~ ccf.test.data$rna, order = 5) 
+  #print(granger_result)
+  
+  # Calculate transfer entropy from X to Y and from Y to X
+  te_result <- transfer_entropy(x=ccf.test.data[,1], y=ccf.test.data[,2], lx = 1, ly = 1, nboot = 100, q=0.1)
+  
+  # Print the result
+  return(te_result)
+})
+
+names(te.res.list) <- features
+```
+
+```{r Causality test 2, include=FALSE}
+te.results <- lapply(c("Tal1","Gata2","Gata3","Vsx2","Insm1","Ebf1","Tead2"),function(TF.name){
+  targets <- unique(targetGenes.set[[TF.name]]$target.data$ensg_id)
+  bifurc.filt <- rV2.dataset$rv2.lineage_re %in% c("PRO1_2","CO1_2","GA1_2","GA3_4","GA5_6")
+  #bifurc.filt<-TRUE
+  te.targets.res.list.non.smooth <- lapply(targets,function(gene){
+    ccf.test.data <- tibble(rna=as.vector(rV2.dataset[["RNA"]][gene_name2id[[TF.name]],bifurc.filt]),peaks=as.vector(rV2.dataset[["RNA"]][gene,bifurc.filt]),pseudotime=rV2.dataset$pseudotime[bifurc.filt]) %>% arrange(pseudotime)
+    
+    #ccf.test.data <- apply(ccf.test.data,MARGIN=2,FUN = function(vec){smoo <- smooth.spline(vec, cv = F, penalty = 0.8);smoo$y})
+    
+    #ccf(x=ccf.test.data$peaks, y=ccf.test.data$rna, lag.max = 20, main = "Cross-Correlation Function")
+    
+    #granger_result <- grangertest(ccf.test.data$rna ~ ccf.test.data$peaks, order = 5) 
+    #print(granger_result)
+    
+    #granger_result <- grangertest(ccf.test.data$peaks ~ ccf.test.data$rna, order = 5) 
+    #print(granger_result)
+    
+    # Calculate transfer entropy from X to Y and from Y to X
+    te_result <- transfer_entropy(x=ccf.test.data[,1], y=ccf.test.data[,2], lx = 1, ly = 1, nboot = 100, q=0.25)
+    
+    # Print the result
+    return(te_result)
+  })
+  names(te.targets.res.list.non.smooth) <- targets
+  return(te.targets.res.list.non.smooth)
+})
+names(te.results) <- c("Tal1","Gata2","Gata3","Vsx2","Insm1","Ebf1","Tead2")
+qsave(file = "../analysis/te.res.qs",x = te.results, nthreads = cores)
+```
+
+```{r}
+sapply(te.targets.res.list.non.smooth,function(p){if (p$coef["X->Y","p-value"]<0.05 & p$coef["X->Y","p-value"]<p$coef["Y->X","p-value"]){return(p$coef)}else{return(NA)}}, simplify = FALSE) -> tmp
+#names(which(sapply(tmp,length)==8))
+filter(combined_tibble, TF=="Tal1") -> Tal1.tmp
+Tal1.tmp[Tal1.tmp$ensg_id %in% names(which(sapply(tmp,length)==8)),"RNA.causality"] <- 1
+Tal1.causal.targets.2 <- unique(filter(Tal1.tmp, RNA.causality==1) %>% pull(gene_name))
+```
+
 
 ```{r reading Serot data and merging, warning=FALSE, eval=FALSE}
 serot.dataset <- qread("../serot/sero_relabeled_201123_links.qs", nthreads = cores)
@@ -174,7 +263,7 @@ DEG.res.2$gene_name <- sapply(DEG.res.2$ensg_id,function(ensg_id){hash::values(g
 DEG.res.2 <- DEG.res.2 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
 
-```{r Calculating averages and DEG for SR1/SR2 axis, include=FALSE}
+```{r Calculating averages and DEG for SR1/SR2 axis, include=FALSE, eval=FALSE}
 assay.averages.SR <- AverageExpression(serot.dataset,group.by = "sero.lineage")
 
 Idents(serot.dataset) <- serot.dataset$sero.lineage
@@ -190,8 +279,8 @@ DEG.res.3$gene_name <- sapply(DEG.res.3$ensg_id,function(ensg_id){hash::values(g
 DEG.res.3 <- DEG.res.3 %>% mutate(across(where(is.numeric), \(x) round(x, digits = 8))) %>% arrange(avg_log2FC)
 ```
 
-```{r Correlations between target genes and selector genes in rV2, warning=FALSE, eval=FALSE}
-TF_names <- c("Tal1","Gata2","Gata3","Vsx2")
+```{r Correlations between target genes and selector genes in rV2, warning=FALSE, eval=TRUE}
+TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Insm1","Ebf1","Tead2")
 
 PRO_GA.subset <- subset(rV2.dataset, idents=c("PRO1_2","GA1_2"))
 PRO_GL.subset <- subset(rV2.dataset, idents=c("PRO1_2","GL1_2"))
@@ -306,17 +395,13 @@ TF.cors.SR1_3 <- qread(paste(data.path,"TF.cors.SR1_3.qs",sep=""))
 
 ## rV2 target tables with GA1_2 and GL1_2 information
 
-```{r}
-DEG.res.subset <- lapply(targetGenes.set, function(p){
-  full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))
+```{r Adding DEG and correlation to target data tables}
+DEG.res.subset <- lapply(targetGenes.set_v2, function(p){
+  full_join(filter(DEG.res.1, ensg_id %in% p$ensg_id) %>% dplyr::select(-gene_name),p, by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
 
-#ensg.ids <- sapply(combined_tibble$gene_name[is.na(combined_tibble$ensg_id)] ,function(p){gene_name2id[[p]]})
-
-#combined_tibble$ensg_id[is.na(combined_tibble$ensg_id)] <- ensg.ids
-  
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
   mutate(TF.cor.PRO.GA = TF.cors.PRO_GA[[TF]][[ensg_id]]) %>%
@@ -332,11 +417,17 @@ combined_tibble <- combined_tibble %>% mutate_if(is.numeric, round, digits=3)
 combined_tibble <- combined_tibble %>%
   mutate(linkage_kbp = linkage_dist / 1000)
 
+Tal1.targets <- add_TE_to_tibble(filter(combined_tibble, TF=="Tal1"),te.results[["Tal1"]])
+
 create_dt(filter(combined_tibble, TF=="Tal1"))
 create_dt(filter(combined_tibble, TF=="Gata2"))
 create_dt(filter(combined_tibble, TF=="Gata3"))
 create_dt(filter(combined_tibble, TF=="Vsx2"))
+create_dt(filter(combined_tibble, TF=="Insm1"))
+create_dt(filter(combined_tibble, TF=="Ebf1"))
+create_dt(filter(combined_tibble, TF=="Tead2"))
 ```
+
 
 ## Serot target tables with SR2 and SR3 information
 
@@ -369,41 +460,109 @@ create_dt(filter(combined_tibble, TF=="Gata3"))
 assay.averages.rV2 <- AverageExpression(rV2.dataset,group.by = "rv2.lineage")
 ```
 
-```{r Tal1 targets, fig.height=20, fig.width=8}
-pos.targets <- combined_tibble %>%
-  filter(TF == "Tal1" & zscore > 0) %>%
-  group_by(ensg_id) %>%
-  summarize(linkage_kbp = min(linkage_kbp)) %>% 
-  mutate(bin_category = case_when(
-    linkage_kbp <= 5 ~ "0-5 kbp",
-    linkage_kbp > 5 & linkage_kbp <= 50 ~ "> 5 kbp - 50 kbp",
-    linkage_kbp > 50 ~ "> 50 kbp"
-  )) %>%
-  ungroup()
+
+```{r}
+plot_heatmap_with_variability(
+    gene_list = Tal1.causal.targets, 
+    combined_tibble = combined_tibble, 
+    rna_data = assay.averages.rV2$RNA, 
+    gene_id2name = gene_id2name,
+    TF = "Tal1", 
+    zscore_condition = "> 0",  # Specify zscore condition
+    custom_filter = "& Gata2_ct_overlap == 0 & Gata3_ct_overlap == 0",  # Example of custom filter
+    output_file = "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Tal1.targets.pos.Tal.spec.pdf"
+)
+
+
+plot_heatmap_with_variability(
+    gene_list = Tal1.causal.targets, 
+    combined_tibble = combined_tibble, 
+    rna_data = assay.averages.rV2$RNA, 
+    gene_id2name = gene_id2name,
+    TF = "Tal1", 
+    zscore_condition = "> 0",  # Specify zscore condition
+    custom_filter = "& (Gata2_ct_overlap==1 | Gata3_ct_overlap==1)",  # Example of custom filter
+    output_file = "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Tal1.targets.pos.Tal1_Gata.pdf"
+)
+
+
+plot_heatmap_with_variability(
+    gene_list = Tal1.causal.targets, 
+    combined_tibble = combined_tibble, 
+    rna_data = assay.averages.rV2$RNA, 
+    gene_id2name = gene_id2name,
+    TF = "Tal1", 
+    zscore_condition = "< 0",  # Specify zscore condition
+    custom_filter = "& Gata2_ct_overlap==0 & Gata3_ct_overlap==0",  # Example of custom filter
+    output_file = "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Tal1.targets.neg.Tal1.spec.pdf"
+)
+
+
+plot_heatmap_with_variability(
+    gene_list = Tal1.causal.targets, 
+    combined_tibble = combined_tibble, 
+    rna_data = assay.averages.rV2$RNA, 
+    gene_id2name = gene_id2name,
+    TF = "Tal1", 
+    zscore_condition = "< 0",  # Specify zscore condition
+    custom_filter = " & (Gata2_ct_overlap==1 | Gata3_ct_overlap==1)",  # Example of custom filter
+    output_file = "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Tal1.targets.neg.Tal1.Gata.pdf"
+)
+
+```
+
+```{r}
+Tal1.targets <- combined_tibble %>%
+  filter(TF == "Tal1") %>%
+  distinct(ensg_id) %>%
+pull(ensg_id)
 
 exp.filt <- rownames(assay.averages.rV2$RNA[rowSums(assay.averages.rV2$RNA>1.2)>0,])
 
-pos.targets <- pos.targets %>% filter(ensg_id %in% exp.filt)
+non.tal1.targets <- intersect(exp.filt,rownames(assay.averages.rV2$RNA)[!rownames(assay.averages.rV2$RNA) %in% Tal1.targets])
 
-data2plot <- log1p(assay.averages.rV2$RNA[pos.targets$ensg_id,c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4","GA5","GA6","GL1","GL2","GL3","GL4","GL5")])
+data2plot <- log1p(assay.averages.rV2$RNA[non.tal1.targets,c("PRO1","PRO2","CO1","CO2","GA1","GA2","GA3","GA4","GA5","GA6","GL1","GL2","GL3","GL4","GL5")])
+
+rownames(data2plot) <- sapply(rownames(data2plot),function(g){gene_id2name[[g]]})
 
 color_scale <- colorRamp2(c(min(data2plot), max(data2plot)), c("white", "red"))
-
+pdf(file="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/All.non.Tal1.targets.pdf", width = 8, height = 100)
 Heatmap(
   data2plot,
   name = "RNA expression",
-  row_split = pos.targets$bin_category,  # Split rows by bin_category
   cluster_rows = TRUE,                   # Cluster rows within each bin_category
   cluster_columns = FALSE,               # Remove column clustering
   show_row_names = TRUE,                 # Show row names (optional)
   show_column_names = TRUE,               # Show column names (optional)
   clustering_distance_rows = "euclidean",
-  row_names_gp = gpar(fontsize = 8),
+  row_names_gp = gpar(fontsize = 4),
   clustering_method_rows = "ward.D2",
   col = color_scale
 )
+dev.off()
 ```
 
+```{r}
+tf_result <- process_TF_targets_with_TE_v2(
+     Tal1.targets, 
+     TF = "Tal1", 
+     focus_lineage = "GA", 
+     regulation_type = "Activation",
+     pval_adj_threshold=0.05,
+     w_mean_cons_threshold=0.5,
+     zscore_threshold = 1.5,
+     causality = "TF->Target",
+     custom_filter = "(Gata2_ct_overlap==1 | Gata3_ct_overlap==1)"
+)
+
+plot_heatmap_with_variability_v2(
+    combined_tibble = tf_result, 
+    rna_data = assay.averages.rV2$RNA, 
+    gene_id2name = gene_id2name,
+    target_RNA_threshold = 1.2,
+    output_file = "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Tal1.targets.GA.activation.Tal1_Gata.pdf"
+)
+```
 
 
 # GSEA analysis of target genes in rV2
