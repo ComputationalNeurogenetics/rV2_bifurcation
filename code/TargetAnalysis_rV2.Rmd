@@ -336,6 +336,8 @@ Tal1.targets <- filter(combined_tibble, TF=="Tal1")
 plot_zscore_bar(Tal1.targets)
 plot_linkage_kbp_bar(Tal1.targets)
 plot_simple_variability_boxplot(Tal1.targets, assay.averages.rV2$RNA)
+
+plot_tal1_vs_target_scatter(gene_name2id[["Tal1"]], c("ENSMUSG00000026468", "ENSMUSG00000048540"), rna_data=assay.averages.rV2$RNA)
 ```
 
 # GSEA analysis of target genes in rV2
@@ -451,6 +453,60 @@ plot_simple_variability_boxplot <- function(
   
   # Print the plot
   print(p)
+}
+
+# Function to create scatter plot of Tal1 vs target gene expression
+plot_tal1_vs_target_scatter <- function(
+    tal1_ensg_id,        # The ensg_id of Tal1 (e.g., "ENSMUSG00000012356")
+    target_genes,        # A vector of target gene ensg_ids
+    rna_data,            # RNA expression matrix
+    columns = c("CO2", "GA1")  # Columns to use for plotting
+) {
+  
+  # Ensure Tal1 is present in the RNA data
+  if (!tal1_ensg_id %in% rownames(rna_data)) {
+    stop("Tal1 ensg_id not found in rna_data.")
+  }
+  
+  # Ensure the target genes are present in the RNA data
+  valid_targets <- target_genes[target_genes %in% rownames(rna_data)]
+  
+  if (length(valid_targets) == 0) {
+    stop("No valid target genes found in rna_data.")
+  }
+  
+  # Create an empty data frame to store results
+  plot_data <- data.frame()
+  
+  # Extract Tal1 expression values for the selected columns
+  tal1_expression <- rna_data[tal1_ensg_id, columns]
+  
+  # Loop over valid target genes and create scatter plot data
+  for (target_gene in valid_targets) {
+    target_expression <- rna_data[target_gene, columns]
+    
+    # Combine Tal1 and target gene expression into one data frame
+    temp_data <- data.frame(
+      Tal1_expression = tal1_expression,
+      Target_expression = target_expression,
+      Condition = columns,
+      Target_gene = target_gene
+    )
+    
+    # Append to the final plot data
+    plot_data <- rbind(plot_data, temp_data)
+  }
+  
+  # Create the scatter plot
+  ggplot(plot_data, aes(x = Tal1_expression, y = Target_expression, color = Condition)) +
+    geom_point() +
+    facet_wrap(~ Target_gene, scales = "free_y") +  # Create separate panels for each target gene
+    labs(
+      x = "Tal1 Expression (CO2 / GA1)",
+      y = "Target Gene Expression (CO2 / GA1)",
+      title = "Scatter Plot of Tal1 vs Target Gene Expression"
+    ) +
+    theme_minimal()
 }
 ```
 
