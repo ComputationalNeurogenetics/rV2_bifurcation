@@ -1,0 +1,157 @@
+---
+title: "R Notebook of Figure 5"
+output: html_notebook
+---
+
+```{r Packages}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+library(readxl)
+library(hash)
+library(fgsea)
+library(DBI)
+library(hash)
+library(biomaRt)
+library(presto)
+library(ggpubr)
+library(purrr)
+library(patchwork)
+library(parallel)
+library(umap)
+library(jsonlite)
+library(topGO)
+library(plotly)
+library(dplyr)
+library(cowplot)
+library(ggrepel)
+library(ComplexHeatmap)
+library(future)
+library(circlize)
+library(GenomicRanges)
+source(paste(auxcode.path,"AuxFunctions.R",sep=""))
+source(paste(auxcode.path,"TargetAnalysis.R",sep=""))
+
+plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig5/"
+```
+
+```{r}
+rV2.data <- readRDS("/Volumes/MyBookDuo/Data/E12_rV2_DownstreamReady_nmm_.240806.Rds")
+
+# Read the JSON Lines file
+json_lines <- readLines("../metadata/H12CORE_annotation.jsonl")
+
+# Parse each line as JSON
+json_data <- lapply(json_lines, function(line) fromJSON(line, flatten = TRUE))
+
+# Extract name and associated MOUSE gene_symbol
+extract_gene_symbol <- function(data) {
+  if (!is.null(data$masterlist_info$species$MOUSE$gene_symbol)) {
+    list(
+      name = data$name,
+      gene_symbol = data$masterlist_info$species$MOUSE$gene_symbol
+    )
+  } else {
+    NULL
+  }
+}
+
+# Apply function to each parsed JSON object
+result <- lapply(json_data, extract_gene_symbol)
+
+# Remove NULL values from result (if any entries had no MOUSE gene_symbol)
+result <- result[!sapply(result, is.null)]
+
+# Optionally, convert the result to a dataframe for easier handling
+result_df <- do.call(rbind.data.frame, result)
+print(result_df)
+```
+
+```{r}
+rV2.data.avg <- AverageExpression(rV2.data)
+```
+
+```{r}
+# Define the number of top TFs to extract
+top_N <- 10  # You can modify this value to your preference
+
+# Extract the chromvar matrix
+chromvar_matrix <- rV2.data.avg$chromvar
+
+# Get the motif names from the rows of the chromvar matrix
+motif_names <- rownames(chromvar_matrix)
+
+# Create a mapping of motif names to gene symbols
+motif_to_tf <- setNames(result_df$gene_symbol, result_df$name)
+
+# Function to map motif names to gene symbols and calculate the average per TF
+average_per_tf <- function(chromvar_column, motif_names, motif_to_tf) {
+  # Map motif names to TF names using the motif_to_tf object
+  tf_names <- motif_to_tf[motif_names]
+  
+  # Remove motifs with no matching TF
+  valid_entries <- !is.na(tf_names)
+  tf_names <- tf_names[valid_entries]
+  chromvar_values <- chromvar_column[valid_entries]
+  
+  # Calculate the average chromvar score for each TF
+  tf_averages <- tapply(chromvar_values, tf_names, mean)
+  
+  # Sort the TFs by their average chromvar score in descending order and select top N
+  top_tf_averages <- sort(tf_averages, decreasing = TRUE)[1:top_N]
+  
+  return(top_tf_averages)
+}
+
+# Initialize a list to store top TFs for each cell group
+top_tfs_per_cell_group <- list()
+
+# Loop over the columns of the chromvar matrix (each column is a cell group)
+for (cell_group in colnames(chromvar_matrix)) {
+  top_tfs <- average_per_tf(chromvar_matrix[, cell_group], motif_names, motif_to_tf)
+  top_tfs_per_cell_group[[cell_group]] <- top_tfs
+}
+```
+
+```{r, fig.width=10,fig.height=5}
+# Step 1: Collect all unique TFs from top_tfs_per_cell_group
+unique_tfs <- unique(unlist(lapply(top_tfs_per_cell_group, names)))
+
+# Step 2: Map unique TFs back to their corresponding motif names in rV2.data.avg$chromvar
+# Ensure the mapping of unique TFs to the corresponding motifs in the chromvar matrix
+tf_to_motif <- names(motif_to_tf)[match(unique_tfs, motif_to_tf)]
+
+# Remove any NAs (in case some TFs do not have corresponding motif names)
+valid_motifs <- tf_to_motif[!is.na(tf_to_motif)]
+
+# Step 3: Subset the chromvar matrix to include only rows corresponding to the valid motifs
+heatmap_data <- log1p(chromvar_matrix[valid_motifs, , drop = FALSE])
+
+# Step 4: Rename the rownames of the subsetted matrix to the corresponding TF names
+rownames(heatmap_data) <- unique_tfs[!is.na(tf_to_motif)]
+
+# Step 5: Transpose the matrix to have TFs on the x-axis and cell groups on the y-axis
+heatmap_data <- t(heatmap_data)
+
+# Step 6: Define the desired order for the y-axis (cell groups)
+desired_order <- c("PRO1", "PRO2", "CO1", "CO2", 
+                   "GA1", "GA2", "GA3", "GA4", "GA5", "GA6", 
+                   "GL1", "GL2", "GL3", "GL4", "GL5")
+
+# Step 7: Reorder the rows of the heatmap_data to match the desired order
+heatmap_data <- heatmap_data[desired_order, , drop = FALSE]
+
+pdf(width = 10, height = 5, file=paste(plot_loc,"Figure5A.pdf",sep=""))
+# Step 8: Draw the heatmap using ComplexHeatmap with the desired y-axis order
+Heatmap(heatmap_data,
+        name = "chromvar (log1p)",
+        column_names_gp = gpar(fontsize = 10),  # Adjust TF (now columns) font size
+        row_names_gp = gpar(fontsize = 10),  # Adjust cell group (now rows) font size
+        show_column_names = TRUE,
+        show_row_names = TRUE,
+        cluster_rows = FALSE,  # Don't cluster rows (cell groups) to preserve the order
+        cluster_columns = TRUE)  # Cluster columns (TFs)
+dev.off()
+```
+
