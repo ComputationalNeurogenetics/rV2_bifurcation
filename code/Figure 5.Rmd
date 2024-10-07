@@ -204,3 +204,77 @@ Heatmap(heatmap_data,
 dev.off()
 ```
 
+```{r}
+# Access the chromvar and RNA data from rV2.data.avg
+chromvar_data <- rV2.data.avg$chromvar  # Chromvar assay
+rna_data <- rV2.data.avg$RNA  # RNA assay
+
+# Assuming result_df is the TF motif to TF mapping, as in previous codes
+motif_to_tf <- setNames(result_df$gene_symbol, result_df$name)
+
+# Function to calculate correlation between chromvar and RNA expression
+correlation.cell.all <- sapply(1:nrow(chromvar_data), function(i) {
+  motif_name <- rownames(chromvar_data)[i]
+  
+  # Map the motif name to the corresponding TF using motif_to_tf
+  gene_symbol <- motif_to_tf[motif_name]
+  
+  # If the gene symbol exists, use it to fetch RNA data
+  if (!is.na(gene_symbol)) {
+    # TODO: Change gene mapping between symbol and ensg!!
+    rnadata <- rna_data[which(rownames(rna_data) == gene_symbol), ]
+  } else {
+    return(NA)  # Return NA if no matching gene symbol
+  }
+  
+  # Chromvar data for the current motif
+  motifdata <- chromvar_data[i, ]
+  
+  # Perform the correlation test if both RNA and chromvar data are numeric
+  if (is.numeric(rnadata) && length(rnadata) == length(motifdata)) {
+    correlation.test <- cor.test(motifdata, rnadata, method = "spearman")
+    return(correlation.test$estimate)  # Return the correlation value
+  } else {
+    return(NA)
+  }
+})
+
+# Calculating p-values in a similar manner
+correlation.cell.pvalue <- sapply(1:nrow(chromvar_data), function(i) {
+  motif_name <- rownames(chromvar_data)[i]
+  
+  # Map the motif name to the corresponding TF using motif_to_tf
+  gene_symbol <- motif_to_tf[motif_name]
+  
+  # If the gene symbol exists, use it to fetch RNA data
+  if (!is.na(gene_symbol)) {
+    rnadata <- rna_data[which(rownames(rna_data) == gene_symbol), ]
+  } else {
+    return(NA)  # Return NA if no matching gene symbol
+  }
+  
+  # Chromvar data for the current motif
+  motifdata <- chromvar_data[i, ]
+  
+  # Perform the correlation test if both RNA and chromvar data are numeric
+  if (is.numeric(rnadata) && length(rnadata) == length(motifdata)) {
+    correlation.test <- cor.test(motifdata, rnadata, method = "spearman")
+    return(correlation.test$p.value)  # Return the p-value
+  } else {
+    return(NA)
+  }
+})
+
+# Combine the correlation and p-value results into a tibble
+correlation.cell.both <- cbind(correlation.cell.all, correlation.cell.pvalue)
+cortibble.all <- as_tibble(cbind(rownames(chromvar_data), correlation.cell.both))
+colnames(cortibble.all) <- c("motif", "correlation", "p_value")
+
+# Convert correlation and p-value to numeric
+cortibble.all$correlation <- as.numeric(cortibble.all$correlation)
+cortibble.all$p_value <- as.numeric(cortibble.all$p_value)
+
+# Print the result
+print(cortibble.all)
+```
+
