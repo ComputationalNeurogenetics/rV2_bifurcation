@@ -74,79 +74,127 @@ rV2.data.avg <- AverageExpression(rV2.data)
 ```
 
 ```{r}
-# Define the number of top TFs to extract
-top_N <- 10  # You can modify this value to your preference
+# Apply log1p transformation to the chromvar matrix
+log1p_chromvar_matrix <- log1p(chromvar_matrix)
 
-# Extract the chromvar matrix
-chromvar_matrix <- rV2.data.avg$chromvar
+# Define the number of top TF motifs per cell group
+top_N <- 10  # You can change this to the number of top motifs you need
 
-# Get the motif names from the rows of the chromvar matrix
-motif_names <- rownames(chromvar_matrix)
-
-# Create a mapping of motif names to gene symbols
-motif_to_tf <- setNames(result_df$gene_symbol, result_df$name)
-
-# Function to map motif names to gene symbols and calculate the average per TF
-average_per_tf <- function(chromvar_column, motif_names, motif_to_tf) {
-  # Map motif names to TF names using the motif_to_tf object
-  tf_names <- motif_to_tf[motif_names]
-  
-  # Remove motifs with no matching TF
-  valid_entries <- !is.na(tf_names)
-  tf_names <- tf_names[valid_entries]
-  chromvar_values <- chromvar_column[valid_entries]
-  
-  # Calculate the average chromvar score for each TF
-  tf_averages <- tapply(chromvar_values, tf_names, mean)
-  
-  # Sort the TFs by their average chromvar score in descending order and select top N
-  top_tf_averages <- sort(tf_averages, decreasing = TRUE)[1:top_N]
-  
-  return(top_tf_averages)
+# Function to extract the top N motifs for each cell group based on log1p transformed data
+extract_top_motifs <- function(chromvar_column, N = top_N) {
+  # Sort the motifs by their log1p chromvar score for the given cell group and select the top N
+  sorted_indices <- order(chromvar_column, decreasing = TRUE)[1:N]
+  return(sorted_indices)
 }
 
-# Initialize a list to store top TFs for each cell group
-top_tfs_per_cell_group <- list()
+# Initialize an empty list to store the indices of top motifs for each cell group
+top_motif_indices <- list()
 
-# Loop over the columns of the chromvar matrix (each column is a cell group)
-for (cell_group in colnames(chromvar_matrix)) {
-  top_tfs <- average_per_tf(chromvar_matrix[, cell_group], motif_names, motif_to_tf)
-  top_tfs_per_cell_group[[cell_group]] <- top_tfs
+# Loop through each cell group (column in the log1p chromvar matrix) and extract the top N motifs
+for (cell_group in colnames(log1p_chromvar_matrix)) {
+  top_motif_indices[[cell_group]] <- extract_top_motifs(log1p_chromvar_matrix[, cell_group])
 }
-```
 
-```{r, fig.width=10,fig.height=5}
-# Step 1: Collect all unique TFs from top_tfs_per_cell_group
-unique_tfs <- unique(unlist(lapply(top_tfs_per_cell_group, names)))
+# Get the union of all top motif indices (i.e., all unique top motifs across all cell groups)
+unique_top_motif_indices <- unique(unlist(top_motif_indices))
 
-# Step 2: Map unique TFs back to their corresponding motif names in rV2.data.avg$chromvar
-# Ensure the mapping of unique TFs to the corresponding motifs in the chromvar matrix
-tf_to_motif <- names(motif_to_tf)[match(unique_tfs, motif_to_tf)]
+# Subset the log1p transformed chromvar matrix to only include these top motifs
+heatmap_motifs_data <- log1p_chromvar_matrix[unique_top_motif_indices, , drop = FALSE]
 
-# Remove any NAs (in case some TFs do not have corresponding motif names)
-valid_motifs <- tf_to_motif[!is.na(tf_to_motif)]
+# Transpose the matrix to have motifs on the x-axis and cell groups on the y-axis
+heatmap_motifs_data <- t(heatmap_motifs_data)
 
-# Step 3: Subset the chromvar matrix to include only rows corresponding to the valid motifs
-heatmap_data <- log1p(chromvar_matrix[valid_motifs, , drop = FALSE])
-
-# Step 4: Rename the rownames of the subsetted matrix to the corresponding TF names
-rownames(heatmap_data) <- unique_tfs[!is.na(tf_to_motif)]
-
-# Step 5: Transpose the matrix to have TFs on the x-axis and cell groups on the y-axis
-heatmap_data <- t(heatmap_data)
-
-# Step 6: Define the desired order for the y-axis (cell groups)
+# Step 5: Define the desired order for the y-axis (cell groups)
 desired_order <- c("PRO1", "PRO2", "CO1", "CO2", 
                    "GA1", "GA2", "GA3", "GA4", "GA5", "GA6", 
                    "GL1", "GL2", "GL3", "GL4", "GL5")
 
-# Step 7: Reorder the rows of the heatmap_data to match the desired order
+# Reorder the rows of the heatmap_motifs_data to match the desired order
+heatmap_motifs_data <- heatmap_motifs_data[desired_order, , drop = FALSE]
+
+pdf(width = 12, height = 5, file=paste(plot_loc,"Figure5_TF_motifs.pdf",sep=""))
+# Draw heatmap for the top N motifs per cell group based on log1p transformed data
+Heatmap(heatmap_motifs_data,
+        name = "chromvar (log1p, motifs)",
+        column_names_gp = gpar(fontsize = 10),  # Adjust column (motifs) font size
+        row_names_gp = gpar(fontsize = 10),  # Adjust row (cell groups) font size
+        show_column_names = TRUE,
+        show_row_names = TRUE,
+        cluster_rows = FALSE,  # Don't cluster rows (cell groups) to preserve the order
+        cluster_columns = TRUE)  # Cluster columns (motifs)
+dev.off()
+```
+
+
+```{r}
+# Step 1: Ensure the TF names are unique and valid
+valid_tfs <- unique(valid_tfs)  # Ensure only unique TFs
+
+# Step 2: Aggregate the chromvar values by unique TFs
+# Initialize a list to store aggregated chromvar values for each TF
+tf_scores <- list()
+
+# Loop through each unique TF and calculate the average chromvar score for motifs that map to it
+for (tf in valid_tfs) {
+  tf_motif_indices <- which(valid_tfs == tf)
+  
+  # Calculate the average chromvar score across all motifs that map to this TF
+  tf_scores[[tf]] <- rowMeans(heatmap_motifs_data[, tf_motif_indices, drop = FALSE])
+}
+
+# Convert the list of aggregated TF scores into a matrix
+heatmap_data <- do.call(cbind, tf_scores)
+
+# Step 3: Ensure that the **columns** of heatmap_data (cell groups) are reordered according to the desired order of cell groups
+# The columns represent the cell groups, so we reorder them based on desired_order
+heatmap_data <- heatmap_data[desired_order, ,drop = FALSE]
+
+# Step 4: Draw the heatmap with TFs on the **x-axis** and cell groups on the **y-axis**
+# No transpose needed here since `heatmap_data` is already in the correct orientation
+pdf(width = 10, height = 5, file=paste(plot_loc,"Figure5_TFs.pdf",sep=""))
+Heatmap(heatmap_data,
+        name = "chromvar (log1p, TFs)",
+        column_names_gp = gpar(fontsize = 10),  # Adjust TF (now columns) font size
+        row_names_gp = gpar(fontsize = 10),  # Adjust cell group (now rows) font size
+        show_column_names = TRUE,
+        show_row_names = TRUE,
+        cluster_rows = FALSE,  # Don't cluster rows (cell groups) to preserve the order
+        cluster_columns = TRUE)  # Cluster columns (TFs)
+dev.off()
+```
+
+```{r}
+# Load matrixStats package for rowMaxs
+library(matrixStats)
+
+# Step 1: Ensure the TF names are unique and valid
+valid_tfs <- unique(valid_tfs)  # Ensure only unique TFs
+
+# Step 2: Aggregate the chromvar values by taking the maximum across motifs for each TF
+# Initialize a list to store aggregated chromvar values for each TF
+tf_scores <- list()
+
+# Loop through each unique TF and calculate the maximum chromvar score for motifs that map to it
+for (tf in valid_tfs) {
+  tf_motif_indices <- which(valid_tfs == tf)
+  
+  # Calculate the maximum chromvar score across all motifs that map to this TF
+  tf_scores[[tf]] <- rowMaxs(as.matrix(heatmap_motifs_data[, tf_motif_indices, drop = FALSE]))
+}
+
+# Convert the list of aggregated TF scores into a matrix
+heatmap_data <- do.call(cbind, tf_scores)
+
+# Set the row names back, as rowMaxs does not retain names
+rownames(heatmap_data) <- rownames(heatmap_motifs_data)
+
+# Step 3: Ensure that the **rows** of heatmap_data (cell groups) are reordered according to the desired order of cell groups
 heatmap_data <- heatmap_data[desired_order, , drop = FALSE]
 
-pdf(width = 10, height = 5, file=paste(plot_loc,"Figure5A.pdf",sep=""))
-# Step 8: Draw the heatmap using ComplexHeatmap with the desired y-axis order
+pdf(width = 10, height = 5, file=paste(plot_loc,"Figure5_TFs_max.pdf",sep=""))
+# Step 4: Draw the heatmap with TFs on the **x-axis** and cell groups on the **y-axis**
 Heatmap(heatmap_data,
-        name = "chromvar (log1p)",
+        name = "chromvar (log1p, TFs, max)",
         column_names_gp = gpar(fontsize = 10),  # Adjust TF (now columns) font size
         row_names_gp = gpar(fontsize = 10),  # Adjust cell group (now rows) font size
         show_column_names = TRUE,
