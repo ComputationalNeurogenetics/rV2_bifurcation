@@ -1,0 +1,1555 @@
+---
+title: "R Notebook of analysis of Stardist segmented cells from RNAscope images"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+  html_notebook:
+    code_folding: hide
+---
+
+```{r, message=FALSE}
+library("RImageJROI")
+library(raster)
+library(spatstat.utils)
+library(spatstat)
+library(tidyverse)
+library(PerformanceAnalytics)
+library(parallel)
+library(factoextra)
+library(viridis)
+library(slider)
+
+source("CellAuxFunctions.R")
+cores<-10
+```
+
+```{r Image paths}
+rois.path <- "/Volumes/MyBookDuo/DataLad/RNAScope_images/to_segment/TIFF/"
+fluor.channel.path <- "/Volumes/MyBookDuo/DataLad/RNAScope_images/fluor_channels/"
+```
+
+# Image e3_1a_sb514 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Insm1.tif"
+band.trail.3 <- "_Sox4.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e3_1a_sb514_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e3_1a_sb514}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e3_1a_sb514, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(flip(ras.1)))
+im.2 <- as.im(as.matrix(flip(ras.2)))
+im.3 <- as.im(as.matrix(flip(ras.3)))
+im.dapi <- as.im(as.matrix(flip(ras.dapi)))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e3_1a_sb514}
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 1 to check orientation e3_1a_sb514}
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+```{r Plot channel 2 to check orientation e3_1a_sb514}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e3_1a_sb514}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+```{r Find maximum intensity dots per cell per channel e3_1a_sb514}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e3_1a_sb514}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+
+#count.per.cell.channel$cell.i <- as.factor(count.per.cell.channel$cell.i)
+```
+
+```{r Define circle e3_1a_sb514, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e3_1a_sb514.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e3_1a_sb514.three.points.Rds")
+```
+
+```{r}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+
+```{r Calculate distances e3_1a_sb514}
+# cell.centroids <- lapply(rois.ss, findCentroids)
+# cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+# 
+# cell.distances <- sapply(cell.centroids, function(cent){
+#   distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)
+#   })
+# 
+# cell.distances <- cell.distances/cell.size.avg
+# 
+# dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+# count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+```
+
+```{r Min dots per cell e3_1a_sb514}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Average cell diameters from VZ")
+```
+
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel")  + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Average cell diameters from VZ") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 1)) + ylim(0, NA)
+``` 
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+# Image e3_3b_sb509 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Insm1.tif"
+band.trail.3 <- "_Sox4.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e3_3b_sb509_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e3_3b_sb509}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e3_3b_sb509, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e3_3b_sb509}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e3_3b_sb509}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e3_3b_sb509}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e3_3b_sb509}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+```{r Find maximum intensity dots per cell per channel e3_3b_sb509}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+  return(data.tb)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e3_3b_sb509}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e3_3b_sb509, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e3_1a_sb510.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e3_1a_sb510.three.points.Rds")
+```
+
+```{r Calculate distances e3_3b_sb509}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r}
+# cell.centroids <- lapply(rois.ss, findCentroids)
+# cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+# 
+# cell.distances <- sapply(cell.centroids, function(cent){
+#   distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)
+#   })
+# 
+# cell.distances <- cell.distances/cell.size.avg
+# 
+# dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+# count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+```
+
+
+```{r Min dots per cell e3_3b_sb509}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 1)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+# Image e3_1a_sb510 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Insm1.tif"
+band.trail.3 <- "_Sox4.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e3_1a_sb510_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e3_1a_sb510}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e3_1a_sb510, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(flip(ras.1,direction='x')))
+im.2 <- as.im(as.matrix(flip(ras.2,direction='x')))
+im.3 <- as.im(as.matrix(flip(ras.3,direction='x')))
+im.dapi <- as.im(as.matrix(flip(ras.dapi,direction='x')))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e3_1a_sb510}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e3_1a_sb510}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e3_1a_sb510}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e3_1a_sb510}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+```{r Find maximum intensity dots per cell per channel e3_1a_sb510}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e3_1a_sb510}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e3_1a_sb510, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e3_1a_sb510.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e3_1a_sb510.three.points.Rds")
+```
+
+```{r Calculate distances e3_1a_sb510}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e3_1a_sb510}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+# Image e3b_1b_sb514 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_E2f1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e3b_1b_sb514_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e3b_1b_sb514}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e3b_1b_sb514, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e3b_1b_sb514}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e3b_1b_sb514}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e3b_1b_sb514}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e3b_1b_sb514}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+```{r Find maximum intensity dots per cell per channel e3b_1b_sb514}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e3b_1b_sb514}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e3b_1b_sb514, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e3b_1b_sb514.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e3b_1b_sb514.three.points.Rds")
+```
+
+```{r Calculate distances e3b_1b_sb514}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e3b_1b_sb514}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+
+# Image e3b_3b_sb509 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_E2f1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e3b_3b_sb509_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e3b_3b_sb509}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e3b_3b_sb509, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e3b_3b_sb509}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e3b_3b_sb509}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e3b_3b_sb509}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e3b_3b_sb509}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+```{r Find maximum intensity dots per cell per channel e3b_3b_sb509}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e3b_3b_sb509}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e3b_3b_sb509, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e3b_3b_sb509.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e3b_3b_sb509.three.points.Rds")
+```
+
+```{r Calculate distances e3b_3b_sb509}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e3b_3b_sb509}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+
+# Image e3b_1b_sb510 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_E2f1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e3b_1b_sb510_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e3b_1b_sb510}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e3b_1b_sb510, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e3b_1b_sb510}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e3b_1b_sb510}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e3b_1b_sb510}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e3b_1b_sb510}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+```{r Find maximum intensity dots per cell per channel e3b_1b_sb510}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e3b_1b_sb510}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e3b_1b_sb510, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e3b_1b_sb510.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e3b_1b_sb510.three.points.Rds")
+```
+
+```{r Calculate distances e3b_1b_sb510}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e3b_1b_sb510}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","E2f1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+
+
+# Image e4_1c_sb514 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_Ebf1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e4_1c_sb514_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e4_1c_sb514}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e4_1c_sb514, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e4_1c_sb514}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e4_1c_sb514}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e4_1c_sb514}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e4_1c_sb514}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+```{r Find maximum intensity dots per cell per channel e4_1c_sb514}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e4_1c_sb514}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e4_1c_sb514, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e4_1c_sb514.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e4_1c_sb514.three.points.Rds")
+```
+
+```{r Calculate distances e4_1c_sb514}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e4_1c_sb514}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+
+# Image e4_3e_sb509 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_Ebf1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e4_3e_sb509_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e4_3e_sb509}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e4_3e_sb509, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e4_3e_sb509}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e4_3e_sb509}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e4_3e_sb509}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e4_3e_sb509}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+## Aggregate signal per cell and radial distance
+
+```{r Find maximum intensity dots per cell per channel e4_3e_sb509}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e4_3e_sb509}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e4_3e_sb509, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e4_3e_sb509.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e4_3e_sb509.three.points.Rds")
+```
+
+```{r Calculate distances e4_3e_sb509}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e4_3e_sb509}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance")
+```
+
+# Image e4_1c_sb510 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_Ebf1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e4_1c_sb510_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e4_1c_sb510}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e4_1c_sb510, warning=FALSE}
+ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
+ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=3), direction="y")
+ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=2), direction="y")
+ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e4_1c_sb510}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e4_1c_sb510}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e4_1c_sb510}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e4_1c_sb510}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+## Aggregate signal per cell and radial distance
+
+```{r Find maximum intensity dots per cell per channel e4_1c_sb510}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e4_1c_sb510}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e4_1c_sb510, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e4_1c_sb510.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e4_1c_sb510.three.points.Rds")
+```
+
+```{r Calculate distances e4_1c_sb510}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e4_1c_sb510}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values")  +xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance") + xlab("Micrometers")
+```
+
+# Image e4_2b_sb0488 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_Ebf1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e4_2b_sb0488_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e4_2b_sb0488}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e4_2b_sb0488, warning=FALSE}
+ras.1 <- raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1)
+ras.2 <- raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=1)
+ras.3 <- raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=1)
+ras.dapi <- raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1)
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e4_2b_sb0488}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e4_2b_sb0488}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e4_2b_sb0488}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e4_2b_sb0488}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+## Aggregate signal per cell and radial distance
+
+```{r Find maximum intensity dots per cell per channel e4_2b_sb0488}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e4_2b_sb0488}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e4_2b_sb0488, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e4_2b_sb0488.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e4_2b_sb0488.three.points.Rds")
+```
+
+```{r Calculate distances e4_2b_sb0488}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e4_2b_sb0488}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values")  +xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance") + xlab("Micrometers")
+```
+
+# Image e4_4c_sb0479 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_Ebf1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e4_4c_sb0479_e12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e4_4c_sb0479}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e4_4c_sb0479, warning=FALSE}
+ras.1 <- raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1)
+ras.2 <- raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=1)
+ras.3 <- raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=1)
+ras.dapi <- raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1)
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e4_4c_sb0479}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e4_4c_sb0479}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e4_4c_sb0479}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e4_4c_sb0479}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+## Aggregate signal per cell and radial distance
+
+```{r Find maximum intensity dots per cell per channel e4_4c_sb0479}
+combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
+  cell <- rois.ss[[cell.i]]
+  
+  im.1.values <- im.1[i=cell]
+  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
+  
+  im.2.values <- im.2[i=cell]
+  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
+  
+  im.3.values <- im.3[i=cell]
+  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
+  
+  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
+}, mc.cores=cores)
+
+comb.agg.tb <- do.call(rbind,combined.agg)
+```
+
+```{r Count dots per cell per channel e4_4c_sb0479}
+#IQR(f.int, na.rm=T)*1, na.rm = T
+count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
+count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+```
+
+```{r Define circle e4_4c_sb0479, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e4_4c_sb0479.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e4_4c_sb0479.three.points.Rds")
+```
+
+```{r Calculate distances e4_4c_sb0479}
+center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
+
+cell.centroids <- lapply(rois.ss, findCentroids)
+cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+
+cell.distances <- cell.distances-min(cell.distances)
+
+dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
+```
+
+```{r Min dots per cell e4_4c_sb0479}
+min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
+cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
+
+count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+```
+
+## Fluorescence over radial distance
+
+```{r}
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+ch1.slid.mean <- tibble(ch=1,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==1) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch2.slid.mean <- tibble(ch=2,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==2) %>% arrange(cell.distances) %>% pull(cell.distances))
+ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(count.dots), ~mean(.x), .before = 5), cell.distances=dplyr::filter(count.per.cell.channel.filt, ch==3) %>% arrange(cell.distances) %>% pull(cell.distances))
+
+slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
+
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values")  +xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+```
+
+
+## Stacked barplot of fluor dot proportions in radial distance
+
+```{r}
+count.per.cell.channel.filt$cell.i <- factor(count.per.cell.channel.filt$cell.i, levels=order(cell.distances))
+```
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt, aes(fill=as.character(ch), y=norm_count_dots, x=cell.i)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance") + xlab("Micrometers")
+```
