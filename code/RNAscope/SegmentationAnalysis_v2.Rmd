@@ -99,6 +99,7 @@ three.points <- readRDS(file="../../analysis/e3_1a_sb514.three.points.Rds")
 
 ```{r Calculate distances e3_1a_sb514}
 count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25)
+count.per.cell.channel.filt.sb514 <- count.per.cell.channel.filt
 ```
 
 ## Fluorescence over radial distance
@@ -201,6 +202,7 @@ three.points <- readRDS(file="../../analysis/e3_1a_sb510.three.points.Rds")
 
 ```{r Calculate distances e3_3b_sb509}
 count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25)
+count.per.cell.channel.filt.sb509 <- count.per.cell.channel.filt
 ```
 
 ## Fluorescence over radial distance
@@ -303,6 +305,7 @@ three.points <- readRDS(file="../../analysis/e3_1a_sb510.three.points.Rds")
 
 ```{r Calculate distances e3_1a_sb510}
 count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25)
+count.per.cell.channel.filt.sb510 <- count.per.cell.channel.filt
 ```
 
 ## Fluorescence over radial distance
