@@ -32,7 +32,7 @@ distance2D <- function(point1, point2) {
   
   # Calculating distance
   distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2))
-  # distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2)*(211.30/2048))
+  #distance <- (sqrt((x2 - x1)^2 + (y2 - y1)^2)*(211.30/2048))
   return(distance)
 }
 
@@ -123,3 +123,137 @@ average_cell_diameter <- function(polygon) {
   return(average_diameter)
 }
 
+# Define the function
+aggregate_image_values <- function(rois.ss, im.1, im.2, im.3, cores = 1) {
+  combined.agg <- mclapply(1:length(rois.ss), function(cell.i) {
+    cell <- rois.ss[[cell.i]]
+    
+    # Process im.1
+    im.1.values <- im.1[i = cell]
+    im.1.values <- tibble(f.int = im.1.values[im.1.values > IQR(im.1.values, na.rm = TRUE) * 5], 
+                          ch = 1, 
+                          cell.i = cell.i)
+    
+    # Process im.2
+    im.2.values <- im.2[i = cell]
+    im.2.values <- tibble(f.int = im.2.values[im.2.values > IQR(im.2.values, na.rm = TRUE) * 5], 
+                          ch = 2, 
+                          cell.i = cell.i)
+    
+    # Process im.3
+    im.3.values <- im.3[i = cell]
+    im.3.values <- tibble(f.int = im.3.values[im.3.values > IQR(im.3.values, na.rm = TRUE) * 5], 
+                          ch = 3, 
+                          cell.i = cell.i)
+    
+    # Combine the processed data
+    data.tb <- rbind(im.1.values, im.2.values, im.3.values)
+    return(data.tb)
+  }, mc.cores = cores)
+  
+  # Combine all the aggregated data into a single tibble
+  comb.agg.tb <- do.call(rbind, combined.agg)
+  
+  return(comb.agg.tb)
+}
+
+# Function to process the combined aggregated data
+process_combined_agg <- function(combined.agg, replicate_name) {
+  
+  # Summarize by cell and channel
+  count.per.cell.channel <- combined.agg %>%
+    group_by(cell.i, ch) %>%
+    summarize(count.dots = mean(f.int, na.rm = TRUE), .groups = 'drop')
+  
+  # Normalize counts per cell
+  count.per.cell.channel <- count.per.cell.channel %>%
+    group_by(cell.i) %>%
+    mutate(norm_count_dots = count.dots / sum(count.dots)) %>%
+    ungroup()  # Ungroup after mutation
+  
+  # Add replicate information
+  count.per.cell.channel$replicate <- replicate_name
+  
+  return(count.per.cell.channel)
+}
+
+# Define the function
+process_cell_distances <- function(rois.ss, rois, three.points, count.per.cell.channel) {
+  
+  # Step 1: Calculate centroids of cells
+  cell.centroids <- lapply(rois.ss, findCentroids)
+  
+  # Step 2: Calculate average cell size
+  cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+  
+  # Step 3: Compute distances of cell centroids to a reference circle
+  cell.distances <- sapply(cell.centroids, function(cent) {
+    distanceToCircle(
+      p1 = c(three.points$x[1], three.points$y[1]),
+      p2 = c(three.points$x[2], three.points$y[2]),
+      p3 = c(three.points$x[3], three.points$y[3]),
+      x = cent$X, y = cent$Y
+    )
+  })
+  
+  # Step 4: Normalize distances by average cell size
+  cell.distances <- cell.distances / cell.size.avg
+  
+  # Step 5: Create a tibble for cell distances
+  dist.tb <- tibble(cell.i = 1:length(cell.distances), cell.distances = cell.distances)
+  
+  # Step 6: Merge the distances with count data and arrange by cell distances
+  count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb, by = "cell.i") %>%
+    arrange(cell.distances)
+  
+  return(count.per.cell.channel)
+}
+
+# Define the function
+process_and_filter_cell_data <- function(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25) {
+  
+  # Step 1: Calculate centroids of cells
+  cell.centroids <- lapply(rois.ss, findCentroids)
+  
+  # Step 2: Calculate average cell size
+  cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+  
+  # Step 3: Compute distances of cell centroids to a reference circle
+  cell.distances <- sapply(cell.centroids, function(cent) {
+    distanceToCircle(
+      p1 = c(three.points$x[1], three.points$y[1]),
+      p2 = c(three.points$x[2], three.points$y[2]),
+      p3 = c(three.points$x[3], three.points$y[3]),
+      x = cent$X, y = cent$Y
+    )
+  })
+  
+  # Step 4: Normalize distances by average cell size
+  cell.distances <- cell.distances / cell.size.avg
+  
+  # Step 5: Create a tibble for cell distances and merge with count data
+  dist.tb <- tibble(cell.i = 1:length(cell.distances), cell.distances = cell.distances)
+  count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb, by = "cell.i") %>%
+    arrange(cell.distances)
+  
+  # Step 6: Compute the 25th percentile threshold of avg dots per cell
+  min.thr <- quantile(
+    count.per.cell.channel %>% 
+      group_by(cell.i) %>% 
+      summarise(avg.dots = mean(count.dots, na.rm = TRUE)) %>% 
+      pull(avg.dots), 
+    quantile_threshold, na.rm = TRUE
+  )
+  
+  # Step 7: Filter cells that have an average count of dots greater than the threshold
+  cells.incl <- count.per.cell.channel %>%
+    group_by(cell.i) %>%
+    summarise(avg.dots = mean(count.dots, na.rm = TRUE)) %>%
+    dplyr::filter(avg.dots > min.thr) %>%
+    pull(cell.i)
+  
+  # Step 8: Filter the original data to include only the selected cells
+  count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+  
+  return(count.per.cell.channel.filt)
+}
