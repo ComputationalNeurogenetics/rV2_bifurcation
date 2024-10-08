@@ -80,30 +80,11 @@ plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
 ```
 
 ```{r Find maximum intensity dots per cell per channel e3_1a_sb514, cache=TRUE}
-combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
-  cell <- rois.ss[[cell.i]]
-  
-  im.1.values <- im.1[i=cell]
-  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
-  
-  im.2.values <- im.2[i=cell]
-  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
-  
-  im.3.values <- im.3[i=cell]
-  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
-  
-  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=cores)
-
-comb.agg.tb <- do.call(rbind,combined.agg)
+combined.agg <- aggregate_image_values(rois.ss, im.1, im.2, im.3, cores = cores)
 ```
 
 ```{r Count dots per cell per channel e3_1a_sb514}
-#IQR(f.int, na.rm=T)*1, na.rm = T
-count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
-count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
-
-#count.per.cell.channel$cell.i <- as.factor(count.per.cell.channel$cell.i)
+count.per.cell.channel <- process_combined_agg(combined.agg,replicate_name="1a_sb514")
 ```
 
 ```{r Define circle e3_1a_sb514, eval=FALSE}
@@ -116,39 +97,8 @@ saveRDS(three.points,file="../../analysis/e3_1a_sb514.three.points.Rds")
 three.points <- readRDS(file="../../analysis/e3_1a_sb514.three.points.Rds")
 ```
 
-```{r}
-# center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
-# 
-# cell.centroids <- lapply(rois.ss, findCentroids)
-# cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
-# 
-# cell.distances <- cell.distances-min(cell.distances)
-# 
-# dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-# count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
-# count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
-```
-
-
 ```{r Calculate distances e3_1a_sb514}
-cell.centroids <- lapply(rois.ss, findCentroids)
-cell.size.avg <- mean(sapply(rois, average_cell_diameter))
-
-cell.distances <- sapply(cell.centroids, function(cent){
-  distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)
-  })
-
-cell.distances <- cell.distances/cell.size.avg
-
-dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
-```
-
-```{r Min dots per cell e3_1a_sb514}
-min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
-
-count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25)
 ```
 
 ## Fluorescence over radial distance
@@ -334,28 +284,11 @@ plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
 ```
 
 ```{r Find maximum intensity dots per cell per channel e3_1a_sb510, cache=TRUE}
-combined.agg <- mclapply(1:length(rois.ss),function(cell.i){
-  cell <- rois.ss[[cell.i]]
-  
-  im.1.values <- im.1[i=cell]
-  im.1.values <- tibble(f.int=im.1.values[im.1.values>IQR(im.1.values, na.rm = T)*5], ch=1, cell.i=cell.i)
-  
-  im.2.values <- im.2[i=cell]
-  im.2.values <- tibble(f.int=im.2.values[im.2.values>IQR(im.2.values, na.rm = T)*5], ch=2, cell.i=cell.i)
-  
-  im.3.values <- im.3[i=cell]
-  im.3.values <- tibble(f.int=im.3.values[im.3.values>IQR(im.3.values, na.rm = T)*5], ch=3, cell.i=cell.i)
-  
-  data.tb <- rbind(im.1.values,im.2.values,im.3.values)
-}, mc.cores=cores)
-
-comb.agg.tb <- do.call(rbind,combined.agg)
+combined.agg <- aggregate_image_values(rois.ss, im.1, im.2, im.3, cores = cores)
 ```
 
 ```{r Count dots per cell per channel e3_1a_sb510}
-#IQR(f.int, na.rm=T)*1, na.rm = T
-count.per.cell.channel <- comb.agg.tb %>% group_by(cell.i, ch) %>% summarize(count.dots=mean(f.int,na.rm=T))
-count.per.cell.channel <- count.per.cell.channel %>% group_by(cell.i) %>%  mutate(norm_count_dots = count.dots / sum(count.dots))
+count.per.cell.channel <- process_combined_agg(combined.agg,replicate_name="1a_sb510")
 ```
 
 ```{r Define circle e3_1a_sb510, eval=FALSE}
@@ -369,37 +302,7 @@ three.points <- readRDS(file="../../analysis/e3_1a_sb510.three.points.Rds")
 ```
 
 ```{r Calculate distances e3_1a_sb510}
-# center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
-# 
-# cell.centroids <- lapply(rois.ss, findCentroids)
-# cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
-# 
-# cell.distances <- cell.distances-min(cell.distances)
-# 
-# dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-# count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
-# count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
-```
-
-```{r}
-cell.centroids <- lapply(rois.ss, findCentroids)
-cell.size.avg <- mean(sapply(rois, average_cell_diameter))
-
-cell.distances <- sapply(cell.centroids, function(cent){
-  distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)
-  })
-
-cell.distances <- cell.distances/cell.size.avg
-
-dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
-```
-
-```{r Min dots per cell e3_1a_sb510}
-min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
-cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
-
-count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in% cells.incl)
+count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25)
 ```
 
 ## Fluorescence over radial distance
