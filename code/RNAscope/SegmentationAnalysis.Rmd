@@ -128,23 +128,17 @@ count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distanc
 
 
 ```{r Calculate distances e3_1a_sb514}
-#center.point <- findCircleCenter(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]))
-
-cell.centroids <- lapply(rois.ss, findCentroids)
-cell.size.avg <- mean(sapply(rois, average_cell_diameter))
-
-cell.distances <- sapply(cell.centroids, function(cent){distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)})
-
-# cell.distances <- sapply(cell.centroids, function(cent){distance2D(point1 = c(center.point), point2 = unlist(cent))})
+# cell.centroids <- lapply(rois.ss, findCentroids)
+# cell.size.avg <- mean(sapply(rois, average_cell_diameter))
 # 
-# cell.distances <- cell.distances-min(cell.distances)
-
-cell.distances <- cell.distances/cell.size.avg
-
-dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
-count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
-#count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
-
+# cell.distances <- sapply(cell.centroids, function(cent){
+#   distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)
+#   })
+# 
+# cell.distances <- cell.distances/cell.size.avg
+# 
+# dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+# count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
 ```
 
 ```{r Min dots per cell e3_1a_sb514}
@@ -157,7 +151,7 @@ count.per.cell.channel.filt <- dplyr::filter(count.per.cell.channel, cell.i %in%
 ## Fluorescence over radial distance
 
 ```{r}
-ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("# Average cell diameter from VZ")
+ggplot(count.per.cell.channel.filt, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Average cell diameters from VZ")
 ```
 
 
@@ -168,7 +162,7 @@ ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.c
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
-ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel")  + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Average cell diameters from VZ") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel")  + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Average cell diameters from VZ") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 1)) + ylim(0, NA)
 ``` 
 
 ## Stacked barplot of fluor dot proportions in radial distance
@@ -283,6 +277,21 @@ count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange
 count.per.cell.channel$cell.distances <- rev(count.per.cell.channel$cell.distances)
 ```
 
+```{r}
+# cell.centroids <- lapply(rois.ss, findCentroids)
+# cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+# 
+# cell.distances <- sapply(cell.centroids, function(cent){
+#   distanceToCircle(p1=c(three.points$x[1],three.points$y[1]),p2=c(three.points$x[2],three.points$y[2]),p3=c(three.points$x[3],three.points$y[3]), x=cent$X, y=cent$Y)
+#   })
+# 
+# cell.distances <- cell.distances/cell.size.avg
+# 
+# dist.tb <- tibble(cell.i=1:length(cell.distances),cell.distances=cell.distances)
+# count.per.cell.channel <- left_join(count.per.cell.channel, dist.tb) %>% arrange(cell.distances)
+```
+
+
 ```{r Min dots per cell e3_3b_sb509}
 min.thr <- quantile(count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots,na.rm=T)) %>% pull(avg.dots),.25, na.rm=T)
 cells.incl <- count.per.cell.channel %>% group_by(cell.i) %>% summarise(avg.dots=mean(count.dots)) %>% dplyr::filter(avg.dots>min.thr) %>% pull(cell.i)
@@ -303,7 +312,7 @@ ch3.slid.mean <- tibble(ch=3,count.dots=slide_dbl(dplyr::filter(count.per.cell.c
 
 slided.tb <- do.call(rbind, args = list(ch1.slid.mean,ch2.slid.mean,ch3.slid.mean))
 
-ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 100)) + ylim(0, NA)
+ggplot(slided.tb, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Sliding mean (5) values") + geom_smooth(aes(colour = factor(ch)),method = "loess") + xlab("Distance from the VZ (micrometers)") + ylab("Mean of Intensity") + theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14), axis.title.x=element_text(size = 14),axis.title.y=element_text(size = 14)) + scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 1)) + ylim(0, NA)
 ```
 
 
