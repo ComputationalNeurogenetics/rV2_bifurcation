@@ -40,6 +40,21 @@ rois.path <- "/Volumes/MyBookDuo/DataLad/RNAScope_images/to_segment/TIFF/"
 fluor.channel.path <- "/Volumes/MyBookDuo/DataLad/RNAScope_images/fluor_channels/"
 ```
 
+```{r}
+image_bases <- image_bases <- c(
+  "e3_1a_sb514_e12.5_63x", "e3_3b_sb509_e12.5_63x", "e3_1a_sb510_e12.5_63x",
+  "e3b_1b_sb514_e12.5_63x", "e3b_3b_sb509_e12.5_63x", "e3b_1b_sb510_e12.5_63x",
+  "e4_1c_sb514_e12.5_63x", "e4_3e_sb509_e12.5_63x", "e4_1c_sb510_e12.5_63x",
+  "e4_2b_sb0488_e12.5_63x", "e4_4c_sb0479_e12.5_63x"
+)
+rois.trail <- "_dapi.tif_rois.zip"
+
+# Call the function to calculate the global average cell diameter
+global_avg_diameter <- calculate_global_average_diameter(image_bases, rois_path = rois.path, rois_trail = rois.trail)
+print(global_avg_diameter)
+```
+
+
 # Image e3_1a_sb514 {.tabset}
 
 ```{r}
@@ -109,7 +124,8 @@ count.per.cell.channel.filt.e3_1a_sb514 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e3_1a_sb514", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -203,7 +219,8 @@ count.per.cell.channel.filt.e3_3b_sb509 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e3_3b_sb509", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -299,7 +316,8 @@ count.per.cell.channel.filt.e3_1a_sb510 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e3_1a_sb510", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -326,6 +344,8 @@ ggplot(filter(count.per.cell.channel.filt.e3_1a_sb510,norm_count_dots <=1 & !is.
 combined_replicates <- rbind(count.per.cell.channel.filt.e3_1a_sb510, 
                              count.per.cell.channel.filt.e3_3b_sb509, 
                              count.per.cell.channel.filt.e3_1a_sb514)
+
+combined_replicates <- filter_by_max_distance(combined_replicates)
 
 plot_sliding_mean_replicates(combined_replicates, window_size = 8)
 ```
@@ -358,10 +378,10 @@ summary(gam_model_both_updated)
 ```
 
 ```{r}
-# Extract parametric coefficients
+# Extract parametric coefficients from the model summary
 parametric_coefficients <- summary(gam_model_both_updated)$p.table
 
-# Convert to tibble
+# Convert parametric coefficients to a tibble
 parametric_tibble <- tibble::tibble(
   term = rownames(parametric_coefficients),
   estimate = parametric_coefficients[, 1],
@@ -370,13 +390,16 @@ parametric_tibble <- tibble::tibble(
   p.value = parametric_coefficients[, 4]
 )
 
-# Smooth terms already in parametric_summary, so we rename it
+# Extract smooth terms from the model summary
+smooth_terms <- summary(gam_model_both_updated)$s.table
+
+# Convert smooth terms to a tibble
 smooth_tibble <- tibble::tibble(
-  term = parametric_summary$term,
-  edf = parametric_summary$edf,
-  ref_df = parametric_summary$ref.df,
-  F_stat = parametric_summary$statistic,
-  p_value = parametric_summary$p.value
+  term = rownames(smooth_terms),
+  edf = smooth_terms[, 1],
+  ref_df = smooth_terms[, 2],
+  F_stat = smooth_terms[, 3],
+  p_value = smooth_terms[, 4]
 )
 
 # Combine parametric and smooth terms into a neat tibble list
@@ -462,7 +485,8 @@ count.per.cell.channel.filt.e3b_1b_sb514 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e3b_1b_sb514", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -559,7 +583,8 @@ count.per.cell.channel.filt.e3b_3b_sb509 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e3b_3b_sb509", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -651,7 +676,8 @@ count.per.cell.channel.filt.e3b_1b_sb510 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e3b_1b_sb510", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -678,6 +704,8 @@ ggplot(count.per.cell.channel.filt.e3b_1b_sb510, aes(fill=as.character(ch), y=no
 combined_replicates <- rbind(count.per.cell.channel.filt.e3b_1b_sb514, 
                              count.per.cell.channel.filt.e3b_3b_sb509, 
                              count.per.cell.channel.filt.e3b_1b_sb510)
+
+combined_replicates <- filter_by_max_distance(combined_replicates)
 
 plot_sliding_mean_replicates(combined_replicates, window_size = 8)
 ```
@@ -710,10 +738,10 @@ summary(gam_model_both_updated)
 ```
 
 ```{r}
-# Extract parametric coefficients
+# Extract parametric coefficients from the model summary
 parametric_coefficients <- summary(gam_model_both_updated)$p.table
 
-# Convert to tibble
+# Convert parametric coefficients to a tibble
 parametric_tibble <- tibble::tibble(
   term = rownames(parametric_coefficients),
   estimate = parametric_coefficients[, 1],
@@ -722,13 +750,16 @@ parametric_tibble <- tibble::tibble(
   p.value = parametric_coefficients[, 4]
 )
 
-# Smooth terms already in parametric_summary, so we rename it
+# Extract smooth terms from the model summary
+smooth_terms <- summary(gam_model_both_updated)$s.table
+
+# Convert smooth terms to a tibble
 smooth_tibble <- tibble::tibble(
-  term = parametric_summary$term,
-  edf = parametric_summary$edf,
-  ref_df = parametric_summary$ref.df,
-  F_stat = parametric_summary$statistic,
-  p_value = parametric_summary$p.value
+  term = rownames(smooth_terms),
+  edf = smooth_terms[, 1],
+  ref_df = smooth_terms[, 2],
+  F_stat = smooth_terms[, 3],
+  p_value = smooth_terms[, 4]
 )
 
 # Combine parametric and smooth terms into a neat tibble list
@@ -814,7 +845,8 @@ count.per.cell.channel.filt.e4_1c_sb514 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e4_1c_sb514", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -1099,7 +1131,8 @@ count.per.cell.channel.filt.e4_2b_sb0488 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e4_2b_sb0488", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -1195,7 +1228,8 @@ count.per.cell.channel.filt.e4_4c_sb0479 <- process_image_data(
   three.points = three.points, 
   cores = cores, 
   replicate_name = "e4_4c_sb0479", 
-  quantile_threshold = 0.25
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter
 )
 ```
 
@@ -1222,6 +1256,8 @@ ggplot(count.per.cell.channel.filt.e4_4c_sb0479, aes(fill=as.character(ch), y=no
 combined_replicates <- rbind(count.per.cell.channel.filt.e4_4c_sb0479, 
                              count.per.cell.channel.filt.e4_2b_sb0488, 
                              count.per.cell.channel.filt.e4_1c_sb514)
+
+combined_replicates <- filter_by_max_distance(combined_replicates)
 
 plot_sliding_mean_replicates(combined_replicates, window_size = 8)
 ```
@@ -1254,10 +1290,10 @@ summary(gam_model_both_updated)
 ```
 
 ```{r}
-# Extract parametric coefficients
+# Extract parametric coefficients from the model summary
 parametric_coefficients <- summary(gam_model_both_updated)$p.table
 
-# Convert to tibble
+# Convert parametric coefficients to a tibble
 parametric_tibble <- tibble::tibble(
   term = rownames(parametric_coefficients),
   estimate = parametric_coefficients[, 1],
@@ -1266,13 +1302,16 @@ parametric_tibble <- tibble::tibble(
   p.value = parametric_coefficients[, 4]
 )
 
-# Smooth terms already in parametric_summary, so we rename it
+# Extract smooth terms from the model summary
+smooth_terms <- summary(gam_model_both_updated)$s.table
+
+# Convert smooth terms to a tibble
 smooth_tibble <- tibble::tibble(
-  term = parametric_summary$term,
-  edf = parametric_summary$edf,
-  ref_df = parametric_summary$ref.df,
-  F_stat = parametric_summary$statistic,
-  p_value = parametric_summary$p.value
+  term = rownames(smooth_terms),
+  edf = smooth_terms[, 1],
+  ref_df = smooth_terms[, 2],
+  F_stat = smooth_terms[, 3],
+  p_value = smooth_terms[, 4]
 )
 
 # Combine parametric and smooth terms into a neat tibble list

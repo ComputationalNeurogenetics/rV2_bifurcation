@@ -225,13 +225,15 @@ process_cell_distances <- function(rois.ss, rois, three.points, count.per.cell.c
   return(count.per.cell.channel)
 }
 
-process_and_filter_cell_data <- function(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25) {
+process_and_filter_cell_data <- function(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = 0.25, cell.size.avg = NULL) {
   
   # Step 1: Calculate centroids of cells
   cell.centroids <- lapply(rois.ss, findCentroids)
   
-  # Step 2: Calculate average cell size
-  cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+  # Step 2: Check if cell.size.avg is provided; if not, calculate it
+  if (is.null(cell.size.avg)) {
+    cell.size.avg <- mean(sapply(rois, average_cell_diameter))
+  }
   
   # Step 3: Compute distances of cell centroids to a reference circle
   cell.distances <- sapply(cell.centroids, function(cent) {
@@ -416,8 +418,8 @@ apply_sliding_window <- function(data, window_size = 6) {
   return(slided.tb)
 }
 
-# Wrapper function to process the entire pipeline
-process_image_data <- function(rois.ss, im.1, im.2, im.3, rois, three.points, cores = 1, replicate_name, quantile_threshold = 0.25) {
+# Wrapper function to process the entire pipeline with optional cell.size.avg argument
+process_image_data <- function(rois.ss, im.1, im.2, im.3, rois, three.points, cores = 1, replicate_name, quantile_threshold = 0.25, cell.size.avg = NULL) {
   
   # Step 1: Aggregate image values (Find maximum intensity dots per cell per channel)
   combined.agg <- aggregate_image_values(rois.ss, im.1, im.2, im.3, cores = cores)
@@ -425,9 +427,53 @@ process_image_data <- function(rois.ss, im.1, im.2, im.3, rois, three.points, co
   # Step 2: Count dots per cell per channel
   count.per.cell.channel <- process_combined_agg(combined.agg, replicate_name = replicate_name, rois.ss)
   
-  # Step 3: Calculate distances and filter cells
-  count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, quantile_threshold = quantile_threshold)
+  # Step 3: Calculate distances and filter cells, passing cell.size.avg if provided
+  count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, 
+                                                              quantile_threshold = quantile_threshold, 
+                                                              cell.size.avg = cell.size.avg)
   
   # Return the filtered data
   return(count.per.cell.channel.filt)
+}
+
+# Define the function to filter data based on the maximum common cell distance
+filter_by_max_distance <- function(data) {
+  
+  # Step 1: Find the maximum cell distance for each replicate
+  max_distances <- data %>%
+    group_by(replicate) %>%
+    summarize(max_distance = max(cell.distances))
+  
+  # Step 2: Find the smallest maximum distance across replicates
+  smallest_max_distance <- min(max_distances$max_distance)
+  
+  # Step 3: Filter the data to include only rows where cell distances are less than or equal to this smallest max distance
+  filtered_data <- data %>%
+    filter(cell.distances <= smallest_max_distance)
+  
+  # Return the filtered data
+  return(filtered_data)
+}
+
+# Function to calculate the average cell diameter for each image and then compute the global average
+calculate_global_average_diameter <- function(image_bases, rois_path, rois_trail) {
+  # Initialize a vector to store the average for each image
+  image_averages <- c()
+  
+  # Loop over all image bases (list of image identifiers from the Rmd)
+  for (image_base in image_bases) {
+    # Read the ROI for the image
+    rois <- read.ijzip(file = paste(rois_path, image_base, rois_trail, sep = ""))
+    
+    # Calculate the average cell diameter for this image
+    avg_diameter <- mean(sapply(rois, average_cell_diameter))
+    
+    # Store the result
+    image_averages <- c(image_averages, avg_diameter)
+  }
+  
+  # Calculate the global average across all images
+  global_average <- mean(image_averages)
+  
+  return(global_average)
 }
