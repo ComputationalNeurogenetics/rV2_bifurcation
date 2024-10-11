@@ -598,6 +598,7 @@ ggplot(count.per.cell.channel.filt.e3b_3b_sb509, aes(x=cell.distances,y=count.do
 plot_sliding_mean(count.per.cell.channel.filt.e3b_3b_sb509, window_size = 8)
 ```
 
+plot(im.dapi)
 ## Stacked barplot of fluor dot proportions as distance from VZ
 
 ```{r fig.width=12, fig.height=4}
