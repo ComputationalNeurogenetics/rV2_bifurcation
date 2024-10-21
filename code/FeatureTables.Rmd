@@ -11,7 +11,7 @@ library(writexl)
 ```
 
 ```{r}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_300824.sqlite")
 table.loc <- "/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Per gene feature tables/"
 ```
 
