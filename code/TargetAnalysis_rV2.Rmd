@@ -51,7 +51,7 @@ options(timeout = 30000)
 ```
 
 ```{r}
-plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig5/"
+plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig6/"
 ```
 
 # Target counts {.tabset}
@@ -65,7 +65,7 @@ names(targetGenes.set) <- TF_names
 sapply(targetGenes.set,function(p){length(p$targets_gene_name)})
 ```
 
-# Feature level targets
+## Feature level targets
 
 ```{r}
 TF_names <- c("Tal1","Gata2","Gata3","Vsx2","Insm1","Ebf1","Tead2")
@@ -123,7 +123,7 @@ qsave(gene_name2id,file="gene_name2id.qs")
 assay.averages.rV2 <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
 
 Idents(rV2.dataset) <- rV2.dataset$rv2.lineage_re
-DEG.res.1 <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2",logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
+DEG.res.1 <- FindMarkers(rV2.dataset, ident.1="GA1_2", ident.2 = "GL1_2", logfc.threshold=0, assay = "RNA", slot="data", mean.fxn=mean.fxn) %>% rownames_to_column(var="ensg_id") %>% as_tibble()
 
 colnames(assay.averages.rV2$RNA) <- str_replace_all(colnames(assay.averages.rV2$RNA), pattern = "-", replacement = "_")
 
@@ -184,12 +184,20 @@ TF.cors.PRO_GL <- qread(paste(data.path,"TF.cors.PRO_GL.qs",sep=""), nthreads = 
 
 ## rV2 target tables with GA1_2 and GL1_2 information
 
-```{r Adding DEG and correlation to target data tables}
+```{r Adding DEG expression correlation to target data tables}
 DEG.res.subset <- lapply(targetGenes.set, function(p){
   full_join(filter(DEG.res.1, ensg_id %in% p$targets_gene.id) %>% dplyr::select(-gene_name),p$target.data, by=c("ensg_id"="ensg_id"))
   })
 
 combined_tibble <- map_dfr(DEG.res.subset, ~ .x, .id = "TF")
+
+combined_tibble <- combined_tibble %>%
+  mutate(
+    GA1_2_exp_avg = assay.averages.rV2$RNA[match(ensg_id, rownames(assay.averages.rV2$RNA)), "GA1_2"],
+    GL1_2_exp_avg = assay.averages.rV2$RNA[match(ensg_id, rownames(assay.averages.rV2$RNA)), "GL1_2"],
+    GA1_2_exp_avg_log2 = log(assay.averages.rV2$RNA[match(ensg_id, rownames(assay.averages.rV2$RNA)), "GA1_2"]+1, base=2),
+    GL1_2_exp_avg_log2 = log(assay.averages.rV2$RNA[match(ensg_id, rownames(assay.averages.rV2$RNA)), "GL1_2"]+1,base = 2)
+  )
 
 combined_tibble <- combined_tibble %>%
   rowwise() %>%
@@ -219,8 +227,14 @@ create_dt(filter(combined_tibble, TF=="Tead2"))
 
 # Target gene expression
 
-```{r Expression averages rV2}
+```{r Expression and averages rV2}
 assay.averages.rV2 <- AverageExpression(rV2.dataset,group.by = "rv2.lineage")
+
+tmp.subset <- subset(rV2.dataset, idents=c("CO1_2","GA1_2"))
+assay.rna.GABA <- FetchData(tmp.subset, vars = rownames(tmp.subset), cells = colnames(tmp.subset))
+
+tmp.subset <- subset(rV2.dataset, idents=c("CO1_2","GL1_2"))
+assay.rna.GLUT <- FetchData(tmp.subset, vars = rownames(tmp.subset), cells = colnames(tmp.subset))
 ```
 
 
@@ -328,195 +342,66 @@ plot_heatmap_with_variability_v2(
 ```
 
 
-# Target characterization plots
+# Target characterization plots {.tabset}
 
 ## Tal1 target characterization plots
-```{r}
+```{r, fig.width=4, fig.height=6}
 Tal1.targets <- filter(combined_tibble, TF=="Tal1")
 plot_zscore_bar(Tal1.targets)
 plot_linkage_kbp_bar(Tal1.targets)
 plot_simple_variability_boxplot(Tal1.targets, assay.averages.rV2$RNA)
 
-plot_tal1_vs_target_scatter(gene_name2id[["Tal1"]], c("ENSMUSG00000026468", "ENSMUSG00000048540"), rna_data=assay.averages.rV2$RNA)
+#plot_tal1_vs_target_scatter(gene_name2id[["Tal1"]], c("ENSMUSG00000026468", "ENSMUSG00000048540"), rna_data=assay.averages.rV2$RNA)
+
+plot_expression_by_distance_category(Tal1.targets, rna_data=assay.rna.GABA)
+plot_expression_by_distance_category(Tal1.targets, rna_data=assay.rna.GLUT)
+plot_expression_by_cell_group(Tal1.targets, rna_data = log1p(assay.averages.rV2$RNA))
+plot_expression_categories(Tal1.targets, rna_data = assay.averages.rV2$RNA)
 ```
 
-# GSEA analysis of target genes in rV2
+## Gata2 target characterization plots
 
-```{r}
-# Function to plot the barplot of zscore counts
-plot_zscore_bar <- function(data) {
-  # Create a summary table with counts for zscore > 0 and zscore < 0
-  zscore_summary <- data %>%
-    summarize(
-      greater_than_zero = sum(zscore > 0),
-      less_than_zero = sum(zscore < 0)
-    ) %>%
-    pivot_longer(cols = everything(), names_to = "zscore_category", values_to = "count")
-  
-  # Create the barplot using ggplot2
-  ggplot(zscore_summary, aes(x = zscore_category, y = count, fill = zscore_category)) +
-    geom_bar(stat = "identity") +
-    scale_x_discrete(labels = c("greater_than_zero" = "Pos. link", "less_than_zero" = "Neg. link")) +
-    labs(
-      x = "Link direction",
-      y = "Count",
-      title = ""
-    ) +
-    theme_minimal() +
-    theme(legend.position = "none")
-}
+```{r, fig.width=4, fig.height=6}
+Gata2.targets <- filter(combined_tibble, TF=="Gata2")
+plot_zscore_bar(Gata2.targets)
+plot_linkage_kbp_bar(Gata2.targets)
+plot_simple_variability_boxplot(Gata2.targets, assay.averages.rV2$RNA)
+plot_expression_by_distance_category(Gata2.targets, rna_data=assay.rna.GABA)
+plot_expression_by_distance_category(Gata2.targets, rna_data=assay.rna.GLUT)
+plot_expression_by_cell_group(Gata2.targets, rna_data = log1p(assay.averages.rV2$RNA))
+```
 
-# Function to plot the barplot of linkage_kbp grouped into categories with reordered x-axis
-plot_linkage_kbp_bar <- function(data) {
-  # Create categories based on linkage_kbp ranges and remove NA values
-  linkage_summary <- data %>%
-    filter(!is.na(linkage_kbp)) %>%  # Remove NA values
-    mutate(linkage_category = case_when(
-      linkage_kbp <= 5 ~ "0-5 kbp",
-      linkage_kbp > 5 & linkage_kbp <= 50 ~ "5-50 kbp",
-      linkage_kbp > 50 ~ "> 50 kbp"
-    )) %>%
-    # Group by the categories and count how many fall into each category
-    group_by(linkage_category) %>%
-    summarize(count = n()) %>%
-    # Reorder the linkage categories for proper ordering on the x-axis
-    mutate(linkage_category = factor(linkage_category, levels = c("0-5 kbp", "5-50 kbp", "> 50 kbp")))
-  
-  # Create the barplot using ggplot2
-  ggplot(linkage_summary, aes(x = linkage_category, y = count, fill = linkage_category)) +
-    geom_bar(stat = "identity") +
-    labs(
-      x = "Linkage Distance Category (kbp)",
-      y = "Count",
-      title = ""
-    ) +
-    theme_minimal() +
-    theme(legend.position = "none")
-}
+## Gata3 target characterization plots
 
-# Simple function to plot boxplot of gene expression variability by linkage distance category
-plot_simple_variability_boxplot <- function(
-    combined_tibble, 
-    rna_data, 
-    bin_ranges = c("0-5 kbp", "5-50 kbp", "> 50 kbp"),
-    add_p_value = FALSE  # New argument to toggle p-value testing
-) {
-  
-  # Create categories based on linkage_kbp ranges
-  pos.targets <- combined_tibble %>%
-    filter(!is.na(linkage_kbp)) %>%  # Remove rows with NA values in linkage_kbp
-    mutate(bin_category = case_when(
-      linkage_kbp <= 5 ~ bin_ranges[1],
-      linkage_kbp > 5 & linkage_kbp <= 50 ~ bin_ranges[2],
-      linkage_kbp > 50 ~ bin_ranges[3]
-    )) %>%
-    filter(ensg_id %in% rownames(rna_data)) %>%
-    ungroup()
-  
-  # Fetch and log-transform RNA expression data
-  expression_data <- log1p(rna_data[pos.targets$ensg_id, ])
-  
-  # Calculate standard deviation (variability) per gene
-  gene_variability <- apply(expression_data, 1, sd)
-  
-  # Add gene variability to the pos.targets tibble
-  pos.targets <- pos.targets %>%
-    mutate(variability = gene_variability[match(ensg_id, rownames(expression_data))])
-  
-  # Ensure correct x-axis order by defining factor levels
-  pos.targets <- pos.targets %>%
-    mutate(bin_category = factor(bin_category, levels = bin_ranges))
-  
-  # Define comparisons (what pairs to test against each other)
-  comparisons <- list(
-    c("0-5 kbp", "5-50 kbp"),
-    c("0-5 kbp", "> 50 kbp"),
-    c("5-50 kbp", "> 50 kbp")
-  )
-  
-  # Start building the boxplot
-  p <- ggplot(pos.targets, aes(x = bin_category, y = variability, fill = bin_category)) +
-    geom_boxplot() +
-    labs(
-      x = "Linkage Distance Category",
-      y = "Expression Variability (Standard Deviation)",
-      title = ""
-    ) +
-    theme_minimal() +
-    theme(legend.position = "none")
-  
-  # Add p-value comparisons if add_p_value is TRUE
-  if (add_p_value) {
-    p <- p + stat_compare_means(comparisons = comparisons, method = "t.test", 
-                                label = "p.format", tip.length = 0.03)  # Add p-values with connecting lines
-  }
-  
-  # Print the plot
-  print(p)
-}
+```{r, fig.width=4, fig.height=6}
+Gata3.targets <- filter(combined_tibble, TF=="Gata3")
+plot_zscore_bar(Gata3.targets)
+plot_linkage_kbp_bar(Gata3.targets)
+plot_simple_variability_boxplot(Gata3.targets, assay.averages.rV2$RNA)
+plot_expression_by_distance_category(Gata3.targets, rna_data=assay.rna.GABA)
+plot_expression_by_distance_category(Gata3.targets, rna_data=assay.rna.GLUT)
+plot_expression_by_cell_group(Gata3.targets, rna_data = log1p(assay.averages.rV2$RNA))
+```
 
-# Function to create scatter plot of Tal1 vs target gene expression
-plot_tal1_vs_target_scatter <- function(
-    tal1_ensg_id,        # The ensg_id of Tal1 (e.g., "ENSMUSG00000012356")
-    target_genes,        # A vector of target gene ensg_ids
-    rna_data,            # RNA expression matrix
-    columns = c("CO2", "GA1")  # Columns to use for plotting
-) {
-  
-  # Ensure Tal1 is present in the RNA data
-  if (!tal1_ensg_id %in% rownames(rna_data)) {
-    stop("Tal1 ensg_id not found in rna_data.")
-  }
-  
-  # Ensure the target genes are present in the RNA data
-  valid_targets <- target_genes[target_genes %in% rownames(rna_data)]
-  
-  if (length(valid_targets) == 0) {
-    stop("No valid target genes found in rna_data.")
-  }
-  
-  # Create an empty data frame to store results
-  plot_data <- data.frame()
-  
-  # Extract Tal1 expression values for the selected columns
-  tal1_expression <- rna_data[tal1_ensg_id, columns]
-  
-  # Loop over valid target genes and create scatter plot data
-  for (target_gene in valid_targets) {
-    target_expression <- rna_data[target_gene, columns]
-    
-    # Combine Tal1 and target gene expression into one data frame
-    temp_data <- data.frame(
-      Tal1_expression = tal1_expression,
-      Target_expression = target_expression,
-      Condition = columns,
-      Target_gene = target_gene
-    )
-    
-    # Append to the final plot data
-    plot_data <- rbind(plot_data, temp_data)
-  }
-  
-  # Create the scatter plot
-  ggplot(plot_data, aes(x = Tal1_expression, y = Target_expression, color = Condition)) +
-    geom_point() +
-    facet_wrap(~ Target_gene, scales = "free_y") +  # Create separate panels for each target gene
-    labs(
-      x = "Tal1 Expression (CO2 / GA1)",
-      y = "Target Gene Expression (CO2 / GA1)",
-      title = "Scatter Plot of Tal1 vs Target Gene Expression"
-    ) +
-    theme_minimal()
-}
+## Vsx2 target characterization plots
+
+```{r, fig.width=4, fig.height=6}
+Vsx2.targets <- filter(combined_tibble, TF=="Vsx2")
+plot_zscore_bar(Vsx2.targets)
+plot_linkage_kbp_bar(Vsx2.targets)
+plot_simple_variability_boxplot(Vsx2.targets, assay.averages.rV2$RNA)
+plot_expression_by_distance_category(Vsx2.targets, rna_data=assay.rna.GABA)
+plot_expression_by_distance_category(Vsx2.targets, rna_data=assay.rna.GLUT)
+plot_expression_by_cell_group(Vsx2.targets, rna_data = log1p(assay.averages.rV2$RNA))
 ```
 
 
 ## GSEA {.tabset}
 
 ```{r Data for GSEA}
-DEG.res.GSEA.1 <- DEG.res.1$avg_log2FC
-names(DEG.res.GSEA.1) <- DEG.res.1$gene_name
-DEG.res.GSEA.1<- DEG.res.GSEA.1[DEG.res.1$p_val_adj < 0.01 & (DEG.res.1$pct.1 > 0.1 | DEG.res.1$pct.2 >0.1)]
+# DEG.res.GSEA.1 <- DEG.res.1$avg_log2FC
+# names(DEG.res.GSEA.1) <- DEG.res.1$gene_name
+# DEG.res.GSEA.1<- DEG.res.GSEA.1[DEG.res.1$p_val_adj < 0.01 & (DEG.res.1$pct.1 > 0.1 | DEG.res.1$pct.2 >0.1)]
 
 # DEG.res.GSEA.2 <- DEG.res.2$avg_log2FC
 # names(DEG.res.GSEA.2) <- DEG.res.2$gene_name
@@ -541,11 +426,13 @@ mid.lower.limit <- set1.GSEA[[1]]$limits$mid.lower.limit
 limits.to.plot <- list(upper.limit=upper.limit,lower.limit=lower.limit,mid.lower.limit=mid.lower.limit,mid.upper.limit=mid.upper.limit)
 
 for (i in 1:length(set1.GSEA)){
-  l1 <- drawTargetLinePlot(DEG.res=set1.GSEA[[i]], gene_name2id=gene_name2id, gene_id2name=gene_id2name, limits.to.plot=limits.to.plot, cell.groups=c("GA1_2","GL1_2"))
+ # l1 <- drawEdgeLinePlot(DEG.res=set1.GSEA[[i]], gene_name2id=gene_name2id, gene_id2name=gene_id2name, limits.to.plot=limits.to.plot, cell.groups=c("GA1_2","GL1_2"), edge_type = "leading")
+  l1.GA <- plotEdgeScatterWithRawValues(DEG.res=set1.GSEA[[i]], gene_name2id=gene_name2id, gene_id2name=gene_id2name, limits.to.plot=limits.to.plot, cell.groups=c("GA1_2","GL1_2"),edge_type = "leading",log_scale = T)
+  l1.GL <- plotEdgeScatterWithRawValues(DEG.res=set1.GSEA[[i]], gene_name2id=gene_name2id, gene_id2name=gene_id2name, limits.to.plot=limits.to.plot, cell.groups=c("GA1_2","GL1_2"),edge_type = "trailing",log_scale = T)
   p1 <- set1.GSEA[[i]]$p1
-  p.final <- plot_grid(plotlist = list(p1, l1), labels = c('A', 'B'), label_size = 12, ncol = 1, nrow = 2)
+  p.final <- plot_grid(p1, plot_grid(l1.GA, l1.GL, ncol=2), ncol=1, rel_heights = c(1,1.5), label_size = 12)
   print(p.final)
-  ggsave(plot=p.final, device = "pdf", path = plot_loc, file=paste(i,".pdf",sep=""), width = unit(12,"inch"), height = unit(6,"inch"))
+  ggsave(plot=p.final, device = "pdf", path = plot_loc, file=paste(i,".pdf",sep=""), width = unit(8,"inch"), height = unit(7,"inch"))
 }
 ```
 
