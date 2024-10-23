@@ -38,17 +38,23 @@ e.e12.r1 <- qread("../scRNA_data/e.e12_r1_200623.qs", nthreads = threads)
 e12.rv2.ss <- subset(e.e12.r1 , cells = rV2.barcodes)
 ```
 
+# Markers for E12.5 R1 scRNA clusters
+
 ```{r Markers for r1 scRNA clusters}
 r1.markers <- as_tibble(FindAllMarkers(e.e12.r1)) %>%  mutate(across(where(is.numeric),round,digits = 3))
 r1.markers$gene_name <- convert_feature_identity(e.e12.r1,assay = "RNA", features = r1.markers$gene, feature.format = "ens")
 create_dt(r1.markers %>% filter(p_val_adj<0.05) %>% group_by(cluster) %>%  arrange(desc(avg_log2FC)) %>%  slice_head(n = 25) %>% ungroup())
 ```
+# Markers for E12.5 R1 rV2 subset scRNA clusters
 
 ```{r Markers for rV2 scRNA clusters}
 rV2.markers <- as_tibble(FindAllMarkers(e12.rv2.ss)) %>%  mutate(across(where(is.numeric),round,digits = 3))
 rV2.markers$gene_name <- convert_feature_identity(e12.rv2.ss,assay = "RNA", features = rV2.markers$gene, feature.format = "ens")
-create_dt(rV2.markers %>% filter(p_val_adj<0.05) %>% group_by(cluster) %>%  arrange(desc(avg_log2FC)) %>%  slice_head(n = 25) %>%  ungroup())
+rV2.markers.scRNA.filt <- rV2.markers %>% filter(p_val_adj<0.05) %>% group_by(cluster) %>%  arrange(desc(avg_log2FC)) %>%  slice_head(n = 50) %>%  ungroup()
+create_dt(rV2.markers.scRNA.filt)
 ```
+
+# scRNA UMAP from E12.5 R1 rV2 subset
 
 ```{r scRNA UMAP}
 pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scRNA_UMAP_rV2.pdf", width = 8, height = 8)
@@ -59,6 +65,9 @@ DimPlot(e12.rv2.ss, reduction = "umap", label = TRUE) + theme(legend.position = 
 
 dev.off()
 ```
+
+# scRNA featureplots from E12.5 R1 rV2 subset
+
 ```{r Marker gene feature plots scRNA}
 for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6","Ccnb1","Cenpa","Ube2c")){
   pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_RNA_UMAP.pdf",sep=""), width = 4, height = 4)
@@ -67,6 +76,8 @@ for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6","Ccnb1","Cenpa","Ube2c"
   dev.off()
 }
 ```
+
+# scATAC UMAP for rV2 subset of E12.5 R1
 
 ```{r scATAC UMAP}
 pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP_rV2.pdf", width = 8, height = 8)
@@ -77,6 +88,18 @@ DimPlot(rV2.data, reduction = "umap", label = TRUE) + theme(legend.position = "n
 dev.off()
 ```
 
+# Markers (estimated RNA) for E12.5 R1 rV2 subset scATAC clusters
+
+```{r Markers for rV2 scRNA clusters}
+DefaultAssay(rV2.data) <- "RNA"
+rV2.markers.scATAC <- as_tibble(FindAllMarkers(rV2.data)) %>%  mutate(across(where(is.numeric),round,digits = 3))
+rV2.markers.scATAC$gene_name <- convert_feature_identity(rV2.data,assay = "RNA", features = rV2.markers.scATAC$gene, feature.format = "ens")
+rv2.markers.scATAC.filt <- rV2.markers.scATAC %>% filter(p_val_adj<0.05) %>% group_by(cluster) %>%  arrange(desc(avg_log2FC)) %>%  slice_head(n = 50) %>%  ungroup()
+create_dt(rv2.markers.scATAC.filt)
+```
+
+# scATAC gene feature plots from rV2 subset of E12.5 R1
+
 ```{r Marker gene feature plots scATAC}
 for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6","Ccnb1","Cenpa","Ube2c")){
   pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/",g,"_ATAC_UMAP.pdf",sep=""), width = 4, height = 4)
@@ -86,11 +109,30 @@ for(g in c("Vsx2","Tal1","Nkx6-1","Nes","Gad1","Slc17a6","Ccnb1","Cenpa","Ube2c"
 }
 ```
 
+# scATAC UMAP with pseudotime from rV2 subset of E12.5 R1
+
 ```{r scATAC UMAP pseudotime}
 pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig1/scATAC_UMAP_pseudotime.pdf", width = 8, height = 8)
 
 FeaturePlot(rV2.data, features = "pseudotime") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + labs(title="") + scale_color_viridis() + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20))
 
 dev.off()
+```
+
+# Hypergeometric testing of cluster marker similarity between scATAC and scRNA rV2 cluster
+
+```{r}
+N <- length(unique(intersect(rownames(rV2.data), rownames(e12.rv2.ss))))
+column_order <- c("PRO1", "PRO2", "CO1", "CO2", "GA1", "GA2", "GA3", "GA4", "GA5", "GA6", "GL1", "GL2", "GL3", "GL4", "GL5")
+row_order <- rev(c("22", "24", "25", "4", "19", "12", "17", "5"))
+result <- hypergeometric_test_clusters(rV2.markers.scRNA.filt, rv2.markers.scATAC.filt, N, column_order, row_order)
+
+# Draw the heatmap
+draw(result$heatmap)
+```
+
+
+```{r}
+sessionInfo()
 ```
 
