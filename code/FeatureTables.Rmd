@@ -8,6 +8,7 @@ library(tidyverse)
 library(DBI)
 library(readxl)
 library(writexl)
+library(GenomicRanges)
 ```
 
 ```{r}
@@ -91,3 +92,46 @@ Vsx2.features <- distinct(left_join(Vsx2.features, distinct(dplyr::filter(links.
 Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
 writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
 ```
+
+```{r}
+# List of tibbles (replace with actual tibbles)
+tibble_list <- list(Vsx2.features, Tal1.features, Gata3.features, Gata2.features)
+
+
+# Function to convert each tibble to GRanges
+tibble_to_grange <- function(tibble, gene_name) {
+  # Ensure sequence levels are unique and non-NA
+  seqlevels <- unique(na.omit(unlist(lapply(tibble_list, function(x) x$Chromosome))))
+  
+  tibble %>%
+    # Filter rows with valid coordinates to avoid NA entries
+    filter(!is.na(Chromosome) & !is.na(start.x) & !is.na(end.x)) %>%
+    # Create GRanges object manually
+    { 
+      gr <- GRanges(
+        seqnames = .$Chromosome,
+        ranges = IRanges(start = .$start.x, end = .$end.x),
+        Feature = .$Feature,  # Assuming Feature is useful in metadata
+        gene_name = gene_name  # Add gene name as metadata
+      )
+      # Set consistent sequence levels without NA or duplicates
+      seqlevels(gr, pruning.mode = "coarse") <- seqlevels
+      gr
+    }
+}
+
+# Apply the function to each tibble in the list with corresponding gene names
+gene_names <- c("Vsx2", "GeneX", "GeneY", "GeneZ") # Adjust based on actual gene names
+granges_list <- mapply(tibble_to_grange, tibble_list, gene_names, SIMPLIFY = FALSE)
+
+# Combine all GRanges into one
+combined_granges <- do.call(c, granges_list)
+
+# Inspect the resulting GRanges object
+combined_granges
+```
+
+```{r}
+saveRDS(combined_granges,file="../analysis/Selector.features.Rds")
+```
+
