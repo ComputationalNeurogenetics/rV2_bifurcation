@@ -125,6 +125,7 @@ average_cell_diameter <- function(polygon) {
 
 # Define the function
 # Define the function to aggregate image values
+
 aggregate_image_values <- function(rois.ss, im.1, im.2, im.3, cores = 1) {
   combined.agg <- mclapply(1:length(rois.ss), function(cell.i) {
     cell <- rois.ss[[cell.i]]
@@ -165,6 +166,54 @@ aggregate_image_values <- function(rois.ss, im.1, im.2, im.3, cores = 1) {
   if (length(unique(comb.agg.tb$cell.i)) != length(rois.ss)) {
     warning("Some cells from rois.ss are missing in comb.agg.tb")
   }
+  return(comb.agg.tb)
+}
+
+aggregate_image_values_v2 <- function(rois.ss, im.1, im.2, im.3, cores = 1, count_intensity = FALSE) {
+  combined.agg <- mclapply(1:length(rois.ss), function(cell.i) {
+    cell <- rois.ss[[cell.i]]
+
+    # Subset data once for all channels
+    im1_subset <- im.1[i = cell]
+    im2_subset <- im.2[i = cell]
+    im3_subset <- im.3[i = cell]
+
+    # Precompute IQR thresholds
+    im1_threshold <- IQR(im1_subset, na.rm = TRUE) * 5
+    im2_threshold <- IQR(im2_subset, na.rm = TRUE) * 5
+    im3_threshold <- IQR(im3_subset, na.rm = TRUE) * 5
+
+    # Filter values based on thresholds
+    im1_filtered <- im1_subset[im1_subset > im1_threshold]
+    im2_filtered <- im2_subset[im2_subset > im2_threshold]
+    im3_filtered <- im3_subset[im3_subset > im3_threshold]
+
+    # Calculate either count or total intensity per channel
+    f.int <- c(
+      if (count_intensity) sum(im1_filtered, na.rm = TRUE) else length(im1_filtered),
+      if (count_intensity) sum(im2_filtered, na.rm = TRUE) else length(im2_filtered),
+      if (count_intensity) sum(im3_filtered, na.rm = TRUE) else length(im3_filtered)
+    )
+    ch <- 1:3
+
+    # If all filtered values are zero, return an empty tibble
+    if (all(f.int == 0)) {
+      return(tibble(f.int = numeric(0), ch = integer(0), cell.i = integer(0)))
+    }
+
+    # Create the tibble for the cell
+    data.tb <- tibble(f.int = f.int, ch = ch, cell.i = cell.i)
+    return(data.tb)
+  }, mc.cores = cores)
+
+  # Combine all the aggregated data into a single tibble
+  comb.agg.tb <- do.call(rbind, combined.agg)
+
+  # Check for mismatch in cell count
+  if (length(unique(comb.agg.tb$cell.i)) != length(rois.ss)) {
+    warning("Some cells from rois.ss are missing in comb.agg.tb")
+  }
+
   return(comb.agg.tb)
 }
 
@@ -298,7 +347,8 @@ plot_sliding_mean <- function(count.per.cell.channel.filt, window_size = 8) {
     tibble(
       ch = channel,
       count.dots = slide_dbl(filtered_data %>% pull(count.dots), ~ mean(.x), .before = window_size),
-      cell.distances = filtered_data %>% pull(cell.distances)
+      cell.distances = filtered_data %>% pull(cell.distances),
+      channel_label = unique(filtered_data$channel_label)  # Include the label in the output
     )
   }
   
@@ -310,69 +360,14 @@ plot_sliding_mean <- function(count.per.cell.channel.filt, window_size = 8) {
   # Combine the results
   slided.tb <- bind_rows(ch1.slid.mean, ch2.slid.mean, ch3.slid.mean)
   
-  # Create the ggplot
+  # Create the ggplot using channel labels
   p <- ggplot(slided.tb, aes(x = cell.distances, y = count.dots)) + 
-    geom_point(aes(colour = factor(ch))) + 
-    scale_color_manual(values = c("magenta2", "dodgerblue", "forestgreen"), labels = c("Tal1", "Sox4", "Insm1")) + 
+    geom_point(aes(colour = channel_label)) + 
+    scale_color_manual(values = c("magenta2", "dodgerblue", "forestgreen")) + 
     labs(color = "Channel") + 
     theme_minimal() + 
     ggtitle(paste("Sliding mean (", window_size, ") values", sep = "")) + 
-    geom_smooth(aes(colour = factor(ch)), method = "loess") + 
-    xlab("Average cell diameters from VZ") + 
-    ylab("Mean of Intensity") + 
-    theme(
-      axis.text.x = element_text(size = 14, angle = 45, hjust = 1),  # Rotate x-axis labels for readability
-      axis.text.y = element_text(size = 14),
-      axis.title.x = element_text(size = 14),
-      axis.title.y = element_text(size = 14)
-    ) + 
-    scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 5)) +  # Increase space between ticks
-    ylim(0, NA)
-  
-  return(p)
-}
-
-plot_sliding_mean_replicates <- function(data, window_size = 8) {
-  # Function to compute sliding mean for a given channel and replicate
-  compute_sliding_mean <- function(channel, replicate_name, data, window_size) {
-    filtered_data <- data %>%
-      filter(ch == channel, replicate == replicate_name) %>%
-      arrange(cell.distances)
-    
-    tibble(
-      ch = channel,
-      count.dots = slide_dbl(filtered_data %>% pull(count.dots), ~ mean(.x), .before = window_size),
-      cell.distances = filtered_data %>% pull(cell.distances),
-      replicate = replicate_name
-    )
-  }
-  
-  # Get the unique replicates from the dataset
-  replicates <- unique(data$replicate)
-  
-  # Compute sliding means for each channel and replicate
-  ch1.slid.mean <- bind_rows(lapply(replicates, function(rep) compute_sliding_mean(1, rep, data, window_size)))
-  ch2.slid.mean <- bind_rows(lapply(replicates, function(rep) compute_sliding_mean(2, rep, data, window_size)))
-  ch3.slid.mean <- bind_rows(lapply(replicates, function(rep) compute_sliding_mean(3, rep, data, window_size)))
-  
-  # Combine the results for all channels and replicates
-  slided.tb <- bind_rows(ch1.slid.mean, ch2.slid.mean, ch3.slid.mean)
-  
-  # Create the ggplot with different symbols for each replicate and a fitted line per channel
-  p <- ggplot(slided.tb, aes(x = cell.distances, y = count.dots, shape = replicate)) + 
-    geom_point(aes(colour = factor(ch)), size = 2) +  # Increase dot size
-    scale_shape_manual(values = c(16, 17, 18)) +  # Set different symbols for each replicate
-    scale_color_manual(values = c("magenta2", "dodgerblue", "forestgreen"), labels = c("Tal1", "Sox4", "Insm1")) + 
-    labs(color = "Channel", shape = "Replicate") + 
-    theme_minimal() + 
-    ggtitle(paste("Sliding mean (", window_size, ") values across replicates", sep = "")) + 
-    geom_smooth(
-      aes(x = cell.distances, y = count.dots, colour = factor(ch)),  
-      method = "loess", se = TRUE, level = 0.95,  # Add confidence interval with 95% level
-      inherit.aes = FALSE, 
-      data = slided.tb %>% reframe(cell.distances = cell.distances, count.dots = count.dots, ch = ch),
-      fill = "grey", alpha = 0.6  # Grey area for confidence interval
-    ) + 
+    geom_smooth(aes(colour = channel_label), method = "loess") + 
     xlab("Average cell diameters from VZ") + 
     ylab("Mean of Intensity") + 
     theme(
@@ -381,11 +376,106 @@ plot_sliding_mean_replicates <- function(data, window_size = 8) {
       axis.title.x = element_text(size = 14),
       axis.title.y = element_text(size = 14)
     ) + 
-    scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 1)) + 
+    scale_x_continuous(breaks = seq(0, max(slided.tb$cell.distances), by = 5)) + 
     ylim(0, NA)
   
   return(p)
 }
+
+plot_sliding_mean_replicates <- function(data, window_size = 8, use_cell_normalized = FALSE, normalize_per_channel = FALSE, normalize_total_counts = TRUE, align_channels_across_replicates = FALSE) {
+  # Enforce exclusivity of `use_cell_normalized` and `normalize_per_channel`
+  if (use_cell_normalized && normalize_per_channel) {
+    stop("Both `use_cell_normalized` and `normalize_per_channel` cannot be TRUE at the same time. Choose one.")
+  }
+  
+  # Step 1: Normalize within each channel per replicate if requested
+  if (normalize_per_channel) {
+    data <- data %>%
+      group_by(ch, replicate) %>%
+      mutate(count.dots = count.dots / mean(count.dots)) %>%
+      ungroup()
+    column_name <- "count.dots"
+  } else {
+    column_name <- if (use_cell_normalized) "norm_count_dots" else "count.dots"
+  }
+  
+  # Step 2: Normalize total counts across all replicates if requested
+  if (normalize_total_counts) {
+    data <- data %>%
+      group_by(replicate) %>%
+      mutate(count.dots = count.dots / sum(count.dots) * 100) %>%
+      ungroup()
+  }
+  
+  # Step 3: Align channel levels across replicates if requested
+  if (align_channels_across_replicates) {
+    data <- data %>%
+      group_by(ch) %>%
+      mutate(count.dots = count.dots / mean(count.dots) * mean(total_count_dots)) %>%
+      ungroup()
+  }
+  
+  # Function to compute sliding mean for a given channel and replicate
+  compute_sliding_mean <- function(channel, replicate_name, data, window_size, column_name) {
+    filtered_data <- data %>%
+      filter(ch == channel, replicate == replicate_name) %>%
+      arrange(cell.distances)
+    
+    tibble(
+      ch = channel,
+      count.dots = slide_dbl(filtered_data %>% pull({{ column_name }}), ~ mean(.x), .before = window_size),
+      cell.distances = filtered_data %>% pull(cell.distances),
+      replicate = replicate_name,
+      channel_label = filtered_data$channel_label[1] # Use channel label from data
+    )
+  }
+  
+  # Get the unique replicates and channels from the dataset
+  replicates <- unique(data$replicate)
+  channels <- unique(data$ch)
+  
+  # Compute sliding means for each channel and replicate
+  sliding_means <- bind_rows(
+    lapply(channels, function(ch) {
+      bind_rows(lapply(replicates, function(rep) compute_sliding_mean(ch, rep, data, window_size, column_name)))
+    })
+  )
+  
+  # Create the ggplot with different symbols for each replicate and a fitted line per channel
+  p <- ggplot(sliding_means, aes(x = cell.distances, y = count.dots, shape = replicate, colour = factor(channel_label))) + 
+    geom_point(size = 2) +  # Increase dot size
+    scale_shape_manual(values = c(16, 17, 18)) +  # Set different symbols for each replicate
+    labs(color = "Channel", shape = "Replicate") + 
+    theme_minimal() + 
+    ggtitle(paste("Sliding mean (", window_size, ") values across replicates", sep = "")) + 
+    geom_smooth(
+      aes(x = cell.distances, y = count.dots, colour = factor(channel_label)),  
+      method = "loess", se = TRUE, level = 0.95,  # Add confidence interval with 95% level
+      inherit.aes = FALSE, 
+      data = sliding_means %>% reframe(cell.distances = cell.distances, count.dots = count.dots, channel_label = channel_label),
+      fill = "grey", alpha = 0.6  # Grey area for confidence interval
+    ) + 
+    xlab("Average cell diameters from VZ") + 
+    ylab(ifelse(use_cell_normalized, "Mean of Cell-Normalized Intensity", 
+                ifelse(normalize_per_channel & !normalize_total_counts, "Mean of Channel-Normalized Intensity", 
+                       ifelse(normalize_total_counts, "Percentage of Total Dot Count per cell", "Mean of Intensity")))) + 
+    theme(
+      axis.text.x = element_text(size = 14, angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14),
+      axis.title.x = element_text(size = 14),
+      axis.title.y = element_text(size = 14)
+    ) + 
+    scale_x_continuous(breaks = seq(0, max(sliding_means$cell.distances), by = 1)) + 
+    ylim(0, NA)
+  
+  # Remove any remaining NAs after the sliding window process
+  sliding_means <- na.omit(sliding_means)
+  sliding_means$replicate <- as.factor(sliding_means$replicate)
+  
+  # Return both the plot and the processed tibble as a list
+  return(list(plot = p, data = sliding_means))
+}
+
 
 # 1. Apply Symmetrical Sliding Window Approach on count.dots_norm
 apply_sliding_window <- function(data, window_size = 6) {
@@ -418,21 +508,30 @@ apply_sliding_window <- function(data, window_size = 6) {
   return(slided.tb)
 }
 
-# Wrapper function to process the entire pipeline with optional cell.size.avg argument
-process_image_data <- function(rois.ss, im.1, im.2, im.3, rois, three.points, cores = 1, replicate_name, quantile_threshold = 0.25, cell.size.avg = NULL) {
+# Wrapper function to process the entire pipeline with optional cell.size.avg and custom channel labels
+process_image_data <- function(rois.ss, im.1, im.2, im.3, rois, three.points, cores = 1, replicate_name, quantile_threshold = 0.25, cell.size.avg = NULL, count_intensity = FALSE, channel_labels = c("Channel 1", "Channel 2", "Channel 3")) {
+  
+  # Ensure the channel_labels length is 3
+  if (length(channel_labels) != 3) {
+    stop("The 'channel_labels' argument must contain exactly three labels.")
+  }
   
   # Step 1: Aggregate image values (Find maximum intensity dots per cell per channel)
   combined.agg <- aggregate_image_values(rois.ss, im.1, im.2, im.3, cores = cores)
   
-  # Step 2: Count dots per cell per channel
+  # Step 2: Count dots per cell per channel and include channel labels
   count.per.cell.channel <- process_combined_agg(combined.agg, replicate_name = replicate_name, rois.ss)
+  count.per.cell.channel <- count.per.cell.channel %>%
+    mutate(channel_label = factor(ch, labels = channel_labels))  # Add channel labels based on `ch`
   
   # Step 3: Calculate distances and filter cells, passing cell.size.avg if provided
-  count.per.cell.channel.filt <- process_and_filter_cell_data(rois.ss, rois, three.points, count.per.cell.channel, 
-                                                              quantile_threshold = quantile_threshold, 
-                                                              cell.size.avg = cell.size.avg)
+  count.per.cell.channel.filt <- process_and_filter_cell_data(
+    rois.ss, rois, three.points, count.per.cell.channel, 
+    quantile_threshold = quantile_threshold, 
+    cell.size.avg = cell.size.avg  # Pass cell.size.avg if provided
+  )
   
-  # Return the filtered data
+  # Return the filtered data with channel labels
   return(count.per.cell.channel.filt)
 }
 
