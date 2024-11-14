@@ -1,0 +1,137 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(DBI)
+library(ComplexHeatmap)
+library(dplyr)
+library(hash)
+cores<-8
+```
+
+```{r}
+plan("multisession",workers=cores)
+```
+
+```{r Setting DBI options, include=FALSE}
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname=paste(db.path,dbname.rV2,sep=""))
+options(timeout = 30000)
+```
+
+```{r}
+plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS4/"
+```
+
+```{r}
+rV2.dataset <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+
+rV2.dataset$rv2.lineage_re <- case_when(
+  rV2.dataset$rv2.lineage %in% "PRO1" ~ "PRO1_2",
+  rV2.dataset$rv2.lineage %in% "PRO2" ~ "PRO1_2",
+  rV2.dataset$rv2.lineage %in% "GA1" ~ "GA1_2",
+  rV2.dataset$rv2.lineage %in% "GA2" ~ "GA1_2",
+  rV2.dataset$rv2.lineage %in% "GA3" ~ "GA3_4",
+  rV2.dataset$rv2.lineage %in% "GA4" ~ "GA3_4",
+  rV2.dataset$rv2.lineage %in% "GA5" ~ "GA5_6",
+  rV2.dataset$rv2.lineage %in% "GA6" ~ "GA5_6",
+  rV2.dataset$rv2.lineage %in% "CO1" ~ "CO1_2",
+  rV2.dataset$rv2.lineage %in% "CO2" ~ "CO1_2",
+  rV2.dataset$rv2.lineage %in% "GL1" ~ "GL1_2",
+  rV2.dataset$rv2.lineage %in% "GL2" ~ "GL1_2",
+  rV2.dataset$rv2.lineage %in% "GL3" ~ "GL3_4",
+  rV2.dataset$rv2.lineage %in% "GL4" ~ "GL3_4",
+  rV2.dataset$rv2.lineage %in% "GL5" ~ "GL5",
+)
+
+DefaultAssay(rV2.dataset) <- "RNA"
+
+gene_id2name <- hash(rownames(rV2.dataset[['RNA']][[]]),rV2.dataset[['RNA']][[]][,1])
+gene_name2id <- hash(rV2.dataset[['RNA']][[]][,1],rownames(rV2.dataset[['RNA']][[]]))
+
+assay.averages.rV2 <- AverageExpression(rV2.dataset,group.by = "rv2.lineage_re")
+```
+
+
+```{r}
+query <- paste("SELECT 
+    tb.TFBS_name,
+    tb.TF_gene_name,
+    AVG(tb.PRO1_2_score) AS PRO1_2_score_average,
+    AVG(tb.CO1_2_score) AS CO1_2_score_average,
+    AVG(tb.GA1_2_score) AS GA1_2_score_average,
+    AVG(tb.GA3_4_score) AS GA3_4_score_average,
+    AVG(tb.GA5_6_score) AS GA5_6_score_average,
+    AVG(tb.GL1_2_score) AS GL1_2_score_average,
+    AVG(tb.GL3_4_score) AS GL3_4_score_average,
+    AVG(tb.GL5_score) AS GL5_score_average
+    FROM tobias as tb
+    GROUP BY tb.TF_gene_name",sep="")
+
+tobias.data <- as_tibble(dbGetQuery(con, query))
+```
+
+
+```{r, fig.height=12, fig.width=6}
+# Prepare the data
+# Convert TF_gene_name to have only the first letter uppercase and the rest lowercase
+# Then map TF gene names to Ensembl IDs using gene_name2id
+heatmap_data <- tobias.data %>%
+  mutate(TF_gene_name = paste0(toupper(substr(TF_gene_name, 1, 1)), tolower(substr(TF_gene_name, 2, nchar(TF_gene_name))))) %>%
+  select(TF_gene_name, PRO1_2_score_average, CO1_2_score_average, 
+         GA1_2_score_average, GA3_4_score_average, GA5_6_score_average,
+         GL1_2_score_average, GL3_4_score_average, GL5_score_average)
+
+# Map TF gene names to Ensembl IDs, returning NA if no mapping exists
+heatmap_data <- heatmap_data %>%
+  mutate(Ensembl_ID = unlist(sapply(TF_gene_name, function(x) {
+    if (!is.null(gene_name2id[[x]])) gene_name2id[[x]] else NA
+  }))) %>%
+  filter(!is.na(Ensembl_ID))  # Filter out any genes without a corresponding Ensembl ID
+
+# Set the expression threshold
+expression_threshold <- 0.5
+
+# Identify genes with expression > 0.5 in any of the groups
+expressed_genes <- rownames(assay.averages.rV2$RNA)[
+  apply(assay.averages.rV2$RNA, 1, function(x) any(x > expression_threshold))
+]
+
+# Proceed with filtering heatmap_data based on expressed_genes
+filtered_heatmap_data <- heatmap_data %>%
+  filter(Ensembl_ID %in% expressed_genes) %>%
+  select(-Ensembl_ID)  # Remove the Ensembl_ID column if not needed for display
+
+# Rename columns for heatmap
+colnames(filtered_heatmap_data)[2:9] <- c("PRO1_2", "CO1_2", "GA1_2", "GA3_4", "GA5_6", "GL1_2", "GL3_4", "GL5")
+
+# Scale each row (gene) across columns and retain column names
+scaled_heatmap_matrix <- t(apply(filtered_heatmap_data %>% 
+                                   column_to_rownames("TF_gene_name"), 1, function(x) scale(x, center = TRUE, scale = TRUE)))
+colnames(scaled_heatmap_matrix) <- colnames(filtered_heatmap_data)[2:9]  # Re-apply column names after scaling
+
+# Draw the heatmap with clustering on rows
+h1 <- Heatmap(scaled_heatmap_matrix,
+        name = "Score Average (Scaled)",
+        row_names_gp = gpar(fontsize = 6),
+        cluster_rows = TRUE,           # Cluster rows
+        cluster_columns = FALSE,       # Keep specified column order
+        show_column_names = TRUE,
+        show_row_names = TRUE,
+        column_names_gp = gpar(fontsize = 10),
+        heatmap_legend_param = list(title = "Scaled Score", legend_height = unit(4, "cm")))
+
+pdf(file=paste(plot_loc,"Tobias_heatmap.pdf",sep=""),width = 6,height = 12)
+h1
+dev.off()
+
+```
+
+
+
+
+
+
+
