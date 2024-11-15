@@ -441,10 +441,15 @@ plot_sliding_mean_replicates <- function(data, window_size = 8, use_cell_normali
     })
   )
   
+  # Define hard-coded color mapping based on channel labels
+  color_mapping <- c("Ebf1" = "forestgreen", "Insm1" = "forestgreen", "Sox4" = "dodgerblue", 
+                     "Tead2" = "dodgerblue", "E2f1" = "forestgreen", "Tal1" = "red")
+  
   # Create the ggplot with different symbols for each replicate and a fitted line per channel
   p <- ggplot(sliding_means, aes(x = cell.distances, y = count.dots, shape = replicate, colour = factor(channel_label))) + 
-    geom_point(size = 2) +  # Increase dot size
+    geom_point(size = 1.25) +  # Increase dot size
     scale_shape_manual(values = c(16, 17, 18)) +  # Set different symbols for each replicate
+    scale_color_manual(values = color_mapping) +  # Use hard-coded colors for each channel label
     labs(color = "Channel", shape = "Replicate") + 
     theme_minimal() + 
     ggtitle(paste("Sliding mean (", window_size, ") values across replicates", sep = "")) + 
@@ -453,12 +458,12 @@ plot_sliding_mean_replicates <- function(data, window_size = 8, use_cell_normali
       method = "loess", se = TRUE, level = 0.95,  # Add confidence interval with 95% level
       inherit.aes = FALSE, 
       data = sliding_means %>% reframe(cell.distances = cell.distances, count.dots = count.dots, channel_label = channel_label),
-      fill = "grey", alpha = 0.6  # Grey area for confidence interval
+      fill = "grey", alpha = 0.8  # Grey area for confidence interval
     ) + 
     xlab("Average cell diameters from VZ") + 
     ylab(ifelse(use_cell_normalized, "Mean of Cell-Normalized Intensity", 
                 ifelse(normalize_per_channel & !normalize_total_counts, "Mean of Channel-Normalized Intensity", 
-                       ifelse(normalize_total_counts, "Percentage of Total Dot Count per cell", "Mean of Intensity")))) + 
+                       ifelse(normalize_total_counts, "Normalized mean intensity", "Mean of Intensity")))) + 
     theme(
       axis.text.x = element_text(size = 14, angle = 45, hjust = 1),
       axis.text.y = element_text(size = 14),
@@ -475,6 +480,7 @@ plot_sliding_mean_replicates <- function(data, window_size = 8, use_cell_normali
   # Return both the plot and the processed tibble as a list
   return(list(plot = p, data = sliding_means))
 }
+
 
 
 # 1. Apply Symmetrical Sliding Window Approach on count.dots_norm
@@ -536,7 +542,7 @@ process_image_data <- function(rois.ss, im.1, im.2, im.3, rois, three.points, co
 }
 
 # Define the function to filter data based on the maximum common cell distance
-filter_by_max_distance <- function(data) {
+filter_by_max_distance <- function(data,extend.factor=1) {
   
   # Step 1: Find the maximum cell distance for each replicate
   max_distances <- data %>%
@@ -544,7 +550,7 @@ filter_by_max_distance <- function(data) {
     summarize(max_distance = max(cell.distances))
   
   # Step 2: Find the smallest maximum distance across replicates
-  smallest_max_distance <- min(max_distances$max_distance)
+  smallest_max_distance <- min(max_distances$max_distance)*extend.factor
   
   # Step 3: Filter the data to include only rows where cell distances are less than or equal to this smallest max distance
   filtered_data <- data %>%
