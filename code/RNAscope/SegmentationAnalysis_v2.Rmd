@@ -36,16 +36,16 @@ knitr::opts_chunk$set(cache.path = "./")
 ```
 
 ```{r Image paths}
-rois.path <- "/Volumes/MyBookDuo/DataLad/RNAScope_images/to_segment/TIFF/"
-fluor.channel.path <- "/Volumes/MyBookDuo/DataLad/RNAScope_images/fluor_channels/"
+rois.path <- "~/Workspace/rV2_bifurcation/code/RNAscope/TIFF/"
+fluor.channel.path <- "~/Workspace/rV2_bifurcation/code/RNAscope/fluor_channels/"
+plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig4/"
 ```
 
 ```{r}
 image_bases <- image_bases <- c(
-  "e3_1a_sb514_e12.5_63x", "e3_3b_sb509_e12.5_63x", "e3_1a_sb510_e12.5_63x",
+  "e3_1a_sb514_e12.5_63x", "e3_2a_d611_E12.5_63x", "e3_1a_sb510_e12.5_63x",
   "e3b_1b_sb514_e12.5_63x", "e3b_3b_sb509_e12.5_63x", "e3b_1b_sb510_e12.5_63x",
-  "e4_1c_sb514_e12.5_63x", "e4_3e_sb509_e12.5_63x", "e4_1c_sb510_e12.5_63x",
-  "e4_2b_sb0488_e12.5_63x", "e4_4c_sb0479_e12.5_63x"
+  "e4_1c_sb514_e12.5_63x", "e4_2b_sb0488_e12.5_63x", "e4_4c_sb0479_e12.5_63x"
 )
 rois.trail <- "_dapi.tif_rois.zip"
 
@@ -125,7 +125,8 @@ count.per.cell.channel.filt.e3_1a_sb514 <- process_image_data(
   cores = cores, 
   replicate_name = "e3_1a_sb514", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Sox4","Insm1")
 )
 ```
 
@@ -146,7 +147,7 @@ plot_sliding_mean(count.per.cell.channel.filt.e3_1a_sb514, window_size = 8)
 ggplot(count.per.cell.channel.filt.e3_1a_sb514, aes(fill=as.character(ch), y=norm_count_dots, x=cell.distances)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance from VZ (as units of average cell size) from VZ (as units of average cell size)")
 ```
 
-# Image e3_3b_sb509 {.tabset}
+# Image e3_2a_d611 {.tabset}
 
 ```{r}
 rois.trail <- "_dapi.tif_rois.zip"
@@ -154,19 +155,19 @@ band.trail.1 <- "_Tal1.tif"
 band.trail.2 <- "_Insm1.tif"
 band.trail.3 <- "_Sox4.tif"
 dapi.trail <- "_dapi.tif"
-image.base <- "e3_3b_sb509_e12.5_63x"
+image.base <- "e3_2a_d611_E12.5_63x"
 ```
 
-```{r Reading imageJ ROIS file for a image e3_3b_sb509}
+```{r Reading imageJ ROIS file for a image e3_2a_d611}
 rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
 rois.ss <- ij2spatstat(rois)
 ```
 
-```{r Reading channels from image files e3_3b_sb509, warning=FALSE}
-ras.1 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1), direction="y")
-ras.2 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=3), direction="y")
-ras.3 <- flip(raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=2), direction="y")
-ras.dapi <- flip(raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1),direction="y")
+```{r Reading channels from image files e3_2a_d611, warning=FALSE}
+ras.1 <- raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1)
+ras.2 <- raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=1)
+ras.3 <- raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=1)
+ras.dapi <- raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1)
 
 im.1 <- as.im(as.matrix(ras.1))
 im.2 <- as.im(as.matrix(ras.2))
@@ -176,41 +177,40 @@ im.dapi <- as.im(as.matrix(ras.dapi))
 
 ## Segmentation and channels check
 
-```{r Plot DAPI channel to check orientation e3_3b_sb509}
+```{r Plot DAPI channel to check orientation e3_2a_d611}
 #plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
 plot(im.dapi)
 plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
 ```
 
 
-```{r Plot channel 1 to check orientation e3_3b_sb509}
-#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```{r Plot channel 1 to check orientation e3_2a_d611}
 plot(im.1)
 plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
 ```
 
-```{r Plot channel 2 to check orientation e3_3b_sb509}
+```{r Plot channel 2 to check orientation e3_2a_d611}
 plot(im.2)
 plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
 ```
 
-```{r Plot channel 3 to check orientation e3_3b_sb509}
+```{r Plot channel 3 to check orientation e3_2a_d611}
 plot(im.3)
 plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
 ```
 
-```{r Define circle e3_3b_sb509, eval=FALSE}
+```{r Define circle e3_2a_d611, eval=FALSE}
 plot(im.dapi)
 three.points <- locator()
-saveRDS(three.points,file="../../analysis/e3_1a_sb510.three.points.Rds")
+saveRDS(three.points,file="../../analysis/e3_2a_d611.three.points.Rds")
 ```
 
 ```{r}
-three.points <- readRDS(file="../../analysis/e3_1a_sb510.three.points.Rds")
+three.points <- readRDS(file="../../analysis/e3_2a_d611.three.points.Rds")
 ```
 
-```{r Process e3_3b_sb509}
-count.per.cell.channel.filt.e3_3b_sb509 <- process_image_data(
+```{r Process e3_2a_d611}
+count.per.cell.channel.filt.e3_2a_d611 <- process_image_data(
   rois.ss = rois.ss, 
   im.1 = im.1, 
   im.2 = im.2, 
@@ -218,27 +218,28 @@ count.per.cell.channel.filt.e3_3b_sb509 <- process_image_data(
   rois = rois, 
   three.points = three.points, 
   cores = cores, 
-  replicate_name = "e3_3b_sb509", 
+  replicate_name = "e3_2a_d611", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter,
+  channel_labels = c("Tal1","Sox4","Insm1")
 )
 ```
 
 ## Fluorescence from VZ
 
 ```{r}
-ggplot(count.per.cell.channel.filt.e3_3b_sb509, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+ggplot(count.per.cell.channel.filt.e3_2a_d611, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
 ```
 
 ```{r}
-plot_sliding_mean(count.per.cell.channel.filt.e3_3b_sb509, window_size = 8)
+plot_sliding_mean(count.per.cell.channel.filt.e3_2a_d611, window_size = 8)
 ```
 
 
 ## Stacked barplot of fluor dot proportions as distance from VZ
 
 ```{r fig.width=12, fig.height=4}
-ggplot(count.per.cell.channel.filt.e3_3b_sb509, aes(fill=as.character(ch), y=norm_count_dots, x=cell.distances)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance from VZ (as units of average cell size) from VZ (as units of average cell size)")
+ggplot(count.per.cell.channel.filt.e3_2a_d611, aes(fill=as.character(ch), y=norm_count_dots, x=cell.distances)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Sox4","Insm1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance from VZ (as units of average cell size) from VZ (as units of average cell size)")
 ```
 
 # Image e3_1a_sb510 {.tabset}
@@ -317,7 +318,8 @@ count.per.cell.channel.filt.e3_1a_sb510 <- process_image_data(
   cores = cores, 
   replicate_name = "e3_1a_sb510", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Sox4","Insm1")
 )
 ```
 
@@ -342,74 +344,79 @@ ggplot(filter(count.per.cell.channel.filt.e3_1a_sb510,norm_count_dots <=1 & !is.
 ```{r, fig.width=10}
 # Combine replicates first
 combined_replicates <- rbind(count.per.cell.channel.filt.e3_1a_sb510, 
-                             count.per.cell.channel.filt.e3_3b_sb509, 
+                             count.per.cell.channel.filt.e3_2a_d611, 
                              count.per.cell.channel.filt.e3_1a_sb514)
 
 combined_replicates <- filter_by_max_distance(combined_replicates)
 
-plot_sliding_mean_replicates(combined_replicates, window_size = 8)
+p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE)
+
+p1[[1]]
+pdf(file=paste(plot_loc,"e3.aggregated.pdf",sep=""), width = 8, height = 6)
+p1[[1]]
+dev.off()
 ```
 
 ```{r}
-# Normalize within each channel for each replicate
-slided.tb <- combined_replicates %>%
-  group_by(replicate, ch) %>%
-  mutate(count.dots_norm = (count.dots - mean(count.dots)) / sd(count.dots)) %>%
-  ungroup()
-
-# Apply symmetrical sliding window to count.dots_norm
-slided.tb <- apply_sliding_window(slided.tb, window_size = 8)
-
-# 2. Remove any remaining NAs after the sliding window process
-slided.tb <- na.omit(slided.tb)
-
-# Convert replicate to a factor if it's not already
-slided.tb$replicate <- as.factor(slided.tb$replicate)
-
-# Fit the updated GAMM model with replicate and channel
-gam_model_both_updated <- gam(count.dots_norm_slid ~ replicate + ch + 
-                              s(cell.distances, bs = "cr") +         # Overall smooth term for distance
-                              s(cell.distances, by = replicate, bs = "cr") +   # Smooth term per replicate
-                              s(cell.distances, by = ch, bs = "cr"),           # Smooth term per channel
-                              data = slided.tb, method = "REML")
-
-# Check the summary of the model
-summary(gam_model_both_updated)
+# # Normalize within each channel for each replicate
+# # slided.tb <- combined_replicates %>%
+# #   group_by(replicate, ch) %>%
+# #   mutate(count.dots_norm = (count.dots - mean(count.dots)) / sd(count.dots)) %>%
+# #   ungroup()
+# # 
+# # # Apply symmetrical sliding window to count.dots_norm
+# # slided.tb <- apply_sliding_window(slided.tb, window_size = 8)
+# 
+# # 2. Remove any remaining NAs after the sliding window process
+# slided.tb <- na.omit(p1[[2]])
+# 
+# # Convert replicate to a factor if it's not already
+# slided.tb$replicate <- as.factor(slided.tb$replicate)
+# 
+# # Fit the updated GAMM model with replicate and channel
+# gam_model_both_updated <- gam(count.dots ~ replicate + ch + 
+#                               s(cell.distances, bs = "cr") +         # Overall smooth term for distance
+#                               s(cell.distances, by = replicate, bs = "cr") +   # Smooth term per replicate
+#                               s(cell.distances, by = ch, bs = "cr"),           # Smooth term per channel
+#                               data = slided.tb, method = "REML")
+# 
+# # Check the summary of the model
+# summary(gam_model_both_updated)
 ```
 
 ```{r}
-# Extract parametric coefficients from the model summary
-parametric_coefficients <- summary(gam_model_both_updated)$p.table
-
-# Convert parametric coefficients to a tibble
-parametric_tibble <- tibble::tibble(
-  term = rownames(parametric_coefficients),
-  estimate = parametric_coefficients[, 1],
-  std.error = parametric_coefficients[, 2],
-  statistic = parametric_coefficients[, 3],
-  p.value = parametric_coefficients[, 4]
-)
-
-# Extract smooth terms from the model summary
-smooth_terms <- summary(gam_model_both_updated)$s.table
-
-# Convert smooth terms to a tibble
-smooth_tibble <- tibble::tibble(
-  term = rownames(smooth_terms),
-  edf = smooth_terms[, 1],
-  ref_df = smooth_terms[, 2],
-  F_stat = smooth_terms[, 3],
-  p_value = smooth_terms[, 4]
-)
-
-# Combine parametric and smooth terms into a neat tibble list
-results_tibble <- list(
-  "Parametric Coefficients" = parametric_tibble,
-  "Smooth Terms" = smooth_tibble
-)
-
-# Display the results as two tibbles
-results_tibble
+# # Extract parametric coefficients from the model summary
+# parametric_coefficients <- summary(gam_model_both_updated)$p.table
+# 
+# # Convert parametric coefficients to a tibble
+# parametric_tibble <- tibble::tibble(
+#   term = rownames(parametric_coefficients),
+#   estimate = parametric_coefficients[, 1],
+#   std.error = parametric_coefficients[, 2],
+#   statistic = parametric_coefficients[, 3],
+#   p.value = parametric_coefficients[, 4]
+# )
+# 
+# # Extract smooth terms from the model summary
+# smooth_terms <- summary(gam_model_both_updated)$s.table
+# 
+# # Convert smooth terms to a tibble
+# smooth_tibble <- tibble::tibble(
+#   term = rownames(smooth_terms),
+#   edf = smooth_terms[, 1],
+#   ref_df = smooth_terms[, 2],
+#   F_stat = smooth_terms[, 3],
+#   p_value = smooth_terms[, 4]
+# )
+# 
+# # Combine parametric and smooth terms into a neat tibble list
+# results_tibble <- list(
+#   "Parametric Coefficients" = parametric_tibble,
+#   "Smooth Terms" = smooth_tibble
+# )
+# 
+# # Display the results as two tibbles
+# results_tibble
 ```
 
 # Image e3b_1b_sb514 {.tabset}
@@ -486,7 +493,8 @@ count.per.cell.channel.filt.e3b_1b_sb514 <- process_image_data(
   cores = cores, 
   replicate_name = "e3b_1b_sb514", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","E2f1")
 )
 ```
 
@@ -584,7 +592,8 @@ count.per.cell.channel.filt.e3b_3b_sb509 <- process_image_data(
   cores = cores, 
   replicate_name = "e3b_3b_sb509", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","E2f1")
 )
 ```
 
@@ -678,7 +687,8 @@ count.per.cell.channel.filt.e3b_1b_sb510 <- process_image_data(
   cores = cores, 
   replicate_name = "e3b_1b_sb510", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","E2f1")
 )
 ```
 
@@ -708,69 +718,74 @@ combined_replicates <- rbind(count.per.cell.channel.filt.e3b_1b_sb514,
 
 combined_replicates <- filter_by_max_distance(combined_replicates)
 
-plot_sliding_mean_replicates(combined_replicates, window_size = 8)
+p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE)
+
+p1[[1]]
+pdf(file=paste(plot_loc,"e3b.aggregated.pdf",sep=""), width = 8, height = 6)
+p1[[1]]
+dev.off()
 ```
 
 ```{r}
-# Normalize within each channel for each replicate
-slided.tb <- combined_replicates %>%
-  group_by(replicate, ch) %>%
-  mutate(count.dots_norm = (count.dots - mean(count.dots)) / sd(count.dots)) %>%
-  ungroup()
-
-# Apply symmetrical sliding window to count.dots_norm
-slided.tb <- apply_sliding_window(slided.tb, window_size = 8)
-
-# 2. Remove any remaining NAs after the sliding window process
-slided.tb <- na.omit(slided.tb)
-
-# Convert replicate to a factor if it's not already
-slided.tb$replicate <- as.factor(slided.tb$replicate)
-
-# Fit the updated GAMM model with replicate and channel
-gam_model_both_updated <- gam(count.dots_norm_slid ~ replicate + ch + 
-                              s(cell.distances, bs = "cr") +         # Overall smooth term for distance
-                              s(cell.distances, by = replicate, bs = "cr") +   # Smooth term per replicate
-                              s(cell.distances, by = ch, bs = "cr"),           # Smooth term per channel
-                              data = slided.tb, method = "REML")
-
-# Check the summary of the model
-summary(gam_model_both_updated)
+# # Normalize within each channel for each replicate
+# slided.tb <- combined_replicates %>%
+#   group_by(replicate, ch) %>%
+#   mutate(count.dots_norm = (count.dots - mean(count.dots)) / sd(count.dots)) %>%
+#   ungroup()
+# 
+# # Apply symmetrical sliding window to count.dots_norm
+# slided.tb <- apply_sliding_window(slided.tb, window_size = 8)
+# 
+# # 2. Remove any remaining NAs after the sliding window process
+# slided.tb <- na.omit(slided.tb)
+# 
+# # Convert replicate to a factor if it's not already
+# slided.tb$replicate <- as.factor(slided.tb$replicate)
+# 
+# # Fit the updated GAMM model with replicate and channel
+# gam_model_both_updated <- gam(count.dots_norm_slid ~ replicate + ch + 
+#                               s(cell.distances, bs = "cr") +         # Overall smooth term for distance
+#                               s(cell.distances, by = replicate, bs = "cr") +   # Smooth term per replicate
+#                               s(cell.distances, by = ch, bs = "cr"),           # Smooth term per channel
+#                               data = slided.tb, method = "REML")
+# 
+# # Check the summary of the model
+# summary(gam_model_both_updated)
 ```
 
 ```{r}
-# Extract parametric coefficients from the model summary
-parametric_coefficients <- summary(gam_model_both_updated)$p.table
-
-# Convert parametric coefficients to a tibble
-parametric_tibble <- tibble::tibble(
-  term = rownames(parametric_coefficients),
-  estimate = parametric_coefficients[, 1],
-  std.error = parametric_coefficients[, 2],
-  statistic = parametric_coefficients[, 3],
-  p.value = parametric_coefficients[, 4]
-)
-
-# Extract smooth terms from the model summary
-smooth_terms <- summary(gam_model_both_updated)$s.table
-
-# Convert smooth terms to a tibble
-smooth_tibble <- tibble::tibble(
-  term = rownames(smooth_terms),
-  edf = smooth_terms[, 1],
-  ref_df = smooth_terms[, 2],
-  F_stat = smooth_terms[, 3],
-  p_value = smooth_terms[, 4]
-)
-
-# Combine parametric and smooth terms into a neat tibble list
-results_tibble <- list(
-  "Parametric Coefficients" = parametric_tibble,
-  "Smooth Terms" = smooth_tibble
-)
-
-# Display the results as two tibbles
-results_tibble
+# # Extract parametric coefficients from the model summary
+# parametric_coefficients <- summary(gam_model_both_updated)$p.table
+# 
+# # Convert parametric coefficients to a tibble
+# parametric_tibble <- tibble::tibble(
+#   term = rownames(parametric_coefficients),
+#   estimate = parametric_coefficients[, 1],
+#   std.error = parametric_coefficients[, 2],
+#   statistic = parametric_coefficients[, 3],
+#   p.value = parametric_coefficients[, 4]
+# )
+# 
+# # Extract smooth terms from the model summary
+# smooth_terms <- summary(gam_model_both_updated)$s.table
+# 
+# # Convert smooth terms to a tibble
+# smooth_tibble <- tibble::tibble(
+#   term = rownames(smooth_terms),
+#   edf = smooth_terms[, 1],
+#   ref_df = smooth_terms[, 2],
+#   F_stat = smooth_terms[, 3],
+#   p_value = smooth_terms[, 4]
+# )
+# 
+# # Combine parametric and smooth terms into a neat tibble list
+# results_tibble <- list(
+#   "Parametric Coefficients" = parametric_tibble,
+#   "Smooth Terms" = smooth_tibble
+# )
+# 
+# # Display the results as two tibbles
+# results_tibble
 ```
 
 # Image e4_1c_sb514 {.tabset}
@@ -847,7 +862,8 @@ count.per.cell.channel.filt.e4_1c_sb514 <- process_image_data(
   cores = cores, 
   replicate_name = "e4_1c_sb514", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","Ebf1")
 )
 ```
 
@@ -1133,7 +1149,8 @@ count.per.cell.channel.filt.e4_2b_sb0488 <- process_image_data(
   cores = cores, 
   replicate_name = "e4_2b_sb0488", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","Ebf1")
 )
 ```
 
@@ -1153,6 +1170,103 @@ plot_sliding_mean(count.per.cell.channel.filt.e4_2b_sb0488,window_size = 8)
 ggplot(count.per.cell.channel.filt.e4_2b_sb0488, aes(fill=as.character(ch), y=norm_count_dots, x=cell.distances)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance from VZ (as units of average cell size)") + xlab("Micrometers")
 ```
 
+
+# Image e4_1b_d611 {.tabset}
+
+```{r}
+rois.trail <- "_dapi.tif_rois.zip"
+band.trail.1 <- "_Tal1.tif"
+band.trail.2 <- "_Tead2.tif"
+band.trail.3 <- "_Ebf1.tif"
+dapi.trail <- "_dapi.tif"
+image.base <- "e4_1b_d611_E12.5_63x"
+```
+
+```{r Reading imageJ ROIS file for a image e4_1b_d611}
+rois <- read.ijzip(file = paste(rois.path,image.base,rois.trail,sep=""))
+rois.ss <- ij2spatstat(rois)
+```
+
+```{r Reading channels from image files e4_1b_d611, warning=FALSE}
+ras.1 <- raster(paste(fluor.channel.path,image.base,band.trail.1,sep=""), band=1)
+ras.2 <- raster(paste(fluor.channel.path,image.base,band.trail.2,sep=""), band=1)
+ras.3 <- raster(paste(fluor.channel.path,image.base,band.trail.3,sep=""), band=1)
+ras.dapi <- raster(paste(fluor.channel.path,image.base,dapi.trail,sep=""), band=1)
+
+im.1 <- as.im(as.matrix(ras.1))
+im.2 <- as.im(as.matrix(ras.2))
+im.3 <- as.im(as.matrix(ras.3))
+im.dapi <- as.im(as.matrix(ras.dapi))
+```
+
+## Segmentation and channels check
+
+```{r Plot DAPI channel to check orientation e4_1b_d611}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.dapi)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+
+```{r Plot channel 1 to check orientation e4_1b_d611}
+#plot(NA,NA,asp=1, xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+plot(im.1)
+plot(rois, TRUE,xlim=c(0, ras.1@extent@xmax), ylim=c(ras.1@extent@ymax, 0))
+```
+
+```{r Plot channel 2 to check orientation e4_1b_d611}
+plot(im.2)
+plot(rois, TRUE,xlim=c(0, ras.2@extent@xmax), ylim=c(ras.2@extent@ymax, 0))
+```
+
+```{r Plot channel 3 to check orientation e4_1b_d611}
+plot(im.3)
+plot(rois, TRUE,xlim=c(0, ras.3@extent@xmax), ylim=c(ras.3@extent@ymax, 0))
+```
+
+## Aggregate signal per cell and radial distance
+
+```{r Define circle e4_1b_d611, eval=FALSE}
+plot(im.dapi)
+three.points <- locator()
+saveRDS(three.points,file="../../analysis/e4_1b_d611.three.points.Rds")
+```
+
+```{r}
+three.points <- readRDS(file="../../analysis/e4_1b_d611.three.points.Rds")
+```
+
+```{r Process e4_1b_d611}
+count.per.cell.channel.filt.e4_1b_d611 <- process_image_data(
+  rois.ss = rois.ss, 
+  im.1 = im.1, 
+  im.2 = im.2, 
+  im.3 = im.3, 
+  rois = rois, 
+  three.points = three.points, 
+  cores = cores, 
+  replicate_name = "e4_1b_d611", 
+  quantile_threshold = 0.25,
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","Ebf1")
+)
+```
+
+## Fluorescence from VZ
+
+```{r}
+ggplot(count.per.cell.channel.filt.e4_1b_d611, aes(x=cell.distances,y=count.dots)) + geom_point(aes(colour = factor(ch))) + scale_color_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + labs(color="Channel") + theme_minimal() +ggtitle("Raw values") + xlab("Micrometers")
+```
+
+```{r}
+plot_sliding_mean(count.per.cell.channel.filt.e4_1b_d611,window_size = 12)
+```
+
+## Stacked barplot of fluor dot proportions as distance from VZ
+
+```{r fig.width=12, fig.height=4}
+ggplot(count.per.cell.channel.filt.e4_1b_d611, aes(fill=as.character(ch), y=norm_count_dots, x=cell.distances)) + geom_bar(position="stack", width = 1,stat="identity") + scale_fill_manual(values=c("magenta2", "dodgerblue", "forestgreen"),labels=c("Tal1","Tead2","Ebf1")) + theme_minimal()  + theme(axis.text.x = element_blank()) + labs(fill="Channel") + xlab("Cells in increasing distance from VZ (as units of average cell size)") + xlab("Micrometers")
+```
 
 # Image e4_4c_sb0479 {.tabset}
 
@@ -1230,7 +1344,8 @@ count.per.cell.channel.filt.e4_4c_sb0479 <- process_image_data(
   cores = cores, 
   replicate_name = "e4_4c_sb0479", 
   quantile_threshold = 0.25,
-  cell.size.avg = global_avg_diameter
+  cell.size.avg = global_avg_diameter, 
+  channel_labels = c("Tal1","Tead2","Ebf1")
 )
 ```
 
@@ -1241,7 +1356,7 @@ ggplot(count.per.cell.channel.filt.e4_4c_sb0479, aes(x=cell.distances,y=count.do
 ```
 
 ```{r}
-plot_sliding_mean(count.per.cell.channel.filt.e4_4c_sb0479,window_size = 8)
+plot_sliding_mean(count.per.cell.channel.filt.e4_4c_sb0479,window_size = 12)
 ```
 
 ## Stacked barplot of fluor dot proportions as distance from VZ
@@ -1258,69 +1373,83 @@ combined_replicates <- rbind(count.per.cell.channel.filt.e4_4c_sb0479,
                              count.per.cell.channel.filt.e4_2b_sb0488, 
                              count.per.cell.channel.filt.e4_1c_sb514)
 
-combined_replicates <- filter_by_max_distance(combined_replicates)
+combined_replicates <- filter_by_max_distance(combined_replicates, extend.factor = 1.5)
 
-plot_sliding_mean_replicates(combined_replicates, window_size = 8)
+p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE)
+
+p1[[1]]
+pdf(file=paste(plot_loc,"e4.aggregated.pdf",sep=""), width = 8, height = 6)
+p1[[1]]
+dev.off()
 ```
 
 ```{r}
-# Normalize within each channel for each replicate
-slided.tb <- combined_replicates %>%
-  group_by(replicate, ch) %>%
-  mutate(count.dots_norm = (count.dots - mean(count.dots)) / sd(count.dots)) %>%
-  ungroup()
-
-# Apply symmetrical sliding window to count.dots_norm
-slided.tb <- apply_sliding_window(slided.tb, window_size = 8)
-
-# 2. Remove any remaining NAs after the sliding window process
-slided.tb <- na.omit(slided.tb)
-
-# Convert replicate to a factor if it's not already
-slided.tb$replicate <- as.factor(slided.tb$replicate)
-
-# Fit the updated GAMM model with replicate and channel
-gam_model_both_updated <- gam(count.dots_norm_slid ~ replicate + ch + 
-                              s(cell.distances, bs = "cr") +         # Overall smooth term for distance
-                              s(cell.distances, by = replicate, bs = "cr") +   # Smooth term per replicate
-                              s(cell.distances, by = ch, bs = "cr"),           # Smooth term per channel
-                              data = slided.tb, method = "REML")
-
-# Check the summary of the model
-summary(gam_model_both_updated)
+# # Normalize within each channel for each replicate
+# slided.tb <- combined_replicates %>%
+#   group_by(replicate, ch) %>%
+#   mutate(count.dots_norm = (count.dots - mean(count.dots)) / sd(count.dots)) %>%
+#   ungroup()
+# 
+# # Apply symmetrical sliding window to count.dots_norm
+# slided.tb <- apply_sliding_window(slided.tb, window_size = 8)
+# 
+# # 2. Remove any remaining NAs after the sliding window process
+# slided.tb <- na.omit(slided.tb)
+# 
+# # Convert replicate to a factor if it's not already
+# slided.tb$replicate <- as.factor(slided.tb$replicate)
+# 
+# # Fit the updated GAMM model with replicate and channel
+# gam_model_both_updated <- gam(count.dots_norm_slid ~ replicate + ch + 
+#                               s(cell.distances, bs = "cr") +         # Overall smooth term for distance
+#                               s(cell.distances, by = replicate, bs = "cr") +   # Smooth term per replicate
+#                               s(cell.distances, by = ch, bs = "cr"),           # Smooth term per channel
+#                               data = slided.tb, method = "REML")
+# 
+# # Check the summary of the model
+# summary(gam_model_both_updated)
 ```
 
 ```{r}
-# Extract parametric coefficients from the model summary
-parametric_coefficients <- summary(gam_model_both_updated)$p.table
-
-# Convert parametric coefficients to a tibble
-parametric_tibble <- tibble::tibble(
-  term = rownames(parametric_coefficients),
-  estimate = parametric_coefficients[, 1],
-  std.error = parametric_coefficients[, 2],
-  statistic = parametric_coefficients[, 3],
-  p.value = parametric_coefficients[, 4]
-)
-
-# Extract smooth terms from the model summary
-smooth_terms <- summary(gam_model_both_updated)$s.table
-
-# Convert smooth terms to a tibble
-smooth_tibble <- tibble::tibble(
-  term = rownames(smooth_terms),
-  edf = smooth_terms[, 1],
-  ref_df = smooth_terms[, 2],
-  F_stat = smooth_terms[, 3],
-  p_value = smooth_terms[, 4]
-)
-
-# Combine parametric and smooth terms into a neat tibble list
-results_tibble <- list(
-  "Parametric Coefficients" = parametric_tibble,
-  "Smooth Terms" = smooth_tibble
-)
-
-# Display the results as two tibbles
-results_tibble
+# # Extract parametric coefficients from the model summary
+# parametric_coefficients <- summary(gam_model_both_updated)$p.table
+# 
+# # Convert parametric coefficients to a tibble
+# parametric_tibble <- tibble::tibble(
+#   term = rownames(parametric_coefficients),
+#   estimate = parametric_coefficients[, 1],
+#   std.error = parametric_coefficients[, 2],
+#   statistic = parametric_coefficients[, 3],
+#   p.value = parametric_coefficients[, 4]
+# )
+# 
+# # Extract smooth terms from the model summary
+# smooth_terms <- summary(gam_model_both_updated)$s.table
+# 
+# # Convert smooth terms to a tibble
+# smooth_tibble <- tibble::tibble(
+#   term = rownames(smooth_terms),
+#   edf = smooth_terms[, 1],
+#   ref_df = smooth_terms[, 2],
+#   F_stat = smooth_terms[, 3],
+#   p_value = smooth_terms[, 4]
+# )
+# 
+# # Combine parametric and smooth terms into a neat tibble list
+# results_tibble <- list(
+#   "Parametric Coefficients" = parametric_tibble,
+#   "Smooth Terms" = smooth_tibble
+# )
+# 
+# # Display the results as two tibbles
+# results_tibble
 ```
+
+```{r}
+save_image(file="SegmentationAnalysisImage121124.RData")
+```
+
+```{r}
+sessionInfo()
+```
+
