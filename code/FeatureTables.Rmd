@@ -1,6 +1,6 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output: html_document
 ---
 
 ```{r}
@@ -21,6 +21,35 @@ table.loc <- "/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Ma
 ```{r}
 Gata2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Gata2 feature summary_new.xlsx", sheet = "Sheet1")
 ```
+
+```{r}
+gene_name <- "Tal1"
+
+# Construct the SQL query using paste0()
+query <- paste0("
+WITH gene_tads AS (
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  FROM TAD t
+  JOIN gene_metadata g ON t.seqnames = g.seqnames
+  WHERE g.gene_name = '", gene_name, "'
+    AND g.TSS_start BETWEEN t.start AND t.end
+)
+SELECT DISTINCT f.*
+FROM feature f
+JOIN gene_tads gt ON f.seqnames = gt.seqnames
+WHERE f.end >= gt.start
+  AND f.start <= gt.end
+  AND (
+    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
+    OR
+    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
+  );
+")
+
+# Execute the query and fetch results
+result <- dbGetQuery(con, query)
+```
+
 
 ```{r}
 links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
@@ -70,9 +99,8 @@ Tal1.features <- distinct(left_join(Tal1.features, distinct(dplyr::filter(links.
 
 ```{r}
 Tal1.tb.out <- Tal1.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
-writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep=""))
+#writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep=""))
 ```
-
 
 ## Vsx2
 
@@ -96,42 +124,53 @@ writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep="
 ```{r}
 # List of tibbles (replace with actual tibbles)
 tibble_list <- list(Vsx2.features, Tal1.features, Gata3.features, Gata2.features)
+# Row-bind the tibbles with an additional column for gene names
+combined_tibble <- bind_rows(tibble_list, .id = "gene_name")
 
+# Adjust gene names to match the tibble names (if needed)
+combined_tibble$gene_name <- recode(combined_tibble$gene_name,
+                                    `1` = "Vsx2",
+                                    `2` = "Tal1",
+                                    `3` = "Gata3",
+                                    `4` = "Gata2")
 
-# Function to convert each tibble to GRanges
-tibble_to_grange <- function(tibble, gene_name) {
-  # Ensure sequence levels are unique and non-NA
-  seqlevels <- unique(na.omit(unlist(lapply(tibble_list, function(x) x$Chromosome))))
-  
-  tibble %>%
-    # Filter rows with valid coordinates to avoid NA entries
-    filter(!is.na(Chromosome) & !is.na(start.x) & !is.na(end.x)) %>%
-    # Create GRanges object manually
-    { 
-      gr <- GRanges(
-        seqnames = .$Chromosome,
-        ranges = IRanges(start = .$start.x, end = .$end.x),
-        Feature = .$Feature,  # Assuming Feature is useful in metadata
-        gene_name = gene_name  # Add gene name as metadata
-      )
-      # Set consistent sequence levels without NA or duplicates
-      seqlevels(gr, pruning.mode = "coarse") <- seqlevels
-      gr
-    }
-}
+```
 
-# Apply the function to each tibble in the list with corresponding gene names
-gene_names <- c("Vsx2", "GeneX", "GeneY", "GeneZ") # Adjust based on actual gene names
-granges_list <- mapply(tibble_to_grange, tibble_list, gene_names, SIMPLIFY = FALSE)
+## Vsx1
 
-# Combine all GRanges into one
-combined_granges <- do.call(c, granges_list)
-
-# Inspect the resulting GRanges object
-combined_granges
+```{r}
+# Vsx2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Vsx2 feature summary_new.xlsx", sheet = "Sheet1")
 ```
 
 ```{r}
-saveRDS(combined_granges,file="../analysis/Selector.features.Rds")
+links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
+```
+
+```{r}
+# Vsx2.features <- distinct(left_join(Vsx2.features, distinct(dplyr::filter(links.tb, gene_name=="Vsx2")), by=c("Feature"="feature")))
+```
+
+```{r}
+# Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
+# writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
+```
+
+```{r}
+# # List of tibbles (replace with actual tibbles)
+# tibble_list <- list(Vsx2.features, Tal1.features, Gata3.features, Gata2.features)
+# # Row-bind the tibbles with an additional column for gene names
+# combined_tibble <- bind_rows(tibble_list, .id = "gene_name")
+# 
+# # Adjust gene names to match the tibble names (if needed)
+# combined_tibble$gene_name <- recode(combined_tibble$gene_name,
+#                                     `1` = "Vsx2",
+#                                     `2` = "Tal1",
+#                                     `3` = "Gata3",
+#                                     `4` = "Gata2")
+
+```
+
+```{r}
+saveRDS(combined_tibble,file="../analysis/Selector.features.Rds")
 ```
 
