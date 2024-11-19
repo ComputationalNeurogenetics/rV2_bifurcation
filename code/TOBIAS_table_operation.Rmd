@@ -134,7 +134,22 @@ gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% plot
 
 TSS.positions <- GetTSSPositions(Annotation(dataset)) %>% as_tibble()
 
-gene.metadata <- left_join(gene.metadata, select(TSS.positions,seqnames,start,gene_id), by=c("ensg_id"="gene_id"))
+gene_positions <- as_tibble(Annotation(dataset)) %>% select(seqnames, start, end, strand, gene_id)
+gene_positions <- gene_positions %>%
+  mutate(
+    gene_end = if_else(strand == "+", end, start)
+  )
+gene_positions_max_end <- gene_positions %>%
+  group_by(gene_id) %>%
+  summarise(gene_end = max(end))
+
+gene.metadata <- left_join(gene.metadata, select(TSS.positions,seqnames,start,gene_id,strand), by=c("ensg_id"="gene_id"))
+
+gene.metadata <- left_join(
+  gene.metadata,
+  gene_positions_max_end %>% select(gene_end, gene_id),
+  by = c("ensg_id" = "gene_id")
+)
 
 gene.metadata <- gene.metadata %>% plotly::rename("TSS_start"="start")
 
