@@ -575,6 +575,8 @@ gene_ids <- unique(intersect(names(mm10.v79.genome.GR), rownames(E12_rV2)))
 # Read TAD map
 TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end")) %>% GRanges()
 
+dbWriteTable(con.obj, "TAD", TAD.map, overwrite=TRUE)
+
 # Open database connection
 #con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 #dbExecute(con.obj, 'DROP TABLE links;')
