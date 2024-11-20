@@ -20,6 +20,7 @@ library(ChIPpeakAnno)
 cores <-10
 source("../../AuxCode/AuxFunctions.R")
 source("../../AuxCode/TOBIAS_tools.R")
+source("local_settings.R")
 library(rtracklayer)
 library(plyranges)
 library(data.table)
@@ -126,7 +127,7 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.2.qs",nthread
 
 ```{r Connection to SQLite}
 #con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_300824.sqlite")
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -167,6 +168,141 @@ dbExecute(con.obj, 'CREATE INDEX features2 ON feature (feature);')
 dbExecute(con.obj, 'CREATE INDEX seqnames2 ON feature (seqnames);')
 dbExecute(con.obj, 'CREATE INDEX start2 ON feature (start);')
 dbExecute(con.obj, 'CREATE INDEX end2 ON feature (end);')
+
+# Step 1: Add a new column to the 'feature' table
+dbExecute(con.obj, "ALTER TABLE feature ADD COLUMN feature_name TEXT;")
+
+# Step 2: Update the 'feature' table with the calculated feature names
+# Since SQLite has limitations with complex updates involving joins and subqueries,
+# we'll perform the calculations in R and then update the database.
+
+# Fetch 'gene_metadata' table
+gene_metadata_df <- dbGetQuery(con, "
+  SELECT ensg_id, gene_name, seqnames, TSS_start, strand FROM gene_metadata;
+")
+
+# Check for NAs in TSS_start
+num_na_tss <- sum(is.na(gene_metadata_df$TSS_start))
+cat("Number of NAs in TSS_start:", num_na_tss, "\n")
+
+if (num_na_tss > 0) {
+  # Remove rows with NA in TSS_start
+  gene_metadata_df <- gene_metadata_df[!is.na(gene_metadata_df$TSS_start), ]
+  cat("Removed rows with NA in TSS_start.\n")
+}
+
+# Create a GRanges object for genes
+gene_gr <- GRanges(
+  seqnames = gene_metadata_df$seqnames,
+  ranges = IRanges(
+    start = gene_metadata_df$TSS_start,
+    end = gene_metadata_df$TSS_start
+  ),
+  gene_name = gene_metadata_df$gene_name,
+  strand = gene_metadata_df$strand
+)
+
+# Get the list of chromosomes to process
+chromosomes <- unique(gene_metadata_df$seqnames)
+
+# Process features chromosome by chromosome
+for (chr in chromosomes) {
+  message("Processing chromosome ", chr)
+  
+  # Fetch features for this chromosome
+  feature_df <- dbGetQuery(con, paste0("
+    SELECT rowid, seqnames, start, end FROM feature WHERE seqnames = '", chr, "';
+  "))
+  
+  if (nrow(feature_df) == 0) {
+    next  # Skip if no features on this chromosome
+  }
+  
+  # Create a GRanges object for features
+  feature_gr <- GRanges(
+    seqnames = feature_df$seqnames,
+    ranges = IRanges(start = feature_df$start, end = feature_df$end),
+    rowid = feature_df$rowid
+  )
+  
+  # Subset genes to this chromosome
+  gene_gr_chr <- gene_gr[seqnames(gene_gr) == chr]
+  
+  if (length(gene_gr_chr) == 0) {
+    next  # Skip if no genes on this chromosome
+  }
+  
+  # Find the nearest gene for each feature
+  nearest_genes <- nearest(feature_gr, gene_gr_chr, select = "arbitrary")
+  
+  # Handle cases where no nearest gene is found
+  valid_idx <- !is.na(nearest_genes)
+  if (sum(valid_idx) == 0) {
+    next  # Skip if no valid nearest genes
+  }
+  
+  # Subset features and nearest genes
+  feature_gr_valid <- feature_gr[valid_idx]
+  nearest_genes_valid <- nearest_genes[valid_idx]
+  nearest_gene_info <- gene_gr_chr[nearest_genes_valid]
+  
+  # Calculate feature midpoints
+  midpoint <- start(feature_gr_valid) + (width(feature_gr_valid) - 1) / 2
+  
+  # Calculate distances in base pairs
+  distance_bp <- abs(midpoint - start(nearest_gene_info))
+  
+  # Determine direction (+ or -)
+  direction <- ifelse(
+    (midpoint - start(nearest_gene_info)) * ifelse(as.character(strand(nearest_gene_info)) == '+', 1, -1) >= 0,
+    '+',
+    '-'
+  )
+  
+  # Convert distance to kilobases
+  distance_kb <- floor(distance_bp / 1000)
+  
+  # Generate the feature names
+  feature_name <- paste0(
+    mcols(nearest_gene_info)$gene_name, "_f", direction, distance_kb
+  )
+  
+  feature_names_df <- data.frame(
+    seqnames = as.character(seqnames(feature_gr_valid)),
+    start = start(feature_gr_valid),
+    end = end(feature_gr_valid),
+    feature_name = feature_name,
+    stringsAsFactors = FALSE
+  )
+  # Insert the updated data into the temporary table
+  dbWriteTable(con.obj, "temp_feature_names", feature_names_df, overwrite = TRUE, row.names = FALSE)
+  
+  # Update the feature table using seqnames, start, and end
+  dbExecute(con.obj, "
+    UPDATE feature
+    SET feature_name = (
+      SELECT temp_feature_names.feature_name
+      FROM temp_feature_names
+      WHERE feature.seqnames = temp_feature_names.seqnames
+        AND feature.start = temp_feature_names.start
+        AND feature.end = temp_feature_names.end
+    )
+    WHERE EXISTS (
+      SELECT 1
+      FROM temp_feature_names
+      WHERE feature.seqnames = temp_feature_names.seqnames
+        AND feature.start = temp_feature_names.start
+        AND feature.end = temp_feature_names.end
+    );
+  ")
+  
+  # Clean Up: Remove the Temporary Table After Updating
+  dbExecute(con.obj, "DROP TABLE IF EXISTS temp_feature_names;")
+
+}
+
+
+
 ```
 
 ```{r Write TOBIAS data into SQlite, eval=TRUE}

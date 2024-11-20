@@ -9,34 +9,36 @@ library(DBI)
 library(readxl)
 library(writexl)
 library(GenomicRanges)
+
+source("local_settings.R")
 ```
 
 ```{r}
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_300824.sqlite")
-table.loc <- "/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Per gene feature tables/"
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
 ```
 
 ## Gata2
 
-```{r}
-Gata2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Gata2 feature summary_new.xlsx", sheet = "Sheet1")
+```{r Old archived table}
+Gata2.features <- readxl::read_xlsx(paste(archived.table.loc,"Gata2 feature summary_new.xlsx",sep=""), sheet = "Sheet1")
 ```
 
-```{r}
-gene_name <- "Tal1"
+```{r Regenerate from db}
+gene_name <- "Gata2"
 
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end
-)
-SELECT DISTINCT f.*
+    AND g.TSS_start BETWEEN t.start AND t.end)
+SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
+LEFT JOIN links_s l ON f.feature = l.feature
+  AND l.ensg_id = gt.ensg_id
 WHERE f.end >= gt.start
   AND f.start <= gt.end
   AND (
@@ -48,80 +50,179 @@ WHERE f.end >= gt.start
 
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
+
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
 ```
 
-
-```{r}
+```{r, eval=FALSE}
 links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Gata2.features <- distinct(left_join(Gata2.features, distinct(dplyr::filter(links.tb, gene_name=="Gata2")), by=c("Feature"="feature")))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Gata2.tb.out <- Gata2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
 writexl::write_xlsx(Gata2.tb.out, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
 ```
 
 ## Gata3
 
-```{r}
-Gata3.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Gata3 feature summary_new.xlsx", sheet = "Sheet1")
+```{r Old archived table}
+Gata3.features <- readxl::read_xlsx(paste(archived.table.loc,"Gata3 feature summary_new.xlsx",sep=""), sheet = "Sheet1")
 ```
 
-```{r}
+```{r Regenerate from db}
+gene_name <- "Gata3"
+
+# Construct the SQL query using paste0()
+query <- paste0("
+WITH gene_tads AS (
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  FROM TAD t
+  JOIN gene_metadata g ON t.seqnames = g.seqnames
+  WHERE g.gene_name = '", gene_name, "'
+    AND g.TSS_start BETWEEN t.start AND t.end)
+SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+FROM feature f
+JOIN gene_tads gt ON f.seqnames = gt.seqnames
+LEFT JOIN links_s l ON f.feature = l.feature
+  AND l.ensg_id = gt.ensg_id
+WHERE f.end >= gt.start
+  AND f.start <= gt.end
+  AND (
+    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
+    OR
+    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
+  );
+")
+
+# Execute the query and fetch results
+result <- dbGetQuery(con, query)
+
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+```
+
+
+```{r, eval=FALSE}
 links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Gata3.features <- distinct(left_join(Gata3.features, distinct(dplyr::filter(links.tb, gene_name=="Gata3")), by=c("Feature"="feature")))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Gata3.tb.out <- Gata3.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
 writexl::write_xlsx(Gata3.tb.out, path=paste(table.loc,"Gata3_features.xlsx",sep=""))
 ```
 
 ## Tal1
 
-```{r}
-Tal1.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Tal1 feature summary_new_2.xlsx", sheet = "Sheet1")
+```{r Old archived table}
+Tal1.features <- readxl::read_xlsx(paste(archived.table.loc,"Tal1 feature summary_new_2.xlsx",sep=""), sheet = "Sheet1")
 ```
 
-```{r}
+```{r Regenerate from db}
+gene_name <- "Tal1"
+
+# Construct the SQL query using paste0()
+query <- paste0("
+WITH gene_tads AS (
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  FROM TAD t
+  JOIN gene_metadata g ON t.seqnames = g.seqnames
+  WHERE g.gene_name = '", gene_name, "'
+    AND g.TSS_start BETWEEN t.start AND t.end)
+SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+FROM feature f
+JOIN gene_tads gt ON f.seqnames = gt.seqnames
+LEFT JOIN links_s l ON f.feature = l.feature
+  AND l.ensg_id = gt.ensg_id
+WHERE f.end >= gt.start
+  AND f.start <= gt.end
+  AND (
+    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
+    OR
+    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
+  );
+")
+
+# Execute the query and fetch results
+result <- dbGetQuery(con, query)
+
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+```
+
+```{r, eval=FALSE}
 links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Tal1.features <- distinct(left_join(Tal1.features, distinct(dplyr::filter(links.tb, gene_name=="Tal1")), by=c("Feature"="feature")))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Tal1.tb.out <- Tal1.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
 #writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep=""))
 ```
 
 ## Vsx2
 
-```{r}
-Vsx2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Vsx2 feature summary_new.xlsx", sheet = "Sheet1")
+```{r Old archived table}
+Vsx2.features <- readxl::read_xlsx(paste(archived.table.loc,"Vsx2 feature summary_new.xlsx",sep=""), sheet = "Sheet1")
 ```
 
-```{r}
+```{r Regenerate from db}
+gene_name <- "Vsx2"
+
+# Construct the SQL query using paste0()
+query <- paste0("
+WITH gene_tads AS (
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  FROM TAD t
+  JOIN gene_metadata g ON t.seqnames = g.seqnames
+  WHERE g.gene_name = '", gene_name, "'
+    AND g.TSS_start BETWEEN t.start AND t.end)
+SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+FROM feature f
+JOIN gene_tads gt ON f.seqnames = gt.seqnames
+LEFT JOIN links_s l ON f.feature = l.feature
+  AND l.ensg_id = gt.ensg_id
+WHERE f.end >= gt.start
+  AND f.start <= gt.end
+  AND (
+    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
+    OR
+    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
+  );
+")
+
+# Execute the query and fetch results
+result <- dbGetQuery(con, query)
+
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+```
+
+```{r, eval=FALSE}
 links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Vsx2.features <- distinct(left_join(Vsx2.features, distinct(dplyr::filter(links.tb, gene_name=="Vsx2")), by=c("Feature"="feature")))
 ```
 
-```{r}
+```{r, eval=FALSE}
 Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
 writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
 ```
 
-```{r}
+```{r, eval=FALSE}
 # List of tibbles (replace with actual tibbles)
 tibble_list <- list(Vsx2.features, Tal1.features, Gata3.features, Gata2.features)
 # Row-bind the tibbles with an additional column for gene names
@@ -139,38 +240,38 @@ combined_tibble$gene_name <- recode(combined_tibble$gene_name,
 ## Vsx1
 
 ```{r}
-# Vsx2.features <- readxl::read_xlsx("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Archive/Vsx2 feature summary_new.xlsx", sheet = "Sheet1")
+gene_name <- "Vsx1"
+
+# Construct the SQL query using paste0()
+query <- paste0("
+WITH gene_tads AS (
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  FROM TAD t
+  JOIN gene_metadata g ON t.seqnames = g.seqnames
+  WHERE g.gene_name = '", gene_name, "'
+    AND g.TSS_start BETWEEN t.start AND t.end)
+SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+FROM feature f
+JOIN gene_tads gt ON f.seqnames = gt.seqnames
+LEFT JOIN links_s l ON f.feature = l.feature
+  AND l.ensg_id = gt.ensg_id
+WHERE f.end >= gt.start
+  AND f.start <= gt.end
+  AND (
+    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
+    OR
+    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
+  );
+")
+
+# Execute the query and fetch results
+result <- dbGetQuery(con, query)
+
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
-```{r}
-links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
-```
-
-```{r}
-# Vsx2.features <- distinct(left_join(Vsx2.features, distinct(dplyr::filter(links.tb, gene_name=="Vsx2")), by=c("Feature"="feature")))
-```
-
-```{r}
-# Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
-# writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
-```
-
-```{r}
-# # List of tibbles (replace with actual tibbles)
-# tibble_list <- list(Vsx2.features, Tal1.features, Gata3.features, Gata2.features)
-# # Row-bind the tibbles with an additional column for gene names
-# combined_tibble <- bind_rows(tibble_list, .id = "gene_name")
-# 
-# # Adjust gene names to match the tibble names (if needed)
-# combined_tibble$gene_name <- recode(combined_tibble$gene_name,
-#                                     `1` = "Vsx2",
-#                                     `2` = "Tal1",
-#                                     `3` = "Gata3",
-#                                     `4` = "Gata2")
-
-```
-
-```{r}
+```{r, eval=FALSE}
 saveRDS(combined_tibble,file="../analysis/Selector.features.Rds")
 ```
 
