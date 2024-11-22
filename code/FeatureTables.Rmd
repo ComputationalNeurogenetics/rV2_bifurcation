@@ -33,19 +33,15 @@ WITH gene_tads AS (
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
+    AND g.TSS_start BETWEEN t.start AND t.end
+)
 SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN links_s l ON f.feature = l.feature
   AND l.ensg_id = gt.ensg_id
 WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+  AND f.start <= gt.end;
 ")
 
 # Execute the query and fetch results
@@ -84,19 +80,15 @@ WITH gene_tads AS (
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
+    AND g.TSS_start BETWEEN t.start AND t.end
+)
 SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN links_s l ON f.feature = l.feature
   AND l.ensg_id = gt.ensg_id
 WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+  AND f.start <= gt.end;
 ")
 
 # Execute the query and fetch results
@@ -136,19 +128,15 @@ WITH gene_tads AS (
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
+    AND g.TSS_start BETWEEN t.start AND t.end
+)
 SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN links_s l ON f.feature = l.feature
   AND l.ensg_id = gt.ensg_id
 WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+  AND f.start <= gt.end;
 ")
 
 # Execute the query and fetch results
@@ -187,21 +175,16 @@ WITH gene_tads AS (
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
+    AND g.TSS_start BETWEEN t.start AND t.end
+)
 SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN links_s l ON f.feature = l.feature
   AND l.ensg_id = gt.ensg_id
 WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+  AND f.start <= gt.end;
 ")
-
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
@@ -249,19 +232,15 @@ WITH gene_tads AS (
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
+    AND g.TSS_start BETWEEN t.start AND t.end
+)
 SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN links_s l ON f.feature = l.feature
   AND l.ensg_id = gt.ensg_id
 WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+  AND f.start <= gt.end;
 ")
 
 # Execute the query and fetch results
