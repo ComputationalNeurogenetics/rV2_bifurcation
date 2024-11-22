@@ -47,7 +47,7 @@ WHERE f.end >= gt.start
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature")) %>% select(-strand)
 writexl::write_xlsx(result, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
 ```
 
@@ -94,7 +94,7 @@ WHERE f.end >= gt.start
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature")) %>% select(-strand)
 writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
@@ -142,7 +142,7 @@ WHERE f.end >= gt.start
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature")) %>% select(-strand)
 writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
@@ -188,7 +188,7 @@ WHERE f.end >= gt.start
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature")) %>% select(-strand)
 writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
@@ -246,7 +246,7 @@ WHERE f.end >= gt.start
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature")) %>% select(-strand)
 writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
