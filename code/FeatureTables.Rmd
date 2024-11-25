@@ -25,34 +25,35 @@ Gata2.features <- readxl::read_xlsx(paste(archived.table.loc,"Gata2 feature summ
 
 ```{r Regenerate from db}
 gene_name <- "Gata2"
-
+distance.limit <- 0
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
-SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+    AND g.gene_end >= t.start
+    AND g.TSS_start <= t.end
+)
+SELECT DISTINCT f.*, 
+       GROUP_CONCAT(gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
-LEFT JOIN links_s l ON f.feature = l.feature
-  AND l.ensg_id = gt.ensg_id
-WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
+  AND f.end > gm.TSS_start
+  AND f.start < gm.gene_end
+WHERE f.end > gt.start
+  AND f.start < gt.end
+GROUP BY f.seqnames, f.start, f.end;
 ")
 
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
-writexl::write_xlsx(result, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
+result.Gata2 <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result.Gata2, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
 ```
 
 ```{r, eval=FALSE}
@@ -80,30 +81,31 @@ gene_name <- "Gata3"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
-SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+    AND g.gene_end >= t.start
+    AND g.TSS_start <= t.end
+)
+SELECT DISTINCT f.*, 
+       GROUP_CONCAT(gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
-LEFT JOIN links_s l ON f.feature = l.feature
-  AND l.ensg_id = gt.ensg_id
-WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
+  AND f.end > gm.TSS_start
+  AND f.start < gm.gene_end
+WHERE f.end > gt.start
+  AND f.start < gt.end
+GROUP BY f.seqnames, f.start, f.end;
 ")
 
-# Execute the query and fetch results
-result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
-writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+# Execute the query and fetch results
+result.Gata3 <- dbGetQuery(con, query)
+#result.Gata3 <- left_join(result, select(Gata3.features), by=c("feature"="Feature"))
+writexl::write_xlsx(result.Gata3, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
 
@@ -132,30 +134,32 @@ gene_name <- "Tal1"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
-SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+    AND g.gene_end >= t.start
+    AND g.TSS_start <= t.end
+)
+SELECT DISTINCT f.*, 
+       GROUP_CONCAT(gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
-LEFT JOIN links_s l ON f.feature = l.feature
-  AND l.ensg_id = gt.ensg_id
-WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
+  AND f.end > gm.TSS_start
+  AND f.start < gm.gene_end
+WHERE f.end > gt.start
+  AND f.start < gt.end
+GROUP BY f.seqnames, f.start, f.end;
 ")
+
 
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
-writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+result.Tal1 <- left_join(result, select(Tal1.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result.Tal1, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
 ```{r, eval=FALSE}
@@ -183,30 +187,32 @@ gene_name <- "Vsx2"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
-SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+    AND g.gene_end >= t.start
+    AND g.TSS_start <= t.end
+)
+SELECT DISTINCT f.*, 
+       GROUP_CONCAT(gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
-LEFT JOIN links_s l ON f.feature = l.feature
-  AND l.ensg_id = gt.ensg_id
-WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
+  AND f.end > gm.TSS_start
+  AND f.start < gm.gene_end
+WHERE f.end > gt.start
+  AND f.start < gt.end
+GROUP BY f.seqnames, f.start, f.end;
 ")
+
 
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
-writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+result.Vsx2 <- left_join(result, select(Vsx2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
 ```{r, eval=FALSE}
@@ -222,20 +228,6 @@ Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Fe
 writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
 ```
 
-```{r, eval=FALSE}
-# List of tibbles (replace with actual tibbles)
-tibble_list <- list(Vsx2.features, Tal1.features, Gata3.features, Gata2.features)
-# Row-bind the tibbles with an additional column for gene names
-combined_tibble <- bind_rows(tibble_list, .id = "gene_name")
-
-# Adjust gene names to match the tibble names (if needed)
-combined_tibble$gene_name <- recode(combined_tibble$gene_name,
-                                    `1` = "Vsx2",
-                                    `2` = "Tal1",
-                                    `3` = "Gata3",
-                                    `4` = "Gata2")
-
-```
 
 ## Vsx1
 
@@ -245,30 +237,45 @@ gene_name <- "Vsx1"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand, g.ensg_id
+  SELECT t.*, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
-    AND g.TSS_start BETWEEN t.start AND t.end)
-SELECT DISTINCT f.*, l.score, l.zscore, l.pvalue
+    AND g.gene_end >= t.start
+    AND g.TSS_start <= t.end
+)
+SELECT DISTINCT f.*, 
+       GROUP_CONCAT(gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
-LEFT JOIN links_s l ON f.feature = l.feature
-  AND l.ensg_id = gt.ensg_id
-WHERE f.end >= gt.start
-  AND f.start <= gt.end
-  AND (
-    (gt.strand = '+' AND f.end >= gt.TSS_start - 100000 AND f.start <= gt.gene_end + 100000)
-    OR
-    (gt.strand = '-' AND f.start <= gt.TSS_start + 100000 AND f.end >= gt.gene_end - 100000)
-  );
+LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
+  AND f.end > gm.TSS_start
+  AND f.start < gm.gene_end
+WHERE f.end > gt.start
+  AND f.start < gt.end
+GROUP BY f.seqnames, f.start, f.end;
 ")
 
 # Execute the query and fetch results
-result <- dbGetQuery(con, query)
+result.Vsx1 <- dbGetQuery(con, query)
 
-result <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
-writexl::write_xlsx(result, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+writexl::write_xlsx(result.Vsx1, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+```
+
+```{r}
+# List of tibbles (replace with actual tibbles)
+tibble_list <- list(result.Gata2, result.Gata3, result.Tal1, result.Vsx2,result.Vsx1)
+# Row-bind the tibbles with an additional column for gene names
+combined_tibble <- bind_rows(tibble_list, .id = "gene_name")
+
+# Adjust gene names to match the tibble names (if needed)
+#combined_tibble$gene_name <- recode(combined_tibble$gene_name,
+#                                    `1` = "Vsx2",
+#                                    `2` = "Tal1",
+#                                    `3` = "Gata3",
+#                                    `4` = "Gata2")
+
 ```
 
 ```{r, eval=FALSE}
