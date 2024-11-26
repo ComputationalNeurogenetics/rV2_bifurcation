@@ -38,13 +38,19 @@ WITH gene_tads AS (
 )
 SELECT DISTINCT f.*, 
        GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       CASE 
+         WHEN gt.strand = '+' THEN 
+           (f.start + (f.end - f.start) / 2) - gt.TSS_start
+         WHEN gt.strand = '-' THEN 
+           gt.TSS_start - (f.start + (f.end - f.start) / 2)
+         ELSE NULL
+       END AS Gene_TSS_distance,
        l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
-  AND f.end > gm.TSS_start
-  AND f.start < gm.gene_end
+  AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
+       OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
 LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
@@ -91,13 +97,19 @@ WITH gene_tads AS (
 )
 SELECT DISTINCT f.*, 
        GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       CASE 
+         WHEN gt.strand = '+' THEN 
+           (f.start + (f.end - f.start) / 2) - gt.TSS_start
+         WHEN gt.strand = '-' THEN 
+           gt.TSS_start - (f.start + (f.end - f.start) / 2)
+         ELSE NULL
+       END AS Gene_TSS_distance,
        l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
-  AND f.end > gm.TSS_start
-  AND f.start < gm.gene_end
+  AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
+       OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
 LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
@@ -136,7 +148,7 @@ gene_name <- "Tal1"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT t.*, g.TSS_start, g.gene_end
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -145,7 +157,7 @@ WITH gene_tads AS (
 )
 SELECT DISTINCT f.*, 
        GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       ((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
        l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
@@ -190,7 +202,7 @@ gene_name <- "Vsx2"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT t.*, g.TSS_start, g.gene_end
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -199,7 +211,7 @@ WITH gene_tads AS (
 )
 SELECT DISTINCT f.*, 
        GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       ((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
        l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
@@ -241,7 +253,7 @@ gene_name <- "Vsx1"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT t.*, g.TSS_start, g.gene_end
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -250,7 +262,7 @@ WITH gene_tads AS (
 )
 SELECT DISTINCT f.*, 
        GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       ((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
        l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames

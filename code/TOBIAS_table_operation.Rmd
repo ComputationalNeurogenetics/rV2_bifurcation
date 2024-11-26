@@ -126,8 +126,8 @@ qsave(tobias.tb.2, file = "../analysis/Tobias.rv2.h12.dr.tb_140524.2.qs",nthread
 ```
 
 ```{r Connection to SQLite}
-#con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
 con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
+con <- con.obj
 ```
 
 ```{r Write gene.metadata into SQlite}
@@ -136,10 +136,19 @@ gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% plot
 TSS.positions <- GetTSSPositions(Annotation(dataset)) %>% as_tibble()
 
 gene_positions <- as_tibble(Annotation(dataset)) %>% select(seqnames, start, end, strand, gene_id)
+
+# gene_positions <- gene_positions %>%
+#   mutate(
+#     gene_end = if_else(strand == "+", end, start)
+#   )
+
 gene_positions <- gene_positions %>%
-  mutate(
-    gene_end = if_else(strand == "+", end, start)
+  group_by(gene_id) %>%
+  summarise(
+    gene_end = max(end),
+    .groups = "drop"
   )
+
 gene_positions_max_end <- gene_positions %>%
   group_by(gene_id) %>%
   summarise(gene_end = max(end))
