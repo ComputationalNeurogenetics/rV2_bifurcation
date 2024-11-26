@@ -37,18 +37,19 @@ WITH gene_tads AS (
     AND g.TSS_start <= t.end
 )
 SELECT DISTINCT f.*, 
-       GROUP_CONCAT(gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
+       GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND f.end > gm.TSS_start
   AND f.start < gm.gene_end
+LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
 GROUP BY f.seqnames, f.start, f.end;
 ")
-
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
 
@@ -89,18 +90,19 @@ WITH gene_tads AS (
     AND g.TSS_start <= t.end
 )
 SELECT DISTINCT f.*, 
-       GROUP_CONCAT(gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
+       GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND f.end > gm.TSS_start
   AND f.start < gm.gene_end
+LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
 GROUP BY f.seqnames, f.start, f.end;
 ")
-
 
 # Execute the query and fetch results
 result.Gata3 <- dbGetQuery(con, query)
@@ -142,18 +144,19 @@ WITH gene_tads AS (
     AND g.TSS_start <= t.end
 )
 SELECT DISTINCT f.*, 
-       GROUP_CONCAT(gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
+       GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND f.end > gm.TSS_start
   AND f.start < gm.gene_end
+LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
 GROUP BY f.seqnames, f.start, f.end;
 ")
-
 
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
@@ -195,18 +198,19 @@ WITH gene_tads AS (
     AND g.TSS_start <= t.end
 )
 SELECT DISTINCT f.*, 
-       GROUP_CONCAT(gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
+       GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND f.end > gm.TSS_start
   AND f.start < gm.gene_end
+LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
 GROUP BY f.seqnames, f.start, f.end;
 ")
-
 
 # Execute the query and fetch results
 result <- dbGetQuery(con, query)
@@ -245,18 +249,19 @@ WITH gene_tads AS (
     AND g.TSS_start <= t.end
 )
 SELECT DISTINCT f.*, 
-       GROUP_CONCAT(gm.gene_name) AS gene_identity,
-       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance
+       GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
+       ABS((f.start + (f.end - f.start) / 2) - gt.TSS_start) AS Gene_TSS_distance,
+       l.zscore, l.pvalue
 FROM feature f
 JOIN gene_tads gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND f.end > gm.TSS_start
   AND f.start < gm.gene_end
+LEFT JOIN links_s l ON f.feature = l.feature
 WHERE f.end > gt.start
   AND f.start < gt.end
 GROUP BY f.seqnames, f.start, f.end;
 ")
-
 # Execute the query and fetch results
 result.Vsx1 <- dbGetQuery(con, query)
 
