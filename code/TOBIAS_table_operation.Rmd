@@ -18,8 +18,6 @@ library(EnsDb.Mmusculus.v79)
 library(BSgenome.Mmusculus.UCSC.mm10)
 library(ChIPpeakAnno)
 cores <-10
-source("../../AuxCode/AuxFunctions.R")
-source("../../AuxCode/TOBIAS_tools.R")
 source("local_settings.R")
 library(rtracklayer)
 library(plyranges)
@@ -131,39 +129,45 @@ con <- con.obj
 ```
 
 ```{r Write gene.metadata into SQlite}
-gene.metadata <- dataset[['RNA']][[]] %>% rownames_to_column("ensg_id") %>% plotly::rename("gene_name"="feature_symbol")
+# Extract metadata and TSS positions
+gene.metadata <- dataset[['RNA']][[]] %>%
+  rownames_to_column("ensg_id") %>%
+  plotly::rename("gene_name" = "feature_symbol")
 
-TSS.positions <- GetTSSPositions(Annotation(dataset)) %>% as_tibble()
+TSS.positions <- GetTSSPositions(Annotation(dataset)) %>%
+  as_tibble()
 
-gene_positions <- as_tibble(Annotation(dataset)) %>% select(seqnames, start, end, strand, gene_id)
-
-# gene_positions <- gene_positions %>%
-#   mutate(
-#     gene_end = if_else(strand == "+", end, start)
-#   )
-
-gene_positions <- gene_positions %>%
+# Gene positions with simplified calculations
+gene_positions <- as_tibble(Annotation(dataset)) %>%
+  select(seqnames, start, end, strand, gene_id) %>%
+  mutate(
+    start = as.numeric(start),
+    end = as.numeric(end)
+  ) %>%
   group_by(gene_id) %>%
   summarise(
-    gene_end = max(end),
+    seqnames = first(seqnames), # Ensure one seqname per gene_id
+    strand = first(strand),     # Ensure one strand per gene_id
+    gene_start = if_else(first(strand) == "-", max(end, na.rm = TRUE), min(start, na.rm = TRUE)),
+    gene_end = if_else(first(strand) == "-", min(start, na.rm = TRUE), max(end, na.rm = TRUE)),
     .groups = "drop"
+  ) %>%
+  distinct(gene_id, .keep_all = TRUE)  # Ensure unique rows by gene_id
+
+# Combine TSS positions into the gene metadata
+gene.metadata <- gene.metadata %>%
+  left_join(
+    TSS.positions %>% select(seqnames, start, strand, gene_id),
+    by = c("ensg_id" = "gene_id")
+  ) %>%
+  plotly::rename("TSS_start" = "start") %>%
+  left_join(
+    gene_positions %>% select(gene_id, gene_start, gene_end),
+    by = c("ensg_id" = "gene_id")
   )
 
-gene_positions_max_end <- gene_positions %>%
-  group_by(gene_id) %>%
-  summarise(gene_end = max(end))
-
-gene.metadata <- left_join(gene.metadata, select(TSS.positions,seqnames,start,gene_id,strand), by=c("ensg_id"="gene_id"))
-
-gene.metadata <- left_join(
-  gene.metadata,
-  gene_positions_max_end %>% select(gene_end, gene_id),
-  by = c("ensg_id" = "gene_id")
-)
-
-gene.metadata <- gene.metadata %>% plotly::rename("TSS_start"="start")
-
-dbWriteTable(con.obj, "gene_metadata", gene.metadata, overwrite=TRUE)
+# Write the final gene metadata table to SQLite
+dbWriteTable(con.obj, "gene_metadata", gene.metadata, overwrite = TRUE)
 dbExecute(con.obj, 'CREATE INDEX ensg_id3 ON gene_metadata (ensg_id);')
 dbExecute(con.obj, 'CREATE INDEX gene_name3 ON gene_metadata (gene_name);')
 ```

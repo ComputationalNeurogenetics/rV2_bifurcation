@@ -57,9 +57,9 @@ WHERE f.end > gt.start
 GROUP BY f.seqnames, f.start, f.end;
 ")
 # Execute the query and fetch results
-result <- dbGetQuery(con, query)
+result.Gata2 <- dbGetQuery(con, query)
 
-result.Gata2 <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+#result.Gata2 <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
 writexl::write_xlsx(result.Gata2, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
 ```
 
@@ -118,7 +118,7 @@ GROUP BY f.seqnames, f.start, f.end;
 
 # Execute the query and fetch results
 result.Gata3 <- dbGetQuery(con, query)
-#result.Gata3 <- left_join(result, select(Gata3.features), by=c("feature"="Feature"))
+#result.Gata3 <- left_join(result.Gata3, select(Gata3.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
 writexl::write_xlsx(result.Gata3, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
@@ -171,9 +171,9 @@ GROUP BY f.seqnames, f.start, f.end;
 ")
 
 # Execute the query and fetch results
-result <- dbGetQuery(con, query)
+result.Tal1 <- dbGetQuery(con, query)
 
-result.Tal1 <- left_join(result, select(Tal1.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+#result.Tal1 <- left_join(result, select(Tal1.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
 writexl::write_xlsx(result.Tal1, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
@@ -225,9 +225,9 @@ GROUP BY f.seqnames, f.start, f.end;
 ")
 
 # Execute the query and fetch results
-result <- dbGetQuery(con, query)
+result.Vsx2 <- dbGetQuery(con, query)
 
-result.Vsx2 <- left_join(result, select(Vsx2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+#result.Vsx2 <- left_join(result, select(Vsx2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
 writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
