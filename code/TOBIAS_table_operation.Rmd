@@ -142,17 +142,17 @@ gene_positions <- as_tibble(Annotation(dataset)) %>%
   select(seqnames, start, end, strand, gene_id) %>%
   mutate(
     start = as.numeric(start),
-    end = as.numeric(end)
+    end = as.numeric(end),
+    seqnames = as.character(seqnames),
+    strand=as.character(strand)
   ) %>%
-  group_by(gene_id) %>%
+  group_by(gene_id, strand) %>%
   summarise(
-    seqnames = first(seqnames), # Ensure one seqname per gene_id
-    strand = first(strand),     # Ensure one strand per gene_id
-    gene_start = if_else(first(strand) == "-", max(end, na.rm = TRUE), min(start, na.rm = TRUE)),
-    gene_end = if_else(first(strand) == "-", min(start, na.rm = TRUE), max(end, na.rm = TRUE)),
+    seqnames = dplyr::first(seqnames),
+    gene_start = if_else(dplyr::first(strand) == "-", max(end, na.rm = TRUE), min(start, na.rm = TRUE)),
+    gene_end = if_else(dplyr::first(strand) == "-", min(start, na.rm = TRUE), max(end, na.rm = TRUE)),
     .groups = "drop"
-  ) %>%
-  distinct(gene_id, .keep_all = TRUE)  # Ensure unique rows by gene_id
+  )
 
 # Combine TSS positions into the gene metadata
 gene.metadata <- gene.metadata %>%
