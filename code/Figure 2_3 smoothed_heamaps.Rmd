@@ -31,86 +31,101 @@ names(via.pseudot.v) <- via.pseudot$barcode
 rV2.data$VIA_pseudotime <- via.pseudot.v
 ```
 
+# Gata2
+
 ```{r Set genes and regions Gata2}
 covariate.genes <- c("Gata2","Vsx2","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
-f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
-f2.range <- f1.range+50000
+# f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+# f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.1 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata2,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata2,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
 ```
 
 ```{r}
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.1[[1]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.1)
 dev.off()
 
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.1[[2]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.2)
 dev.off()
 ```
+# Vsx2
 
 ```{r Set genes and regions Vsx2}
 covariate.genes <- c("Vsx2","Tal1","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
-f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
-f2.range <- f1.range+50000
+
 ```
 
 ```{r}
-plots.2 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Vsx2,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Vsx2,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
 ```
 
 ```{r}
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.2[[1]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.1)
 dev.off()
 
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.2[[2]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.2)
 dev.off()
 ```
+
+# Tal1
 
 ```{r Set genes and regions Tal1}
 covariate.genes <- c("Tal1","Gata2","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
-f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
-f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.3 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Tal1,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Tal1,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
 ```
 
 ```{r}
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.3[[1]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.1)
 dev.off()
 
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.3[[2]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.2)
 dev.off()
 ```
+
+# Gata3
 
 ```{r Set genes and regions Gata3}
 covariate.genes <- c("Gata3","Tal1","Gad1","Slc17a6")
 gene.of.interest <- covariate.genes[1]
-f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
-f2.range <- f1.range+50000
 ```
 
 ```{r}
-plots.4 <- plotSmoothedAccessibility(dataset=rV2.data, covariate.genes.to.plot=covariate.genes, region.of.interest=GRangesToString(f2.range), drop.non.linked=TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata3,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata3,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
 ```
 
 ```{r}
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GA_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.4[[1]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GA_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.1)
 dev.off()
 
-pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS3/GL_${gene.of.interest}_prox_peaks_heatmap.pdf"), width = 28, height = 24)
-print(plots.4[[2]])
+pdf(file = str_interp("~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/GL_${gene.of.interest}_smoothed_heatmap.pdf"), width = 28, height = 24)
+draw(plots.2)
 dev.off()
 ```
+
+```{r}
+sessionInfo()
+```
+
