@@ -29,7 +29,7 @@ distance.limit <- 0
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT DISTINCT t.seqnames, t.start, t.end, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -46,20 +46,20 @@ SELECT DISTINCT f.*,
          ELSE NULL
        END AS Gene_TSS_distance,
        CASE 
-         WHEN ((CASE 
+         WHEN (CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
-         END) >= 0) THEN '+' || ROUND(((CASE 
+         END) >= 0 THEN '+' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
          END) / 1000.0), 1)
-         ELSE ROUND(((CASE 
+         ELSE '-' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
@@ -69,14 +69,17 @@ SELECT DISTINCT f.*,
        END AS gene_feature_name,
        l.zscore, l.pvalue
 FROM feature f
-JOIN gene_tads gt ON f.seqnames = gt.seqnames
+JOIN (
+  SELECT DISTINCT seqnames, start, end, TSS_start, strand 
+  FROM gene_tads
+) gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
        OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
-LEFT JOIN links_s l ON f.feature = l.feature
+LEFT JOIN links_s l ON f.feature = l.feature AND l.ensg_id = '", gene_name2id[[gene_name]], "'
 WHERE f.end > gt.start
   AND f.start < gt.end
-GROUP BY f.seqnames, f.start, f.end;
+GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue;
 ")
 # Execute the query and fetch results
 result.Gata2 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
@@ -110,7 +113,7 @@ gene_name <- "Gata3"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT DISTINCT t.seqnames, t.start, t.end, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -127,20 +130,20 @@ SELECT DISTINCT f.*,
          ELSE NULL
        END AS Gene_TSS_distance,
        CASE 
-         WHEN ((CASE 
+         WHEN (CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
-         END) >= 0) THEN '+' || ROUND(((CASE 
+         END) >= 0 THEN '+' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
          END) / 1000.0), 1)
-         ELSE ROUND(((CASE 
+         ELSE '-' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
@@ -150,14 +153,17 @@ SELECT DISTINCT f.*,
        END AS gene_feature_name,
        l.zscore, l.pvalue
 FROM feature f
-JOIN gene_tads gt ON f.seqnames = gt.seqnames
+JOIN (
+  SELECT DISTINCT seqnames, start, end, TSS_start, strand 
+  FROM gene_tads
+) gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
        OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
-LEFT JOIN links_s l ON f.feature = l.feature
+LEFT JOIN links_s l ON f.feature = l.feature AND l.ensg_id = '", gene_name2id[[gene_name]], "'
 WHERE f.end > gt.start
   AND f.start < gt.end
-GROUP BY f.seqnames, f.start, f.end;
+GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue;
 ")
 
 # Execute the query and fetch results
@@ -192,7 +198,7 @@ gene_name <- "Tal1"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT DISTINCT t.seqnames, t.start, t.end, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -209,20 +215,20 @@ SELECT DISTINCT f.*,
          ELSE NULL
        END AS Gene_TSS_distance,
        CASE 
-         WHEN ((CASE 
+         WHEN (CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
-         END) >= 0) THEN '+' || ROUND(((CASE 
+         END) >= 0 THEN '+' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
          END) / 1000.0), 1)
-         ELSE ROUND(((CASE 
+         ELSE '-' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
@@ -232,14 +238,17 @@ SELECT DISTINCT f.*,
        END AS gene_feature_name,
        l.zscore, l.pvalue
 FROM feature f
-JOIN gene_tads gt ON f.seqnames = gt.seqnames
+JOIN (
+  SELECT DISTINCT seqnames, start, end, TSS_start, strand 
+  FROM gene_tads
+) gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
        OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
-LEFT JOIN links_s l ON f.feature = l.feature
+LEFT JOIN links_s l ON f.feature = l.feature AND l.ensg_id = '", gene_name2id[[gene_name]], "'
 WHERE f.end > gt.start
   AND f.start < gt.end
-GROUP BY f.seqnames, f.start, f.end;
+GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue;
 ")
 
 # Execute the query and fetch results
@@ -268,13 +277,13 @@ Tal1.tb.out <- Tal1.features %>% dplyr::select("Gene_Locus","Feature_number","Fe
 Vsx2.features <- readxl::read_xlsx(paste(archived.table.loc,"Vsx2 feature summary_new.xlsx",sep=""), sheet = "Sheet1")
 ```
 
-```{r Regenerate from db}
+```{r Regenerate from db Vsx2 links_s}
 gene_name <- "Vsx2"
 
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT DISTINCT t.seqnames, t.start, t.end, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -291,20 +300,20 @@ SELECT DISTINCT f.*,
          ELSE NULL
        END AS Gene_TSS_distance,
        CASE 
-         WHEN ((CASE 
+         WHEN (CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
-         END) >= 0) THEN '+' || ROUND(((CASE 
+         END) >= 0 THEN '+' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
          END) / 1000.0), 1)
-         ELSE ROUND(((CASE 
+         ELSE '-' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
@@ -314,20 +323,90 @@ SELECT DISTINCT f.*,
        END AS gene_feature_name,
        l.zscore, l.pvalue
 FROM feature f
-JOIN gene_tads gt ON f.seqnames = gt.seqnames
+JOIN (
+  SELECT DISTINCT seqnames, start, end, TSS_start, strand 
+  FROM gene_tads
+) gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
        OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
-LEFT JOIN links_s l ON f.feature = l.feature
+LEFT JOIN links_s l ON f.feature = l.feature AND l.ensg_id = '", gene_name2id[[gene_name]], "'
 WHERE f.end > gt.start
   AND f.start < gt.end
-GROUP BY f.seqnames, f.start, f.end;
+GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue;
 ")
+
 # Execute the query and fetch results
 result.Vsx2 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
 
 #result.Vsx2 <- left_join(result, select(Vsx2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
-writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features_s.xlsx",sep=""))
+```
+
+```{r Regenerate from db Vsx2 links}
+gene_name <- "Vsx2"
+
+# Construct the SQL query using paste0()
+query <- paste0("
+WITH gene_tads AS (
+  SELECT DISTINCT t.seqnames, t.start, t.end, g.TSS_start, g.gene_end, g.strand
+  FROM TAD t
+  JOIN gene_metadata g ON t.seqnames = g.seqnames
+  WHERE g.gene_name = '", gene_name, "'
+    AND g.gene_end >= t.start
+    AND g.TSS_start <= t.end
+)
+SELECT DISTINCT f.*, 
+       GROUP_CONCAT(DISTINCT gm.gene_name) AS gene_identity,
+       CASE 
+         WHEN gt.strand = '+' THEN 
+           (f.start + (f.end - f.start) / 2) - gt.TSS_start
+         WHEN gt.strand = '-' THEN 
+           gt.TSS_start - (f.start + (f.end - f.start) / 2)
+         ELSE NULL
+       END AS Gene_TSS_distance,
+       CASE 
+         WHEN (CASE 
+           WHEN gt.strand = '+' THEN 
+             (f.start + (f.end - f.start) / 2) - gt.TSS_start
+           WHEN gt.strand = '-' THEN 
+             gt.TSS_start - (f.start + (f.end - f.start) / 2)
+           ELSE NULL
+         END) >= 0 THEN '+' || ROUND(ABS((CASE 
+           WHEN gt.strand = '+' THEN 
+             (f.start + (f.end - f.start) / 2) - gt.TSS_start
+           WHEN gt.strand = '-' THEN 
+             gt.TSS_start - (f.start + (f.end - f.start) / 2)
+           ELSE NULL
+         END) / 1000.0), 1)
+         ELSE '-' || ROUND(ABS((CASE 
+           WHEN gt.strand = '+' THEN 
+             (f.start + (f.end - f.start) / 2) - gt.TSS_start
+           WHEN gt.strand = '-' THEN 
+             gt.TSS_start - (f.start + (f.end - f.start) / 2)
+           ELSE NULL
+         END) / 1000.0), 1)
+       END AS gene_feature_name,
+       l.zscore, l.pvalue
+FROM feature f
+JOIN (
+  SELECT DISTINCT seqnames, start, end, TSS_start, strand 
+  FROM gene_tads
+) gt ON f.seqnames = gt.seqnames
+LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
+  AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
+       OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
+LEFT JOIN links l ON CAST(f.feature AS TEXT) = CAST(l.feature AS TEXT) AND l.ensg_id = '", gene_name2id[[gene_name]], "'
+WHERE f.end > gt.start
+  AND f.start < gt.end
+GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue;
+")
+
+# Execute the query and fetch results
+result.Vsx2 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
+
+#result.Vsx2 <- left_join(result, select(Vsx2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features_p.xlsx",sep=""))
 ```
 
 ```{r, eval=FALSE}
@@ -352,7 +431,7 @@ gene_name <- "Vsx1"
 # Construct the SQL query using paste0()
 query <- paste0("
 WITH gene_tads AS (
-  SELECT t.*, g.TSS_start, g.gene_end, g.strand
+  SELECT DISTINCT t.seqnames, t.start, t.end, g.TSS_start, g.gene_end, g.strand
   FROM TAD t
   JOIN gene_metadata g ON t.seqnames = g.seqnames
   WHERE g.gene_name = '", gene_name, "'
@@ -369,20 +448,20 @@ SELECT DISTINCT f.*,
          ELSE NULL
        END AS Gene_TSS_distance,
        CASE 
-         WHEN ((CASE 
+         WHEN (CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
-         END) >= 0) THEN '+' || ROUND(((CASE 
+         END) >= 0 THEN '+' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
              gt.TSS_start - (f.start + (f.end - f.start) / 2)
            ELSE NULL
          END) / 1000.0), 1)
-         ELSE ROUND(((CASE 
+         ELSE '-' || ROUND(ABS((CASE 
            WHEN gt.strand = '+' THEN 
              (f.start + (f.end - f.start) / 2) - gt.TSS_start
            WHEN gt.strand = '-' THEN 
@@ -392,14 +471,17 @@ SELECT DISTINCT f.*,
        END AS gene_feature_name,
        l.zscore, l.pvalue
 FROM feature f
-JOIN gene_tads gt ON f.seqnames = gt.seqnames
+JOIN (
+  SELECT DISTINCT seqnames, start, end, TSS_start, strand 
+  FROM gene_tads
+) gt ON f.seqnames = gt.seqnames
 LEFT JOIN gene_metadata gm ON f.seqnames = gm.seqnames
   AND ((gm.strand = '+' AND f.end > gm.TSS_start AND f.start < gm.gene_end)
        OR (gm.strand = '-' AND f.start < gm.TSS_start AND f.end > gm.gene_end))
-LEFT JOIN links_s l ON f.feature = l.feature
+LEFT JOIN links_s l ON f.feature = l.feature AND l.ensg_id = '", gene_name2id[[gene_name]], "'
 WHERE f.end > gt.start
   AND f.start < gt.end
-GROUP BY f.seqnames, f.start, f.end;
+GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue;
 ")
 # Execute the query and fetch results
 result.Vsx1 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))

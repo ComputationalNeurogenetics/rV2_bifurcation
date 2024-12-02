@@ -721,7 +721,7 @@ SET TF_gene_name = 'MAD4'
 WHERE TF_gene_name LIKE '4,0%MAD';")
 ```
 
-```{r}
+```{r links_s}
 # Load data and prepare objects
 E12_rV2 <- qread(file = "../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
 DefaultAssay(E12_rV2) <- "peaks"
@@ -739,11 +739,7 @@ gene_ids <- unique(intersect(names(mm10.v79.genome.GR), rownames(E12_rV2)))
 # Read TAD map
 TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end")) %>% GRanges()
 
-dbWriteTable(con.obj, "TAD", TAD.map, overwrite=TRUE)
-
-# Open database connection
-#con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
-#dbExecute(con.obj, 'DROP TABLE links;')
+dbWriteTable(con.obj, "TAD", as_tibble(TAD.map), overwrite=TRUE)
 
 # Function to process each gene ID
 process_gene_id <- function(i) {
@@ -765,7 +761,7 @@ process_gene_id <- function(i) {
   links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% rename("peak"="feature") %>% rename("gene"="ensg_id")
     
     success <- FALSE
-    con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+    con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_191124.sqlite")
     while (!success) {
       tryCatch({
         dbWriteTable(con.obj, "links_s", links.tb, overwrite = FALSE, append = TRUE)
@@ -788,15 +784,81 @@ mclapply(1:length(gene_ids), process_gene_id, mc.cores = 6)
 # Close the database connection
 #DBI::dbDisconnect(con.obj)
 
-# Cleanup
-#rm(TFBS.to.features.tb)
-#rm(tobias.tb)
-#gc()
-
 dbExecute(con.obj, 'CREATE INDEX ensg_id5_s ON links_s (ensg_id);')
 dbExecute(con.obj, 'CREATE INDEX feature4_s ON links_s (feature);')
 dbExecute(con.obj, 'CREATE INDEX zscore1_s ON links_s (zscore);')
 dbExecute(con.obj, 'CREATE INDEX links_pvalue_s ON links_s (pvalue);')
+```
+
+```{r links}
+# Load data and prepare objects
+E12_rV2 <- qread(file = "../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+DefaultAssay(E12_rV2) <- "peaks"
+Links(E12_rV2) <- GenomicRanges::GRanges()
+
+mm10.v79.genome.GR <- toGRanges(
+  EnsDb.Mmusculus.v79,
+  feature = c("gene", "transcript", "exon", "disjointExons")
+)
+mm10.v79.genome.GR$gene_id <- names(mm10.v79.genome.GR)
+DefaultAssay(E12_rV2) <- "RNA"
+
+gene_ids <- unique(intersect(names(mm10.v79.genome.GR), rownames(E12_rV2)))
+
+# Read TAD map
+TAD.map <- read_table("../metadata/cb.csail.mit.edu_cb_tadmap_TADMap_scaffold_mm.bed.txt", col_names = c("seqnames", "start", "end")) %>% GRanges()
+
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_191124.sqlite")
+dbWriteTable(con.obj, "TAD", as_tibble(TAD.map), overwrite=TRUE)
+DBI::dbDisconnect(con.obj)
+
+# Function to process each gene ID
+process_gene_id <- function(i) {
+  idx <- gene_ids[i]
+  message_parallel(paste(i,"/",length(gene_ids),sep=""))
+  
+  # Find the TAD for the gene in question
+  gene.range <- mm10.v79.genome.GR[which(names(mm10.v79.genome.GR) == idx)]
+  TAD.overlap <- plyranges::filter_by_overlaps(TAD.map, gene.range)
+  
+  tryCatch({
+    Link.Seurat <- LinkPeaks(
+      object = E12_rV2, peak.assay = "peaks", expression.assay = "RNA",
+      genes.use = idx, gene.id = TRUE, distance = width(TAD.overlap),
+      gene.coords = mm10.v79.genome.GR, peak.slot = "counts",
+      expression.slot = "data", method = "pearson"
+    )
+    
+  links.tb <- as_tibble(Link.Seurat@assays$peaks@links) %>% dplyr::rename("feature"="peak") %>% dplyr::rename("ensg_id"="gene")
+    
+    success <- FALSE
+    con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_191124.sqlite")
+    while (!success) {
+      tryCatch({
+        dbWriteTable(con.obj, "links", links.tb, overwrite = FALSE, append = TRUE)
+        success <- TRUE
+      }, error = function(e) {
+        Sys.sleep(0.25)
+      })
+    }
+  }, error = function(e) {
+    cat("An error occurred:", e$message, "\n")
+  }, warning = function(w) {
+    cat("A warning occurred:", w$message, "\n")
+  })
+  DBI::dbDisconnect(con.obj)
+}
+
+# Process gene IDs in parallel
+mclapply(1:length(gene_ids), process_gene_id, mc.cores = 3)
+
+# Close the database connection
+#DBI::dbDisconnect(con.obj)
+
+dbExecute(con.obj, 'CREATE INDEX ensg_id5_s ON links (ensg_id);')
+dbExecute(con.obj, 'CREATE INDEX feature4_s ON links (feature);')
+dbExecute(con.obj, 'CREATE INDEX zscore1_s ON links (zscore);')
+dbExecute(con.obj, 'CREATE INDEX links_pvalue_s ON links (pvalue);')
 ```
 
 
