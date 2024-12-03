@@ -15,6 +15,7 @@ library(qs)
 library(circlize)
 library(magick)
 library(GenomicRanges)
+library(viridis)
 source("../../AuxCode/AuxFunctions.R")
 ```
 
@@ -41,9 +42,9 @@ gene.of.interest <- covariate.genes[1]
 ```
 
 ```{r}
-plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata2,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata2,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 
-plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata2,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata2,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 ```
 
 ```{r}
@@ -64,9 +65,9 @@ gene.of.interest <- covariate.genes[1]
 ```
 
 ```{r}
-plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Vsx2,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Vsx2,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 
-plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Vsx2,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Vsx2,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 ```
 
 ```{r}
@@ -87,9 +88,9 @@ gene.of.interest <- covariate.genes[1]
 ```
 
 ```{r}
-plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Tal1,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Tal1,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 
-plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Tal1,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Tal1,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 ```
 
 ```{r}
@@ -110,9 +111,9 @@ gene.of.interest <- covariate.genes[1]
 ```
 
 ```{r}
-plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata3,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.1 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata3,pvalue<0.01), drop.non.linked=FALSE, rV2 = TRUE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 
-plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata3,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE)
+plots.2 <- plotSmoothedAccessibility_v2(dataset=rV2.data,covariate.genes.to.plot=covariate.genes, features.df=filter(result.Gata3,pvalue<0.01), drop.non.linked=FALSE, rV2 = FALSE,gene_id2name=gene_id2name, gene_name2id=gene_name2id, gene.feat.name=gene.of.interest,unify_expression_scale = TRUE, max_accessibility_value = 3,assign_above_max_to_white = TRUE)
 ```
 
 ```{r}
