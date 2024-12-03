@@ -164,7 +164,7 @@ gene.metadata <- gene.metadata %>%
   left_join(
     gene_positions %>% select(gene_id, gene_start, gene_end),
     by = c("ensg_id" = "gene_id")
-  )
+  ) %>% distinct()
 
 # Write the final gene metadata table to SQLite
 dbWriteTable(con.obj, "gene_metadata", gene.metadata, overwrite = TRUE)
@@ -1081,6 +1081,57 @@ dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_links_s_pvalue ON links_s(pva
 dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_CT_data_feature ON CT_data(feature);")
 dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_CT_data_target_gene_name ON CT_data(target_gene_name);")
 dbExecute(con.obj, "CREATE INDEX IF NOT EXISTS idx_gene_metadata_ensg_id ON gene_metadata(ensg_id);")
+
+queries <- c(
+  # For tobias table
+  "CREATE INDEX IF NOT EXISTS idx_tobias_ensg_id ON tobias(ensg_id);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_features ON tobias(features);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_w_mean_cons ON tobias(w_mean_cons);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_PRO1_2_bound ON tobias(PRO1_2_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_CO1_2_bound ON tobias(CO1_2_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_GA1_2_bound ON tobias(GA1_2_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_GA3_4_bound ON tobias(GA3_4_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_GA5_6_bound ON tobias(GA5_6_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_GL1_2_bound ON tobias(GL1_2_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_GL3_4_bound ON tobias(GL3_4_bound);",
+  "CREATE INDEX IF NOT EXISTS idx_tobias_GL5_bound ON tobias(GL5_bound);",
+
+  # For exp table
+  "CREATE INDEX IF NOT EXISTS idx_exp_ensg_id ON exp(ensg_id);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_PRO1_2 ON exp(PRO1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_CO1_2 ON exp(CO1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_GA1_2 ON exp(GA1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_GA3_4 ON exp(GA3_4);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_GA5_6 ON exp(GA5_6);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_GL1_2 ON exp(GL1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_GL3_4 ON exp(GL3_4);",
+  "CREATE INDEX IF NOT EXISTS idx_exp_GL5 ON exp(GL5);",
+
+  # For acc table
+  "CREATE INDEX IF NOT EXISTS idx_acc_features ON acc(features);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_PRO1_2 ON acc(PRO1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_CO1_2 ON acc(CO1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_GA1_2 ON acc(GA1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_GA3_4 ON acc(GA3_4);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_GA5_6 ON acc(GA5_6);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_GL1_2 ON acc(GL1_2);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_GL3_4 ON acc(GL3_4);",
+  "CREATE INDEX IF NOT EXISTS idx_acc_GL5 ON acc(GL5);",
+
+  # For links_s table
+  "CREATE INDEX IF NOT EXISTS idx_links_feature ON links_s(feature);",
+  "CREATE INDEX IF NOT EXISTS idx_links_ensg_id ON links_s(ensg_id);",
+  "CREATE INDEX IF NOT EXISTS idx_links_zscore ON links_s(zscore);",
+
+  # For gene_metadata table
+  "CREATE INDEX IF NOT EXISTS idx_gene_metadata_ensg_id ON gene_metadata(ensg_id);",
+  "CREATE INDEX IF NOT EXISTS idx_gene_metadata_gene_name ON gene_metadata(gene_name);"
+)
+
+# Execute all queries
+for (query in queries) {
+  dbExecute(con.obj, query)
+}
 ```
 
 
