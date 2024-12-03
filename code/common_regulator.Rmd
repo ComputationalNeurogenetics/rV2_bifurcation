@@ -1,0 +1,164 @@
+---
+title: "Common regulator analysis"
+output: html_notebook
+date: "2024-12-02"
+---
+```{r setup}
+library(tidyverse)
+library(ggVennDiagram)
+source("local_settings.R")
+```
+
+# Tal1, Gata2 and Gata3 (GABA and CO)
+
+## GABA
+
+```{r Fetching regulators for each selector TF in GABA}
+Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "GA1_2")
+Tal1_RE <-unique(Tal1_RE[1])
+
+Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "GA1_2")
+Gata2_RE <-unique(Gata2_RE[1])
+
+Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "GA1_2")
+Gata3_RE <-unique(Gata3_RE[1])
+```
+
+```{r Finding common regulators for GABA selector TFs}
+common_regulators.GABA <- tibble(
+  TF_gene_name = intersect(intersect(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name), Gata3_RE$TF_gene_name),
+  present_in = "all")
+
+common_regulators.GABA <- common_regulators.GABA %>%
+  add_row(TF_gene_name = setdiff(intersect(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name), Gata3_RE$TF_gene_name),
+          present_in = "only Tal1 & Gata2") %>%
+  add_row(TF_gene_name = setdiff(intersect(Tal1_RE$TF_gene_name, Gata3_RE$TF_gene_name), Gata2_RE$TF_gene_name),
+          present_in = "only Tal1 & Gata3") %>%
+  add_row(TF_gene_name = setdiff(intersect(Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name), Tal1_RE$TF_gene_name),
+          present_in = "only Gata2 & Gata3") %>%
+  add_row(TF_gene_name = setdiff(setdiff(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name), Gata3_RE$TF_gene_name),
+          present_in = "only Tal1") %>%
+  add_row(TF_gene_name = setdiff(setdiff(Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name), Tal1_RE$TF_gene_name),
+          present_in = "only Gata2") %>%
+  add_row(TF_gene_name = setdiff(setdiff(Gata3_RE$TF_gene_name, Gata2_RE$TF_gene_name), Tal1_RE$TF_gene_name),
+          present_in = "only Gata3")
+
+write.csv(common_regulators.GABA, file = "../analysis/common_regulators.GABA.csv", row.names = FALSE, quote = FALSE)
+```
+
+```{r Venn diagram GABA}
+common_regulator_list <- list(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name)
+common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, category.names = c("Tal1", "Gata2", "Gata3")) +
+  ggplot2::scale_fill_gradient(low = "white", high = "blue") + ggtitle("GABA") +
+  scale_x_continuous(expand = expansion(mult = .3))
+print(common_regulator_venn)
+```
+
+## CO
+
+```{r Fetching regulators for each selector TF in CO}
+Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "CO1_2")
+Tal1_RE <-unique(Tal1_RE[1])
+
+Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "CO1_2")
+Gata2_RE <-unique(Gata2_RE[1])
+
+Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "CO1_2")
+Gata3_RE <-unique(Gata3_RE[1])
+```
+
+```{r Finding common regulators for CO selector TFs}
+common_regulators.CO <- tibble(
+  TF_gene_name = intersect(intersect(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name), Gata3_RE$TF_gene_name),
+  present_in = "all")
+
+common_regulators.CO <- common_regulators.CO %>%
+  add_row(TF_gene_name = setdiff(intersect(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name), Gata3_RE$TF_gene_name),
+          present_in = "only Tal1 & Gata2") %>%
+  add_row(TF_gene_name = setdiff(intersect(Tal1_RE$TF_gene_name, Gata3_RE$TF_gene_name), Gata2_RE$TF_gene_name),
+          present_in = "only Tal1 & Gata3") %>%
+  add_row(TF_gene_name = setdiff(intersect(Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name), Tal1_RE$TF_gene_name),
+          present_in = "only Gata2 & Gata3") %>%
+  add_row(TF_gene_name = setdiff(setdiff(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name), Gata3_RE$TF_gene_name),
+          present_in = "only Tal1") %>%
+  add_row(TF_gene_name = setdiff(setdiff(Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name), Tal1_RE$TF_gene_name),
+          present_in = "only Gata2") %>%
+  add_row(TF_gene_name = setdiff(setdiff(Gata3_RE$TF_gene_name, Gata2_RE$TF_gene_name), Tal1_RE$TF_gene_name),
+          present_in = "only Gata3")
+
+write.csv(common_regulators.CO, file = "../analysis/common_regulators.CO.csv", row.names = FALSE, quote = FALSE)
+```
+
+```{r Venn diagram CO}
+common_regulator_list <- list(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name)
+common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, category.names = c("Tal1", "Gata2", "Gata3")) +
+  ggplot2::scale_fill_gradient(low = "white", high = "blue") + ggtitle("GABA") +
+  scale_x_continuous(expand = expansion(mult = .3))
+print(common_regulator_venn)
+```
+
+# Vsx1 and Vsx2 (GL and CO)
+
+## GL
+
+```{r Fetching regulators for each selector TF in GL}
+Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "GL1_2")
+Vsx1_RE <-unique(Vsx1_RE[1])
+
+Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "GL1_2")
+Vsx2_RE <-unique(Vsx2_RE[1])
+```
+
+```{r Finding common regulators for GL selector TFs}
+common_regulators.GL <- tibble(
+TF_gene_name = intersect(Vsx1_RE$TF_gene_name, Vsx2_RE$TF_gene_name),
+regulator = "all")
+
+common_regulators.GL <- common_regulators.GL %>%
+  add_row(TF_gene_name = setdiff(Vsx1_RE$TF_gene_name, Vsx2_RE$TF_gene_name),
+          regulator = "only Vsx1") %>%
+  add_row(TF_gene_name = setdiff(Vsx2_RE$TF_gene_name, Vsx1_RE$TF_gene_name),
+          regulator = "only Vsx2")
+
+write.csv(common_regulators.GL, file = "../analysis/common_regulators.GL.csv",row.names = FALSE, quote = FALSE)
+```
+
+```{r Venn diagram GL}
+common_regulator_list <- list(Vsx1_RE$TF_gene_name, Vsx2_RE$TF_gene_name)
+common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, category.names = c("Vsx1", "Vsx2")) +
+  ggplot2::scale_fill_gradient(low = "white", high = "blue") + ggtitle("GL") +
+  scale_x_continuous(expand = expansion(mult = .3))
+print(common_regulator_venn)
+```
+
+## CO
+
+```{r Fetching regulators for each selector TF in CO #2}
+Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "CO1_2")
+Vsx1_RE <-unique(Vsx1_RE[1])
+
+Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "CO1_2")
+Vsx2_RE <-unique(Vsx2_RE[1])
+```
+
+```{r Finding common regulators for CO selector TFs #2}
+common_regulators.CO_2 <- tibble(
+TF_gene_name = intersect(Vsx1_RE$TF_gene_name, Vsx2_RE$TF_gene_name),
+regulator = "all")
+
+common_regulators.CO_2 <- common_regulators.CO_2 %>%
+  add_row(TF_gene_name = setdiff(Vsx1_RE$TF_gene_name, Vsx2_RE$TF_gene_name),
+          regulator = "only Vsx1") %>%
+  add_row(TF_gene_name = setdiff(Vsx2_RE$TF_gene_name, Vsx1_RE$TF_gene_name),
+          regulator = "only Vsx2")
+
+write.csv(common_regulators.CO_2, file = "../analysis/common_regulators.CO_2.csv", row.names = FALSE, quote = FALSE)
+```
+
+```{r Venn diagram CO #2}
+common_regulator_list <- list(Vsx1_RE$TF_gene_name, Vsx2_RE$TF_gene_name)
+common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, category.names = c("Vsx1", "Vsx2")) +
+  ggplot2::scale_fill_gradient(low = "white", high = "blue") + ggtitle("GL") +
+  scale_x_continuous(expand = expansion(mult = .3))
+print(common_regulator_venn)
+```
