@@ -451,7 +451,15 @@ writexl::write_xlsx(result.Vsx1, path=paste(table.loc,gene_name,"_features.xlsx"
 combined_tibble <- bind_rows(list(result.Gata2, result.Gata3, result.Tal1, result.Vsx2,result.Vsx1), .id = "gene_name")
 ```
 
+```{r}
+dbDisconnect(con)
+```
+
 ```{r, eval=FALSE}
 saveRDS(combined_tibble,file="../analysis/Selector.features.Rds")
+```
+
+```{r}
+sessionInfo()
 ```
 
