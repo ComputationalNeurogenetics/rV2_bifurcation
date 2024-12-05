@@ -1122,6 +1122,11 @@ queries <- c(
   "CREATE INDEX IF NOT EXISTS idx_links_feature ON links_s(feature);",
   "CREATE INDEX IF NOT EXISTS idx_links_ensg_id ON links_s(ensg_id);",
   "CREATE INDEX IF NOT EXISTS idx_links_zscore ON links_s(zscore);",
+  
+  # For links table
+  "CREATE INDEX IF NOT EXISTS idx_links_p_feature ON links(feature);",
+  "CREATE INDEX IF NOT EXISTS idx_links_p_ensg_id ON links(ensg_id);",
+  "CREATE INDEX IF NOT EXISTS idx_links_p_zscore ON links(zscore);",
 
   # For gene_metadata table
   "CREATE INDEX IF NOT EXISTS idx_gene_metadata_ensg_id ON gene_metadata(ensg_id);",
