@@ -1,0 +1,422 @@
+---
+title: "R Notebook of rV2 manuscript figure 3 trackplot panels"
+output: html_notebook
+---
+
+```{r Packages, message=FALSE}
+library(tidyverse)
+library(Seurat)
+library(Signac)
+library(qs)
+library(rtracklayer)
+library(gUtils)
+library(DBI)
+source("AuxFunctions.R")
+```
+
+```{r Set parameters}
+cores <- 8
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+```
+
+```{r Load qs object}
+rV2.data <- qread("../scATAC_data/nmm_rV2_subset_relabeled_031023_links.qs", nthreads = cores)
+DefaultAssay(rV2.data) <- "peaks"
+rV2.data$rv2.lineage <- factor(rV2.data$rv2.lineage, levels=c("PRO1","PRO2","CO1", "CO2", "GA1", "GA2", "GA3", "GA4", "GA5", "GA6", "GL1", "GL2", "GL3", "GL4", "GL5"))
+all.features.gr <- StringToGRanges(rownames(rV2.data))
+```
+
+```{r}
+# Gene annotations from EnsDb 
+annotations <- readRDS("../metadata/Ensembel_Mmusculus79_annotation.Rds")
+
+# Change to UCSC style
+seqlevelsStyle(annotations) <- 'UCSC'
+genome(annotations) <- "mm10"
+
+# Add the gene information to the object
+Signac::Annotation(rV2.data) <- annotations
+```
+
+```{r Update fragment file locations, eval=FALSE}
+frags <- Fragments(rV2.data)
+Fragments(rV2.data)<-NULL
+
+new.paths = list("/Volumes/MyBookDuo/Data/e12r1_data/scATAC/E12_R1_1/outs/fragments.filtered.tsv.gz","/Volumes/MyBookDuo/Data/e12r1_data/scATAC/E12_R1_2/outs/fragments.filtered.tsv.gz")
+
+for (i in seq_along(frags)) {
+  frags[[i]] <- UpdatePath(frags[[i]], new.path = new.paths[[i]]) # update path
+}
+
+Fragments(rV2.data)<-frags
+```
+
+# Tal1 region plot
+
+```{r Set gene regions}
+gene.of.interest <- "Tal1"
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- "chr4-114432894-115134633" #TAD range
+```
+
+```{r Annotation track}
+gene_track <- AnnotationPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r Linkpeaks track}
+
+links.query <- paste("SELECT li.* FROM links_s as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND gm.gene_name=='",gene.of.interest,"';",sep="")
+links.tb <- as_tibble(dbGetQuery(con.obj, links.query))
+
+
+link_track <- LinkPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r}
+features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
+                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
+                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+
+rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
+```
+
+```{r Peak track}
+peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
+peak_track$labels$y <- "Feat."
+```
+
+```{r C&T peaks}
+# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
+# 
+# DefaultAssay(rV2.data) <- "peaks"
+# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
+# ct.tr$labels$y <- "C&T Gata2"
+```
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/"
+plot_name <- paste("Figure3_trackplot_",gene.of.interest,".pdf",sep="")
+
+combined.p <- CombineTracks(
+  plotlist = list(gene_track, link_track,peak_track,),
+  expression.plot = expression_plot_data,
+  heights = c(.75,0.05,0.05,0.05,0.05),
+  widths = c(10,5)
+) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
+
+ggsave(filename = plot_name,
+         plot = combined.p,
+         path = plot_loc,
+         device = "pdf",
+         width = 15,
+         height = 15,
+         units = "in")
+
+```
+
+# Gata2 region plot
+
+
+```{r Set gene regions}
+gene.of.interest <- "Gata2"
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r Read and subset conservation data, eval=FALSE}
+cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
+cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
+qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
+```
+
+```{r Read conservation data}
+cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
+cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
+```
+
+```{r Peak plot from conservation data}
+DefaultAssay(rV2.data) <- "peaks"
+cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
+cons.tr$labels$y <- "Cons."
+```
+
+```{r Annotation track}
+gene_track <- AnnotationPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r Linkpeaks track}
+link_track <- LinkPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r}
+features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
+                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
+                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+
+rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
+```
+
+```{r Peak track}
+peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
+peak_track$labels$y <- "Feat."
+```
+
+```{r C&T peaks}
+# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
+# 
+# DefaultAssay(rV2.data) <- "peaks"
+# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
+# ct.tr$labels$y <- "C&T Gata2"
+```
+
+
+```{r Expression plot}
+expression_plot_data <- ExpressionPlot(object = rV2.data, features=convert_feature_identity(rV2.data, "RNA", c(gene.of.interest)), assay="RNA", group.by="rv2.lineage")# & plot_annotation(c(gene.of.interest,"Pdzk1ip1"))
+```
+
+
+```{r Coverage track}
+DefaultAssay(rV2.data) <- "peaks"
+coverage_track <- CoveragePlot(rV2.data, 
+                  region = f2.range, 
+                  annotation = F,
+                  peaks = F,
+                  links = F,
+                  group.by = "rv2.lineage", 
+                  downsample.rate = 1, 
+                  features = NULL, 
+                  expression.assay = "RNA")
+```
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/"
+plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
+
+combined.p <- CombineTracks(
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  expression.plot = expression_plot_data,
+  heights = c(.75,0.05,0.05,0.05,0.05),
+  widths = c(10,5)
+) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
+
+ggsave(filename = plot_name,
+         plot = combined.p,
+         path = plot_loc,
+         device = "pdf",
+         width = 15,
+         height = 15,
+         units = "in")
+
+```
+
+# Gata3 region plot
+
+```{r Set gene regions}
+gene.of.interest <- "Gata3"
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r Read and subset conservation data, eval=FALSE}
+cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
+cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
+qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
+```
+
+```{r Read conservation data}
+cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
+cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
+```
+
+```{r Peak plot from conservation data}
+DefaultAssay(rV2.data) <- "peaks"
+cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
+cons.tr$labels$y <- "Cons."
+```
+
+```{r Annotation track}
+gene_track <- AnnotationPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r Linkpeaks track}
+link_track <- LinkPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r}
+features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
+                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
+                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+
+rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
+```
+
+```{r Peak track}
+peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
+peak_track$labels$y <- "Feat."
+```
+
+```{r C&T peaks}
+# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
+# 
+# DefaultAssay(rV2.data) <- "peaks"
+# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
+# ct.tr$labels$y <- "C&T Gata2"
+```
+
+
+```{r Expression plot}
+expression_plot_data <- ExpressionPlot(object = rV2.data, features=convert_feature_identity(rV2.data, "RNA", c(gene.of.interest)), assay="RNA", group.by="rv2.lineage")# & plot_annotation(c(gene.of.interest,"Pdzk1ip1"))
+```
+
+
+```{r Coverage track}
+DefaultAssay(rV2.data) <- "peaks"
+coverage_track <- CoveragePlot(rV2.data, 
+                  region = f2.range, 
+                  annotation = F,
+                  peaks = F,
+                  links = F,
+                  group.by = "rv2.lineage", 
+                  downsample.rate = 1, 
+                  features = NULL, 
+                  expression.assay = "RNA")
+```
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/"
+plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
+
+combined.p <- CombineTracks(
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  expression.plot = expression_plot_data,
+  heights = c(.75,0.05,0.05,0.05,0.05),
+  widths = c(10,5)
+) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
+
+ggsave(filename = plot_name,
+         plot = combined.p,
+         path = plot_loc,
+         device = "pdf",
+         width = 15,
+         height = 15,
+         units = "in")
+
+```
+
+# Vsx2 region plot
+
+```{r Set gene regions}
+gene.of.interest <- "Vsx2"
+f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
+f2.range <- f1.range+50000
+```
+
+```{r Read and subset conservation data, eval=FALSE}
+cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
+cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
+qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
+```
+
+```{r Read conservation data}
+cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
+cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
+```
+
+```{r Peak plot from conservation data}
+DefaultAssay(rV2.data) <- "peaks"
+cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
+cons.tr$labels$y <- "Cons."
+```
+
+```{r Annotation track}
+gene_track <- AnnotationPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r Linkpeaks track}
+link_track <- LinkPlot(
+  object = rV2.data,
+  region = f2.range
+)
+```
+
+```{r}
+features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
+                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
+                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+
+rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
+```
+
+```{r Peak track}
+peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
+peak_track$labels$y <- "Feat."
+```
+
+```{r C&T peaks}
+# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
+# 
+# DefaultAssay(rV2.data) <- "peaks"
+# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
+# ct.tr$labels$y <- "C&T Gata2"
+```
+
+
+```{r Expression plot}
+expression_plot_data <- ExpressionPlot(object = rV2.data, features=convert_feature_identity(rV2.data, "RNA", c(gene.of.interest)), assay="RNA", group.by="rv2.lineage")# & plot_annotation(c(gene.of.interest,"Pdzk1ip1"))
+```
+
+
+```{r Coverage track}
+DefaultAssay(rV2.data) <- "peaks"
+coverage_track <- CoveragePlot(rV2.data, 
+                  region = f2.range, 
+                  annotation = F,
+                  peaks = F,
+                  links = F,
+                  group.by = "rv2.lineage", 
+                  downsample.rate = 1, 
+                  features = NULL, 
+                  expression.assay = "RNA")
+```
+
+```{r}
+plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig2/"
+plot_name <- paste("Figure2_",gene.of.interest,".pdf",sep="")
+
+combined.p <- CombineTracks(
+  plotlist = list(coverage_track, gene_track, link_track,peak_track,cons.tr),
+  expression.plot = expression_plot_data,
+  heights = c(.75,0.05,0.05,0.05,0.05),
+  widths = c(10,5)
+) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
+
+ggsave(filename = plot_name,
+         plot = combined.p,
+         path = plot_loc,
+         device = "pdf",
+         width = 15,
+         height = 15,
+         units = "in")
+
+```
