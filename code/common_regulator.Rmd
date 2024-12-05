@@ -14,14 +14,11 @@ source("local_settings.R")
 ## GABA
 
 ```{r Fetching regulators for each selector TF in GABA}
-Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "GA1_2")
-Tal1_RE <-unique(Tal1_RE[1])
+Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "GA1_2")
-Gata2_RE <-unique(Gata2_RE[1])
+Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "GA1_2")
-Gata3_RE <-unique(Gata3_RE[1])
+Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 ```
 
 ```{r Finding common regulators for GABA selector TFs}
@@ -43,6 +40,8 @@ common_regulators.GABA <- common_regulators.GABA %>%
   add_row(TF_gene_name = setdiff(setdiff(Gata3_RE$TF_gene_name, Gata2_RE$TF_gene_name), Tal1_RE$TF_gene_name),
           present_in = "only Gata3")
 
+# TODO: Write here logic writing significance level to output report
+
 write.csv(common_regulators.GABA, file = "../analysis/common_regulators.GABA.csv", row.names = FALSE, quote = FALSE)
 ```
 
@@ -57,14 +56,11 @@ print(common_regulator_venn)
 ## CO
 
 ```{r Fetching regulators for each selector TF in CO}
-Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "CO1_2")
-Tal1_RE <-unique(Tal1_RE[1])
+Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "CO1_2",pvalue.thr=0.05)
 
-Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "CO1_2")
-Gata2_RE <-unique(Gata2_RE[1])
+Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "CO1_2",pvalue.thr=0.05)
 
-Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "CO1_2")
-Gata3_RE <-unique(Gata3_RE[1])
+Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "CO1_2",pvalue.thr=0.05)
 ```
 
 ```{r Finding common regulators for CO selector TFs}
@@ -92,7 +88,7 @@ write.csv(common_regulators.CO, file = "../analysis/common_regulators.CO.csv", r
 ```{r Venn diagram CO}
 common_regulator_list <- list(Tal1_RE$TF_gene_name, Gata2_RE$TF_gene_name, Gata3_RE$TF_gene_name)
 common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, category.names = c("Tal1", "Gata2", "Gata3")) +
-  ggplot2::scale_fill_gradient(low = "white", high = "blue") + ggtitle("GABA") +
+  ggplot2::scale_fill_gradient(low = "white", high = "blue") + ggtitle("CO") +
   scale_x_continuous(expand = expansion(mult = .3))
 print(common_regulator_venn)
 ```
@@ -102,11 +98,9 @@ print(common_regulator_venn)
 ## GL
 
 ```{r Fetching regulators for each selector TF in GL}
-Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "GL1_2")
-Vsx1_RE <-unique(Vsx1_RE[1])
+Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "GL1_2",pvalue.thr=0.05)
 
-Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "GL1_2")
-Vsx2_RE <-unique(Vsx2_RE[1])
+Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "GL1_2",pvalue.thr=0.05)
 ```
 
 ```{r Finding common regulators for GL selector TFs}
@@ -134,10 +128,10 @@ print(common_regulator_venn)
 ## CO
 
 ```{r Fetching regulators for each selector TF in CO #2}
-Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "CO1_2")
+Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "CO1_2",pvalue.thr=0.05)
 Vsx1_RE <-unique(Vsx1_RE[1])
 
-Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "CO1_2")
+Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "CO1_2",pvalue.thr=0.05)
 Vsx2_RE <-unique(Vsx2_RE[1])
 ```
 
