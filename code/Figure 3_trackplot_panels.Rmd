@@ -1,6 +1,6 @@
 ---
 title: "R Notebook of rV2 manuscript figure 3 trackplot panels"
-output: html_notebook
+output: html_document
 ---
 
 ```{r Packages, message=FALSE}
@@ -11,12 +11,12 @@ library(qs)
 library(rtracklayer)
 library(gUtils)
 library(DBI)
-source("AuxFunctions.R")
+library(GenomicRanges)
+source("local_settings.R")
 ```
 
-```{r Set parameters}
-cores <- 8
-con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = "~/Workspace/TOBIAS.dr.h12_140524.sqlite")
+```{r DB connection}
+con.obj <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
 ```
 
 ```{r Load qs object}
@@ -26,7 +26,7 @@ rV2.data$rv2.lineage <- factor(rV2.data$rv2.lineage, levels=c("PRO1","PRO2","CO1
 all.features.gr <- StringToGRanges(rownames(rV2.data))
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Gene annotations from EnsDb 
 annotations <- readRDS("../metadata/Ensembel_Mmusculus79_annotation.Rds")
 
@@ -56,7 +56,8 @@ Fragments(rV2.data)<-frags
 ```{r Set gene regions}
 gene.of.interest <- "Tal1"
 f1.range <- range(Annotation(rV2.data)[Annotation(rV2.data)$gene_name %in% gene.of.interest], ignore.strand = TRUE)
-f2.range <- "chr4-114432894-115134633" #TAD range
+#f2.range <- "chr4-114432894-115134633" #TAD range
+f2.range <- flank(f1.range, width = 50000, both = TRUE)
 ```
 
 ```{r Annotation track}
@@ -67,10 +68,13 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
+# links.query <- paste("SELECT li.* FROM links_s as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND gm.gene_name=='",gene.of.interest,"';",sep="")
+# links.tb <- as_tibble(dbGetQuery(con.obj, links.query))
 
-links.query <- paste("SELECT li.* FROM links_s as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id AND gm.gene_name=='",gene.of.interest,"';",sep="")
-links.tb <- as_tibble(dbGetQuery(con.obj, links.query))
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.01, coordinate_filter=GRangesToString(f2.range))
 
+# Update fetched links to the rV2.data object
+Links(rV2.data) <- links
 
 link_track <- LinkPlot(
   object = rV2.data,
@@ -78,25 +82,54 @@ link_track <- LinkPlot(
 )
 ```
 
-```{r}
-features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
-                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
-                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
-
-rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
+```{r, eval=FALSE}
+#features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
 ```
 
-```{r Peak track}
+```{r Features track}
+features.by.region <- as.factor(all.features.gr %over% f1.range)
+
+rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
+
 peak_track <- PeakPlot(object = rV2.data, region=f2.range,group.by = "Region")
 peak_track$labels$y <- "Feat."
 ```
 
 ```{r C&T peaks}
-# Gata2.cons.CT.seacr.gr <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out_110823/03_peak_calling/05_consensus_peaks/Gata2_R1_ab.consensus.peaks.awk.bed")
-# 
-# DefaultAssay(rV2.data) <- "peaks"
-# ct.tr <- PeakPlot(rV2.data, peaks = Gata2.cons.CT.seacr.gr, region=f2.range, color="darkred")
-# ct.tr$labels$y <- "C&T Gata2"
+gene <- "Tal1"
+Tal1.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+TAl1.ct.tr <- PeakPlot(rV2.data, peaks = Tal1.CT, region=f2.range, color="darkred")
+TAl1.ct.tr$labels$y <- paste("C&T ",gene,sep="")
+
+gene <- "Gata2"
+Gata2.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+Gata2.ct.tr <- PeakPlot(rV2.data, peaks = Gata2.CT, region=f2.range, color="darkred")
+Gata2.ct.tr$labels$y <- paste("C&T ",gene,sep="")
+
+gene <- "Gata3"
+Gata3.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+Gata3.ct.tr <- PeakPlot(rV2.data, peaks = Gata2.CT, region=f2.range, color="darkred")
+Gata3.ct.tr$labels$y <- paste("C&T ",gene,sep="")
+
+gene <- "Vsx2"
+Vsx2.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+Vsx2.ct.tr <- PeakPlot(rV2.data, peaks = Vsx2.CT, region=f2.range, color="darkred")
+Vsx2.ct.tr$labels$y <- paste("C&T ",gene,sep="")
+
+gene <- "Ebf1"
+Ebf1.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+Ebf1.ct.tr <- PeakPlot(rV2.data, peaks = Ebf1.CT, region=f2.range, color="darkred")
+Ebf1.ct.tr$labels$y <- paste("C&T ",gene,sep="")
+
+gene <- "Insm1"
+Insm1.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+Insm1.ct.tr <- PeakPlot(rV2.data, peaks = Insm1.CT, region=f2.range, color="darkred")
+Insm1.ct.tr$labels$y <- paste("C&T ",gene,sep="")
+
+gene <- "Tead2"
+Tead2.CT <- fetchGRangesFromCtData(paste(db.path,dbname.rV2,sep=""), gene.of.interest=gene, coordinate_filter=f2.range)
+Tead2.ct.tr <- PeakPlot(rV2.data, peaks = Tead2.CT, region=f2.range, color="darkred")
+Tead2.ct.tr$labels$y <- paste("C&T ",gene,sep="")
 ```
 
 ```{r}
@@ -104,10 +137,9 @@ plot_loc <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Re
 plot_name <- paste("Figure3_trackplot_",gene.of.interest,".pdf",sep="")
 
 combined.p <- CombineTracks(
-  plotlist = list(gene_track, link_track,peak_track,),
-  expression.plot = expression_plot_data,
-  heights = c(.75,0.05,0.05,0.05,0.05),
-  widths = c(10,5)
+  plotlist = list(gene_track, link_track,peak_track,TAl1.ct.tr,Gata2.ct.tr,Gata3.ct.tr,Vsx2.ct.tr,Ebf1.ct.tr,Insm1.ct.tr,Tead2.ct.tr),
+  heights = c(c(0.3, 0.175,0.175),rep(0.05,7)),
+  widths = c(10,1)
 ) + patchwork::plot_layout(guides = "collect") & theme(legend.direction = 'horizontal')
 
 ggsave(filename = plot_name,
@@ -121,7 +153,6 @@ ggsave(filename = plot_name,
 ```
 
 # Gata2 region plot
-
 
 ```{r Set gene regions}
 gene.of.interest <- "Gata2"

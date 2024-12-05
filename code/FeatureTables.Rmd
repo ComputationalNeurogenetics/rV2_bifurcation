@@ -3,18 +3,19 @@ title: "R Notebook"
 output: html_document
 ---
 
-```{r}
+```{r, message=FALSE}
 library(tidyverse)
 library(DBI)
 library(readxl)
 library(writexl)
 library(GenomicRanges)
-
+library(qs)
 source("local_settings.R")
 ```
 
-```{r}
+```{r DB conection and loading objects, message=FALSE}
 con <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
+gene_name2id <- qread("gene_name2id.qs", nthreads = cores)
 ```
 
 ## Gata2
@@ -83,22 +84,10 @@ GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue
 ")
 # Execute the query and fetch results
 result.Gata2 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
+```
 
-#result.Gata2 <- left_join(result, select(Gata2.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+```{r Write to Excel, eval=FALSE}
 writexl::write_xlsx(result.Gata2, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
-```
-
-```{r, eval=FALSE}
-links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
-```
-
-```{r, eval=FALSE}
-Gata2.features <- distinct(left_join(Gata2.features, distinct(dplyr::filter(links.tb, gene_name=="Gata2")), by=c("Feature"="feature")))
-```
-
-```{r, eval=FALSE}
-Gata2.tb.out <- Gata2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
-writexl::write_xlsx(Gata2.tb.out, path=paste(table.loc,"Gata2_features.xlsx",sep=""))
 ```
 
 ## Gata3
@@ -168,22 +157,10 @@ GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue
 
 # Execute the query and fetch results
 result.Gata3 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
-#result.Gata3 <- left_join(result.Gata3, select(Gata3.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+```
+
+```{r Write to Excel, eval=FALSE}
 writexl::write_xlsx(result.Gata3, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
-```
-
-
-```{r, eval=FALSE}
-links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
-```
-
-```{r, eval=FALSE}
-Gata3.features <- distinct(left_join(Gata3.features, distinct(dplyr::filter(links.tb, gene_name=="Gata3")), by=c("Feature"="feature")))
-```
-
-```{r, eval=FALSE}
-Gata3.tb.out <- Gata3.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
-writexl::write_xlsx(Gata3.tb.out, path=paste(table.loc,"Gata3_features.xlsx",sep=""))
 ```
 
 ## Tal1
@@ -253,22 +230,10 @@ GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue
 
 # Execute the query and fetch results
 result.Tal1 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
+```
 
-#result.Tal1 <- left_join(result, select(Tal1.features, Feature, Gene_identity, Comment, Ref), by=c("feature"="Feature"))
+```{r Write to Excel, eval=FALSE}
 writexl::write_xlsx(result.Tal1, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
-```
-
-```{r, eval=FALSE}
-links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
-```
-
-```{r, eval=FALSE}
-Tal1.features <- distinct(left_join(Tal1.features, distinct(dplyr::filter(links.tb, gene_name=="Tal1")), by=c("Feature"="feature")))
-```
-
-```{r, eval=FALSE}
-Tal1.tb.out <- Tal1.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity")
-#writexl::write_xlsx(Tal1.tb.out, path=paste(table.loc,"Tal1_features.xlsx",sep=""))
 ```
 
 ## Vsx2
@@ -343,7 +308,11 @@ result.Vsx2 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as
 writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features_s.xlsx",sep=""))
 ```
 
-```{r Regenerate from db Vsx2 links}
+```{r Write to Excel, eval=FALSE}
+writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
+```
+
+```{r Regenerate from db Vsx2 links PEARSON, eval=FALSE}
 gene_name <- "Vsx2"
 
 # Construct the SQL query using paste0()
@@ -409,20 +378,6 @@ result.Vsx2 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as
 writexl::write_xlsx(result.Vsx2, path=paste(table.loc,gene_name,"_features_p.xlsx",sep=""))
 ```
 
-```{r, eval=FALSE}
-links.tb <- as_tibble(dbGetQuery(con.obj, 'SELECT li.*,gm.gene_name FROM links as li, gene_metadata as gm WHERE gm.ensg_id=li.ensg_id'))
-```
-
-```{r, eval=FALSE}
-Vsx2.features <- distinct(left_join(Vsx2.features, distinct(dplyr::filter(links.tb, gene_name=="Vsx2")), by=c("Feature"="feature")))
-```
-
-```{r, eval=FALSE}
-Vsx2.tb.out <- Vsx2.features %>% dplyr::select("Gene_Locus","Feature_number","Feature","kb from TSS","length bp","score","zscore", "pvalue","Gene_identity","Comment","Ref")
-writexl::write_xlsx(Vsx2.tb.out, path=paste(table.loc,"Vsx2_features.xlsx",sep=""))
-```
-
-
 ## Vsx1
 
 ```{r}
@@ -485,26 +440,26 @@ GROUP BY f.seqnames, f.start, f.end, gt.TSS_start, gt.strand, l.zscore, l.pvalue
 ")
 # Execute the query and fetch results
 result.Vsx1 <- as_tibble(dbGetQuery(con, query)) %>% mutate(gene_feature_name=as.character(gene_feature_name))
+```
 
+```{r Write to Excel, eval=FALSE}
 writexl::write_xlsx(result.Vsx1, path=paste(table.loc,gene_name,"_features.xlsx",sep=""))
 ```
 
 ```{r}
-# List of tibbles (replace with actual tibbles)
-tibble_list <- list(result.Gata2, result.Gata3, result.Tal1, result.Vsx2,result.Vsx1)
 # Row-bind the tibbles with an additional column for gene names
-combined_tibble <- bind_rows(tibble_list, .id = "gene_name")
+combined_tibble <- bind_rows(list(result.Gata2, result.Gata3, result.Tal1, result.Vsx2,result.Vsx1), .id = "gene_name")
+```
 
-# Adjust gene names to match the tibble names (if needed)
-#combined_tibble$gene_name <- recode(combined_tibble$gene_name,
-#                                    `1` = "Vsx2",
-#                                    `2` = "Tal1",
-#                                    `3` = "Gata3",
-#                                    `4` = "Gata2")
-
+```{r}
+dbDisconnect(con)
 ```
 
 ```{r, eval=FALSE}
 saveRDS(combined_tibble,file="../analysis/Selector.features.Rds")
+```
+
+```{r}
+sessionInfo()
 ```
 
