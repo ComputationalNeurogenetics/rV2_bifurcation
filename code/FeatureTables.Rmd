@@ -448,7 +448,18 @@ writexl::write_xlsx(result.Vsx1, path=paste(table.loc,gene_name,"_features.xlsx"
 
 ```{r}
 # Row-bind the tibbles with an additional column for gene names
-combined_tibble <- bind_rows(list(result.Gata2, result.Gata3, result.Tal1, result.Vsx2,result.Vsx1), .id = "gene_name")
+combined_tibble <- bind_rows(
+  list(
+    Gata2 = result.Gata2,
+    Gata3 = result.Gata3,
+    Tal1 = result.Tal1,
+    Vsx2 = result.Vsx2,
+    Vsx1 = result.Vsx1
+  ),
+  .id = "gene_name"  # This is the name of the new column for IDs
+)
+
+combined_tibble <- combined_tibble %>% mutate(gene_feature_name=paste(gene_name,gene_feature_name,"kbp",sep=" "))
 ```
 
 ```{r}
