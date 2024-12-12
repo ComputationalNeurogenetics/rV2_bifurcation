@@ -38,7 +38,7 @@ plot_loc<-"~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regu
 ```
 
 ```{r}
-rV2.data <- readRDS("/Volumes/MyBookDuo/Data/E12_rV2_DownstreamReady_nmm_.240806.Rds")
+rV2.data <- readRDS("/Volumes/MyBookDuo/Data/rV2 bifurcations data objects/E12_rV2_DownstreamReady_nmm_.240806.Rds")
 
 gene_id2name <- hash(rownames(rV2.data[['RNA']][[]]),rV2.data[['RNA']][[]][,1])
 gene_name2id <- hash(rV2.data[['RNA']][[]][,1],rownames(rV2.data[['RNA']][[]]))
@@ -76,9 +76,13 @@ print(result_df)
 rV2.data.avg <- AverageExpression(rV2.data)
 ```
 
-```{r}
+```{r, warning=FALSE}
 # Access the chromvar and RNA data from rV2.data.avg
-chromvar_data <- rV2.data.avg$chromvar  # Chromvar assay
+clusters <- Idents(rV2.data)  # Get cluster identities
+chromvar_raw <- GetAssayData(rV2.data, assay = "chromvar", slot = "data")
+chromvar_data <- t(apply(chromvar_raw, 1, function(x) tapply(x, clusters, mean)))
+
+#chromvar_data <- rV2.data.avg$chromvar  # Chromvar assay
 rna_data <- rV2.data.avg$RNA  # RNA assay
 
 # Assuming result_df is the TF motif to TF mapping, as in previous codes
@@ -152,11 +156,8 @@ selected.motifs <- cortibble.all %>% filter(correlation >0.5, p_value < 0.01) %>
 ```
 
 ```{r}
-# Apply log1p transformation to the chromvar matrix
-log1p_chromvar_matrix <- log1p(chromvar_data)
-
 # Subset the chromvar data using selected motifs
-heatmap_motifs_data <- log1p_chromvar_matrix[rownames(chromvar_data) %in% selected.motifs, , drop = FALSE]
+heatmap_motifs_data <- chromvar_data[rownames(chromvar_data) %in% selected.motifs, , drop = FALSE]
 
 # Step 1: Transpose the matrix to have motifs on the x-axis and cell groups on the y-axis
 heatmap_motifs_data <- t(heatmap_motifs_data)
@@ -170,10 +171,10 @@ desired_order <- c("PRO1", "PRO2", "CO1", "CO2",
 heatmap_motifs_data <- heatmap_motifs_data[desired_order, , drop = FALSE]
 
 
-pdf(width = 12, height = 5, file=paste(plot_loc,"Figure5_TF_motifs.pdf",sep=""))
+pdf(width = 12, height = 5, file=paste(plot_loc,"Figure5_TF_motifs_2.pdf",sep=""))
 # Step 4: Draw the heatmap with selected motifs on the x-axis and cell groups on the y-axis
 Heatmap(heatmap_motifs_data,
-        name = "chromvar (log1p)",
+        name = "chromvar (z-score)",
         column_names_gp = gpar(fontsize = 10),  # Adjust motif (now columns) font size
         row_names_gp = gpar(fontsize = 10),  # Adjust cell group (now rows) font size
         show_column_names = TRUE,
