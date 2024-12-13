@@ -1,6 +1,6 @@
 ---
 title: "R Notebook of rV2 manuscript figure 2A"
-output: html_notebook
+output: html_document
 ---
 
 ```{r Packages, echo=FALSE}
@@ -49,6 +49,11 @@ for (i in seq_along(frags)) {
 Fragments(rV2.data)<-frags
 ```
 
+```{r Read conservation data}
+cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
+cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
+```
+
 # Tal1 region plot
 
 ```{r Set gene regions}
@@ -61,11 +66,6 @@ f2.range <- f1.range+50000
 cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
 cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
 qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
-```
-
-```{r Read conservation data}
-cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
-cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
 ```
 
 ```{r Peak plot from conservation data}
@@ -82,6 +82,11 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Tal1")
+
+# Update fetched links to the rV2.data object
+Links(rV2.data) <- links
+
 link_track <- LinkPlot(
   object = rV2.data,
   region = f2.range
@@ -202,11 +207,6 @@ cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
 qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
 ```
 
-```{r Read conservation data}
-cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
-cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
-```
-
 ```{r Peak plot from conservation data}
 DefaultAssay(rV2.data) <- "peaks"
 cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
@@ -221,6 +221,11 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Gata2")
+
+# Update fetched links to the rV2.data object
+Links(rV2.data) <- links
+
 link_track <- LinkPlot(
   object = rV2.data,
   region = f2.range
@@ -342,11 +347,6 @@ cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
 qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
 ```
 
-```{r Read conservation data}
-cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
-cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
-```
-
 ```{r Peak plot from conservation data}
 DefaultAssay(rV2.data) <- "peaks"
 cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
@@ -361,6 +361,11 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Gata3")
+
+# Update fetched links to the rV2.data object
+Links(rV2.data) <- links
+
 link_track <- LinkPlot(
   object = rV2.data,
   region = f2.range
@@ -484,11 +489,6 @@ cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
 qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
 ```
 
-```{r Read conservation data}
-cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
-cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
-```
-
 ```{r Peak plot from conservation data}
 DefaultAssay(rV2.data) <- "peaks"
 cons.tr <- PeakPlot(rV2.data, peaks = cons.gr.reduced, region=f2.range, color="darkgreen")
@@ -503,6 +503,11 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Vsx2")
+
+# Update fetched links to the rV2.data object
+Links(rV2.data) <- links
+
 link_track <- LinkPlot(
   object = rV2.data,
   region = f2.range
