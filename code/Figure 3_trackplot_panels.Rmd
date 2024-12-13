@@ -67,7 +67,7 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
-links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.01, coordinate_filter=GRangesToString(f2.range))
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Tal1")
 
 # Update fetched links to the rV2.data object
 Links(rV2.data) <- links
@@ -159,7 +159,7 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
-links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.01, coordinate_filter=GRangesToString(f2.range))
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Gata2")
 
 # Update fetched links to the rV2.data object
 Links(rV2.data) <- links
@@ -251,7 +251,7 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
-links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.01, coordinate_filter=GRangesToString(f2.range))
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Gata3")
 
 # Update fetched links to the rV2.data object
 Links(rV2.data) <- links
@@ -343,7 +343,7 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
-links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.01, coordinate_filter=GRangesToString(f2.range))
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=GRangesToString(f2.range),target.gene_name="Vsx2")
 
 # Update fetched links to the rV2.data object
 Links(rV2.data) <- links
