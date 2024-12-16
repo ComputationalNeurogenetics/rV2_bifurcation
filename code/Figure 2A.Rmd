@@ -94,9 +94,8 @@ link_track <- LinkPlot(
 ```
 
 ```{r}
-features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
-                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
-                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+features.by.region <- as.factor(case_when(all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Linked",
+                     !all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Not-linked"))
 
 rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
 ```
@@ -233,9 +232,8 @@ link_track <- LinkPlot(
 ```
 
 ```{r}
-features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
-                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
-                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+features.by.region <- as.factor(case_when(all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Linked",
+                     !all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Not-linked"))
 
 rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
 ```
@@ -373,9 +371,8 @@ link_track <- LinkPlot(
 ```
 
 ```{r}
-features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
-                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
-                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+features.by.region <- as.factor(case_when(all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Linked",
+                     !all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Not-linked"))
 
 rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
 ```
@@ -515,9 +512,8 @@ link_track <- LinkPlot(
 ```
 
 ```{r}
-features.by.region <- as.factor(case_when(all.features.gr %over% f1.range ~ "coding",
-                     all.features.gr %over% f2.range & !(all.features.gr %over% f1.range) ~ "proximal",
-                     !(all.features.gr %over% f2.range) & !(all.features.gr %over% f1.range) ~ "distal"))
+features.by.region <- as.factor(case_when(all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Linked",
+                     !all.features.gr %over% StringToGRanges(Links(rV2.data)$peak) ~ "Not-linked"))
 
 rV2.data[["peaks"]] <- AddMetaData(rV2.data[["peaks"]], features.by.region, "Region")
 ```
