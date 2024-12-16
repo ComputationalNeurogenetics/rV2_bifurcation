@@ -134,7 +134,7 @@ Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
-ct.vsx2$labels$y <- "C&T Gata3"
+ct.vsx2$labels$y <- "C&T Vsx2"
 ```
 
 ```{r Ebf1 CT}
@@ -150,7 +150,7 @@ Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/ou
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
-ct.insm1$labels$y <- "C&T Ebf1"
+ct.insm1$labels$y <- "C&T Insm1"
 ```
 
 ```{r Expression plot}
@@ -272,7 +272,7 @@ Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
-ct.vsx2$labels$y <- "C&T Gata3"
+ct.vsx2$labels$y <- "C&T Vsx2"
 ```
 
 ```{r Ebf1 CT}
@@ -288,7 +288,7 @@ Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/ou
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
-ct.insm1$labels$y <- "C&T Ebf1"
+ct.insm1$labels$y <- "C&T Insm1"
 ```
 
 
@@ -412,7 +412,7 @@ Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
-ct.vsx2$labels$y <- "C&T Gata3"
+ct.vsx2$labels$y <- "C&T Vsx2.ct"
 ```
 
 ```{r Ebf1 CT}
@@ -428,7 +428,7 @@ Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/ou
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
-ct.insm1$labels$y <- "C&T Ebf1"
+ct.insm1$labels$y <- "C&T Insm1"
 ```
 
 
@@ -552,7 +552,7 @@ Vsx2.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/out
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.vsx2 <- PeakPlot(rV2.data, peaks = Vsx2.ct, region=f2.range, color="darkred")
-ct.vsx2$labels$y <- "C&T Gata3"
+ct.vsx2$labels$y <- "C&T Vsx2"
 ```
 
 ```{r Ebf1 CT}
@@ -568,7 +568,7 @@ Insm1.ct <- consensus_bed2Granges(bed_file = "/Volumes/MyBookDuo/Data/Cut_Tag/ou
 
 DefaultAssay(rV2.data) <- "peaks"
 ct.insm1 <- PeakPlot(rV2.data, peaks = Insm1.ct, region=f2.range, color="darkred")
-ct.insm1$labels$y <- "C&T Ebf1"
+ct.insm1$labels$y <- "C&T Insm1"
 ```
 
 ```{r Expression plot}
