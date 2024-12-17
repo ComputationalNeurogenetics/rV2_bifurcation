@@ -30,6 +30,21 @@ DimPlot(e.e12.r1, reduction = "umap", label = TRUE) + theme(legend.position = "n
 dev.off()
 ```
 
+```{r scRNA UMAP replicate batch effect}
+pdf("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS1/scRNA_UMAP_R1_repl_batch.pdf", width = 8, height = 8)
+
+new.axes <-  ExpandAxes(x=e.e12.r1@reductions$umap@cell.embeddings[,1], y=e.e12.r1@reductions$umap@cell.embeddings[,2])
+
+# Extract the strings before the first underscore
+replicate <- sapply(colnames(e.e12.r1), function(x) strsplit(x, "_")[[1]][1])
+
+# Assign the extracted values as new metadata in the Seurat object
+e.e12.r1$replicate <- replicate
+
+DimPlot(e.e12.r1, reduction = "umap", label = F, group.by = "replicate") + ylim(new.axes$y.range) + xlim(new.axes$x.range) + theme(axis.text.y = element_text(size=20),axis.text.x = element_text(size=20)) + ggtitle("Biological replicates")
+dev.off()
+```
+
 ```{r Marker gene feature plots for R1}
 for(g in c("Tal1","Gad1","Nkx6-1","Slc17a6","Nes","Phgdh","Ccnd1","Ccnb1","Cenpa","Ube2c","Rmr2")){
   pdf(file = paste("/Users/kilpinen/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/FigS1/",g,"_RNA_UMAP_R1.pdf",sep=""), width = 4, height = 4)
