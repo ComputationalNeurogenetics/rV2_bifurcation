@@ -6,7 +6,11 @@ date: "2024-12-10"
 ```{r setup}
 library(tidyverse)
 library(ggVennDiagram)
+library(parallel)
 source("local_settings.R")
+
+# Set number of cores for parallelization
+n_cores <- 8 
 ```
 
 # Tal1, Gata2 and Gata3 (GABA and CO)
@@ -14,13 +18,13 @@ source("local_settings.R")
 ## GABA
 
 ```{r Fetching regulators for each selector TF in GABA}
-Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=min(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=min(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "GA1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=min(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Combined.reg.tb <- rbind(Tal1_RE,Gata2_RE,Gata3_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=mean(linkpeaks_avg_pvalue,na.rm=T))
+Combined.reg.tb <- rbind(Tal1_RE,Gata2_RE,Gata3_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=max(linkpeaks_avg_pvalue,na.rm=T))
 ```
 
 ```{r Finding common regulators for GABA selector TFs}
@@ -58,13 +62,13 @@ print(common_regulator_venn)
 ## CO
 
 ```{r Fetching regulators for each selector TF in CO}
-Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Tal1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Tal1", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=min(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Gata2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata2", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=min(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Gata3_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Gata3", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=min(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Combined.reg.tb <- rbind(Tal1_RE,Gata2_RE,Gata3_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=mean(linkpeaks_avg_pvalue,na.rm=T))
+Combined.reg.tb <- rbind(Tal1_RE,Gata2_RE,Gata3_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=max(linkpeaks_avg_pvalue,na.rm=T))
 ```
 
 ```{r Finding common regulators for CO selector TFs}
@@ -99,16 +103,59 @@ common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, c
 print(common_regulator_venn)
 ```
 
+## Statistical testing
+
+```{r}
+# Example data (replace with your actual data):
+A <- Tal1_RE$TF_gene_name
+B <- Gata2_RE$TF_gene_name
+C <- Gata3_RE$TF_gene_name
+
+Universe <- fetch_all_regulators(db_path=paste(db.path,dbname.rV2,sep=""),zscore_threshold = 2, pvalue_threshold = 0.05)
+
+# Observed intersection size
+obs_intersect <- length(intersect(intersect(A, B), C))
+
+# Number of permutations
+N <- 1000000
+
+# Define a single iteration function
+random_intersect_fun <- function(i) {
+  A_r <- sample(Universe, length(A))
+  B_r <- sample(Universe, length(B))
+  C_r <- sample(Universe, length(C))
+  length(intersect(intersect(A_r, B_r), C_r))
+}
+
+# Run permutations in parallel
+set.seed(2024) 
+random_intersects <- mclapply(1:N, random_intersect_fun, mc.cores = n_cores)
+random_intersects <- unlist(random_intersects)
+
+# Compute empirical p-value
+p_value <- mean(random_intersects >= obs_intersect)
+
+# If p_value is 0 due to no permutations meeting or exceeding obs_intersect,
+# print an upper bound for the p-value
+if (p_value == 0) {
+  cat("Observed intersection:", obs_intersect, "\n")
+  cat("Empirical p-value: <", 1/(N + 1), "\n")
+} else {
+  cat("Observed intersection:", obs_intersect, "\n")
+  cat("Empirical p-value:", p_value, "\n")
+}
+```
+
 # Vsx1 and Vsx2 (GL and CO)
 
 ## GL
 
 ```{r Fetching regulators for each selector TF in GL}
-Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "GL1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "GL1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=min(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "GL1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "GL1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=min(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Combined.reg.tb <- rbind(Vsx1_RE,Vsx2_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=mean(linkpeaks_avg_pvalue,na.rm=T))
+Combined.reg.tb <- rbind(Vsx1_RE,Vsx2_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=max(linkpeaks_avg_pvalue,na.rm=T))
 ```
 
 ```{r Finding common regulators for GL selector TFs}
@@ -138,11 +185,11 @@ print(common_regulator_venn)
 ## CO
 
 ```{r Fetching regulators for each selector TF in CO #2}
-Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Vsx1_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx1", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=min(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=mean(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
+Vsx2_RE <-fetch.regulators_v2(db.name=paste(db.path,dbname.rV2,sep=""), "Vsx2", "CO1_2",pvalue.thr=0.05) %>% group_by(TF_gene_name, direction) %>% summarize(linkpeaks_avg_zscore=min(linkpeaks_zscore,na.rm=T), linkpeaks_avg_pvalue=mean(linkpeaks_pvalue, na.rm=T), direction=mean(direction))
 
-Combined.reg.tb <- rbind(Vsx1_RE,Vsx2_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=mean(linkpeaks_avg_pvalue,na.rm=T))
+Combined.reg.tb <- rbind(Vsx1_RE,Vsx2_RE) %>% group_by(TF_gene_name) %>% summarize(linkpeaks_avg_pvalue=max(linkpeaks_avg_pvalue,na.rm=T))
 ```
 
 ```{r Finding common regulators for CO selector TFs #2}
@@ -168,3 +215,9 @@ common_regulator_venn <- ggVennDiagram(common_regulator_list, label_alpha = 0, c
   scale_x_continuous(expand = expansion(mult = .3))
 print(common_regulator_venn)
 ```
+
+
+```{r}
+sessionInfo()
+```
+
