@@ -223,6 +223,21 @@ create_dt(filter(combined_tibble, TF=="Vsx2"))
 create_dt(filter(combined_tibble, TF=="Insm1"))
 create_dt(filter(combined_tibble, TF=="Ebf1"))
 create_dt(filter(combined_tibble, TF=="Tead2"))
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Tal1") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Tal1.target.xlsx",col_names = TRUE)
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Gata2") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Gata2.target.xlsx",col_names = TRUE)
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Gata3") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Gata3.target.xlsx",col_names = TRUE)
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Vsx2") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Vsx2.target.xlsx",col_names = TRUE)
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Insm1") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Insm1.target.xlsx",col_names = TRUE)
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Ebf1") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Ebf1.target.xlsx",col_names = TRUE)
+
+writexl::write_xlsx(filter(combined_tibble, TF=="Tead2") %>% select(feature,zscore,links_pvalue,TFBS_name,gene_name,GA1_2_exp_avg_log2,GL1_2_exp_avg_log2,avg_log2FC),path="~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Tables/Target tables/Tead2.target.xlsx",col_names = TRUE)
+
 ```
 
 # Target gene expression
