@@ -21,15 +21,11 @@ library(dbplyr)
 library(DBI)
 library(clipr)
 library(igvR)
-source("../../AuxCode/TOBIAS_tools.R")
-source("../../AuxCode/AuxFunctions.R")
-cores<-8
+source("local_settings.R")
 ```
 
 ```{r Connection to SQLite}
-
-dbname="~/Workspace/TOBIAS.dr.h12_140524.sqlite"
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
 
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")
@@ -94,13 +90,14 @@ rm(igv)
 
 ```{r}
 plot_loc_vsx2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Vsx2/"
-Vsx2.features <- as_tibble(read_clip_tbl(header=FALSE))
+Vsx2.features <- tibble(read_clip_tbl(header=FALSE))
+Vsx2.features <- Vsx2.features %>% dplyr::rename("V2"="V1")
 ```
 
 ```{r Plot all Vsx2 features}
-maxes <- find.maxes(features=Vsx2.features, dbname=dbname)
+maxes <- find.maxes(features=Vsx2.features, dbname=paste(db.path,dbname.rV2,sep=""))
 for (i in 1:nrow(Vsx2.features)){
-  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,2]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,dbname=dbname)
+  p <- plotHorizDotplot_v2(feature.coords = as.character(Vsx2.features[i,"V2"]),max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,dbname=paste(db.path,dbname.rV2,sep=""))
   if(is.list(p)){
   pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot.pdf",sep=""),sep=""), width = 15, height = 9)
   p3 <- p$p1 + p$p2 + plot_layout(widths = c(10, 1))
@@ -111,12 +108,12 @@ for (i in 1:nrow(Vsx2.features)){
 ```
 
 ```{r Plot all Vsx2 features dotplot v3, echo=FALSE}
-maxes <- find.maxes(features=Vsx2.features, dbname=dbname)
+maxes <- find.maxes(features=Vsx2.features, dbname=paste(db.path,dbname.rV2,sep=""))
 igv<-igvR()
 for (i in 1:nrow(Vsx2.features)){
-  p <- plotHorizDotplot_v3(feature.coords = as.character(Vsx2.features[i,2]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=dbname)
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Vsx2.features[i,"V2"]), igv=igv, cons.filt=cons.gr,max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=paste(db.path,dbname.rV2,sep=""))
   if(is.list(p)){
-  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 15, height = 12)
+  pdf(file=paste(plot_loc_vsx2,paste("Vsx2f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 28, height = 12)
     plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
   print(plot.to.plot)
   dev.off()
