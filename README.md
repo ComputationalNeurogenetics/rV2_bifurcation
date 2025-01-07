@@ -27,6 +27,7 @@ This is code and metadata repository for manuscript "Gene regulatory mechanisms 
 2. code/rV2_VIA_pseudotime.ipynb
 
 ## TF-footprinting
+1. Parameters for TF footprinting run are in code/TOBIAS/config.yaml
 
 ## RNAscope image segmentation and analysis
 ### StarDist based segmentation
