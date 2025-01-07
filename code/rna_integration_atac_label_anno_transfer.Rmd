@@ -1,0 +1,116 @@
+---
+title: "RNA-ATAC annotation label transfer"
+output: html_document
+---
+
+Document created and ran on Tue 29. Mar 2022. Ran inside LM6-BIOTI5 conda env graduenv_v2.
+Changes made (save RDS) and ran on Mon 9. May 2022. Ran inside LM6-BIOTI5 conda env graduenv_v2.
+
+Label transfer between E12 scRNA-seq data (details at https://github.com/ComputationalNeurogenetics/Mm_scRNA_integration/blob/main/cross_sample_cluster_comparison_monocle3.Rmd).
+scRNA-seq data set created, saved, and imported from Puhti.
+
+Cluster labels either sXY / mXY where s prefix used for Seurat cluster and m for monocle3.
+Annotation labels by Juha using latest version of cross_sample_cluster_comparison_monocle3.Rmd (ran on 24. Feb, using that html-document).
+
+```{r}
+library(Seurat)
+library(Signac)
+library(tidyverse)
+set.seed(2020)
+```
+
+```{r}
+# Fri 1. Apr:
+# Changed labeling to GAL, GAE etc.
+s.atac.nmm <- readRDS("/Volumes/T7 Touch/Gradu_stash/puhti_rds_imports/E12_R1_DownstreamReady_nmm_.240322.Rds")
+s.rna.e12n <- readRDS("/Volumes/T7 Touch/Gradu_stash/puhti_rds_imports/tue29mar_e12_seurat_for_labeltransfer_nonelabeled.Rds")
+
+gl.sr.labs <- readRDS("/Volumes/T7 Touch/Gradu_stash/puhti_rds_imports/fri1apr_e12_seurat_glut_sert_annotations_for_atac.Rds")
+gaba.labs <- readRDS("/Volumes/T7 Touch/Gradu_stash/puhti_rds_imports/fri1apr_e12_seurat_for_labeltransfer_nonelabeled.Rds")
+
+gl.sr.cls <- readRDS("/Volumes/T7 Touch/Gradu_stash/puhti_rds_imports/wed30mar_e12_seurat_glut_sert_clusters_for_atac.Rds")
+```
+
+```{r}
+# Preprocess cluster labels
+corrected.gaba.cls <- ifelse(grepl("^s", s.rna.e12n$clusters_for_atac_transfer),
+                             str_replace(s.rna.e12n$clusters_for_atac_transfer, "s", "CO"),
+                             str_replace(s.rna.e12n$clusters_for_atac_transfer, "m", "GA"))
+
+corrected.glsr.cls <- ifelse(grepl("^m", gl.sr.cls),
+                             str_replace(gl.sr.cls, "m", "GL"),
+                             ifelse(grepl("s27|s14", gl.sr.cls), str_replace(gl.sr.cls, "s", "SR"), str_replace(gl.sr.cls, "s", "PR")))
+```
+
+```{r}
+labeling <- ifelse(gaba.labs != "none", gaba.labs, ifelse(gl.sr.labs != "none", gl.sr.labs, "none"))
+clustering <- ifelse(corrected.gaba.cls != "none", corrected.gaba.cls, ifelse(corrected.glsr.cls != "none", corrected.glsr.cls, "none"))
+```
+
+```{r}
+s.rna.e12n <- AddMetaData(s.rna.e12n, labeling, col.name = "combined.labeling")
+s.rna.e12n <- AddMetaData(s.rna.e12n, clustering, col.name = "combined.clustering") 
+```
+
+```{r}
+transfer.anchors <- FindTransferAnchors(reference = s.rna.e12n, query = s.atac.nmm, query.assay = "RNA")
+
+annotation.pred <- TransferData(transfer.anchors, refdata = s.rna.e12n$combined.labeling)
+clustering.pred <- TransferData(transfer.anchors, refdata = s.rna.e12n$combined.clustering)
+```
+
+```{r}
+s.atac.nmm <- AddMetaData(s.atac.nmm, metadata = annotation.pred$predicted.id, col.name = "predicted.labeling")
+s.atac.nmm <- AddMetaData(s.atac.nmm, metadata = clustering.pred$predicted.id, col.name = "predicted.clustering")
+
+p1 <- DimPlot(s.atac.nmm, group.by = "predicted.labeling", label = T,
+              label.box = T, repel = T) + ggtitle("Predicted annotation")
+p1.raw <- DimPlot(s.atac.nmm, group.by = "predicted.labeling") + ggtitle("Predicted annotation")
+
+p2 <- DimPlot(s.atac.nmm, group.by = "predicted.clustering", label = T,
+              label.box = T, repel = T) + ggtitle("Predicted cluster")
+p2.raw <- DimPlot(s.atac.nmm, group.by = "predicted.clustering")  + ggtitle("Predicted cluster")
+```
+
+```{r}
+patchwork::wrap_plots(p1, p2, p1.raw, p2.raw)
+```
+
+```{r}
+# NOTE: probably badm uninteresting code
+# See where cl6 cl20 are more clearly
+#p2.cl6.20 <- DimPlot(s.atac.nmm, cells.highlight = list(Cells(subset(s.atac.nmm, subset = predicted.id == "glu_s6")),
+#                                                        Cells(subset(s.atac.nmm, subset = predicted.id == "glu_s20"))), 
+#                     cols.highlight = c("blue", "red"))
+
+#p1 + p1.raw + p2.cl6.20
+```
+
+```{r}
+saveRDS(s.atac.nmm, "/Volumes/T7 Touch/Gradu_stash/E12_R1_nmm_label_transfered_090522.Rds")
+```
+
+### Extra 1: Check none cells among progs.
+
+```{r}
+s6_none <- CellSelector(p2)
+cells.oi <- s.atac.nmm$predicted.id[names(s.atac.nmm$predicted.id) %in% s6_none]
+length(cells.oi[cells.oi == "none"])
+length(cells.oi[cells.oi == "none"]) / length(cells.oi)
+```
+
+```{r}
+prog_none_lab <- CellSelector(p1)
+cells.oi2 <- s.atac.nmm$predicted.id[names(s.atac.nmm$predicted.id) %in% prog_none_lab]
+length(cells.oi2[cells.oi == "none"]) / length(cells.oi2)
+all(names(cells.oi) == names(cells.oi2))
+```
+
+```{r}
+Sys.time()
+```
+
+```{r}
+sessionInfo()
+```
+

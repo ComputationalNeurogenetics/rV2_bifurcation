@@ -1,0 +1,195 @@
+---
+title: "Seurat labeling/subclustering as of Tuo 10. May 2022"
+output: html_document
+date: '2022-05-10'
+---
+
+## Replaces ccscore_violingrid.Rmd (TODO move that to some kind of archive folder or something)
+
+```{r}
+library(Seurat)
+library(Signac)
+library(tidyverse)
+library(gridExtra)
+library(GenomicRanges)
+source("/Volumes/T7 Touch/scataq_seq_apr21/AuxCode/AuxFunctions.R")
+set.seed(2020)
+```
+
+```{r}
+s.atac.nmm <- readRDS("/Volumes/T7 Touch/Gradu_stash/E12_R1_nmm_label_transfered_090522.Rds")
+```
+
+### Cell cycle scoring
+
+```{r Convert s genes to ens id}
+s.ids <- convert_feature_identity(s.atac.nmm, "RNA", cc.genes$s.genes %>% str_to_title(), "symbol")
+# One symbol uses a synonym in Satija lab's vector. Namely, MLF1IP aka Cenpu...
+cenpu.id <- convert_feature_identity(s.atac.nmm, "RNA", "Cenpu", feature.format = "symbol")
+# Swap it
+s.ids[is.na(s.ids)] <- cenpu.id
+```
+
+```{r Convert g2m genes to ens id}
+g2m.ids <- convert_feature_identity(s.atac.nmm, "RNA", cc.genes$g2m.genes %>% str_to_title(), "symbol")
+# Same but with two genes FAM6A == Pimreg and HN1 == "Jpt2
+swaps <- convert_feature_identity(s.atac.nmm, "RNA", c("Pimreg", "Jpt2"), "symbol")
+# Swap em
+g2m.ids[is.na(g2m.ids)] <- swaps
+```
+
+```{r}
+DefaultAssay(s.atac.nmm) <- "RNA"
+
+s.atac.nmm <- CellCycleScoring(s.atac.nmm, g2m.features = g2m.ids, s.features = s.ids)
+s.atac.nmm$CC.difference <- s.atac.nmm$S.Score - s.atac.nmm$G2M.Score
+```
+
+### Subclustering
+
+```{r}
+# NOTE original clustering stored in metadata
+# Ran first with defaultassay RNA
+DefaultAssay(s.atac.nmm) <- "RNA"
+Idents(s.atac.nmm) <- s.atac.nmm$idents_for_ss
+
+# lmao
+ioi <- ifelse(Idents(s.atac.nmm) %in% c(12, 8), "GL",
+              ifelse(Idents(s.atac.nmm) %in% c(1, 20, 6, 24), "GA",
+                     ifelse(Idents(s.atac.nmm) %in% c(3, 11), "SR", 
+                            ifelse(Idents(s.atac.nmm) %in% c(26), "CO",
+                                   ifelse(Idents(s.atac.nmm) %in% c(13), "PRO1", 
+                                          ifelse(Idents(s.atac.nmm) %in% c(19), "PRO2", NA)
+                                          )
+                                   )
+                            )
+                     )
+              )
+
+s.atac.nmm$ioi_types <- ioi
+Idents(s.atac.nmm) <- ioi
+
+s.atac.nmm <- FindSubCluster(s.atac.nmm, "GL", graph.name = "peaks_snn", algorithm = 4, subcluster.name = "glut.sub.cl") %>% 
+              FindSubCluster("GA", graph.name = "peaks_snn", algorithm = 4, subcluster.name = "gaba.sub.cl") %>% 
+              FindSubCluster("SR", graph.name = "peaks_snn", algorithm = 4, subcluster.name = "sero.sub.cl")
+
+s.atac.nmm$comb.sub.cl <- ifelse(grepl("GA", s.atac.nmm$gaba.sub.cl), s.atac.nmm$gaba.sub.cl,
+                                 ifelse(grepl("GL", s.atac.nmm$glut.sub.cl), s.atac.nmm$glut.sub.cl, 
+                                        ifelse(grepl("SR", s.atac.nmm$sero.sub.cl), s.atac.nmm$sero.sub.cl, NA)))
+```
+
+```{r}
+# Add PRO1, PRO2, CO cells to comb.sub.cl
+comb.sub.cl <- s.atac.nmm$comb.sub.cl
+ioi_types <- s.atac.nmm$ioi_types
+
+subcl.ioi.comb <- sapply(1:length(ioi_types), function(idx) {
+  ifelse(is.na(comb.sub.cl[idx]) & !is.na(ioi_types[idx]), unname(ioi_types[idx]), unname(comb.sub.cl[idx]))
+})
+
+s.atac.nmm$raw_label <- subcl.ioi.comb
+```
+
+```{r}
+# Permute sub cluster AB_n numbering (the n's) for visual ease
+refined.labeling <- sapply(1:length(subcl.ioi.comb), function(idx) {
+  if (is.na(subcl.ioi.comb[idx])) {NA}
+  else if (subcl.ioi.comb[idx] == "CO") {gsub("CO", "CO1", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GA_3") {gsub("_3", "2", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GA_2") {gsub("_2", "3", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GA_6") {gsub("_6", "4", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GA_4") {gsub("_4", "6", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GL_6") {gsub("GL_6", "CO2", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GL_5") {gsub("_5", "2", subcl.ioi.comb[idx])}
+  else if (subcl.ioi.comb[idx] == "GL_2") {gsub("_2", "5", subcl.ioi.comb[idx])}
+  else {gsub("_", "", subcl.ioi.comb[idx])}
+})
+
+s.atac.nmm$labeling <- refined.labeling
+```
+
+### Extract FINAL rV2 lineage
+
+```{r}
+# Finally extract PROs, COs, and rV2
+rv2.lineage <- sapply(1:length(refined.labeling), function(idx) {
+  ifelse(refined.labeling[idx] %in% c("SR1", "SR2", "SR3", "SR4"), NA, refined.labeling[idx])
+})
+
+s.atac.nmm$rv2.lineage <- rv2.lineage
+```
+
+```{r}
+rv2.ss <- subset(s.atac.nmm, cells = colnames(s.atac.nmm)[!is.na(s.atac.nmm$rv2.lineage)])
+Idents(rv2.ss) <- rv2.ss$rv2.lineage
+```
+
+```{r}
+# Discard obvious outlier cells
+non.outliers1 <- CellSelector(DimPlot(rv2.ss))
+non.outliers2 <- CellSelector(DimPlot(rv2.ss))
+
+non.outliers <- c(non.outliers1, non.outliers2)
+```
+
+```{r}
+rv2.ss <- subset(rv2.ss, cells = Cells(rv2.ss)[which(Cells(rv2.ss) %in% non.outliers)])
+```
+
+```{r}
+DimPlot(rv2.ss)
+```
+
+```{r}
+saveRDS(rv2.ss, "/Volumes/T7 Touch/Gradu_stash/nmm_rV2_subset_relabeled_110522.Rds")
+```
+
+### Extract SEROTONERGIC lineage
+
+```{r}
+sero.lineage <- sapply(1:length(refined.labeling), function(idx) {
+  ifelse(refined.labeling[idx] %in% c("SR1", "SR2", "SR3"), refined.labeling[idx], NA)
+})
+
+# Change SR2, SR3 order
+s.atac.nmm$sero.lineage <- sero.lineage
+```
+
+```{r}
+sero.ss <- subset(s.atac.nmm, cells = colnames(s.atac.nmm)[!is.na(s.atac.nmm$sero.lineage)])
+Idents(sero.ss) <- sero.ss$sero.lineage
+```
+
+```{r}
+# Again discard obvious outliers
+non.outliers <- CellSelector(DimPlot(sero.ss))
+```
+
+```{r}
+sero.ss <- subset(sero.ss, cells = Cells(sero.ss)[which(Cells(sero.ss) %in% non.outliers)])
+```
+
+### Change labeling of SR2 and SR3
+
+```{r}
+id.tmp <- Idents(sero.ss)
+
+sero.relabeling <- gsub("3", "X", id.tmp)
+sero.relabeling <- gsub("2", "3", sero.relabeling)
+sero.relabeling <- gsub("X", "2", sero.relabeling)
+```
+
+```{r}
+sero.ss$relabeling <- sero.relabeling
+Idents(sero.ss) <- sero.ss$relabeling
+sero.ss <- subset(sero.ss, idents = c("SR1", "SR2", "SR3"))
+```
+
+```{r}
+DimPlot(sero.ss, label = T)
+```
+
+
+```{r}
+saveRDS(sero.ss, "/Volumes/T7 Touch/Gradu_stash/nmm_serotonergic_subset_relabeled_050922.Rds")
+```
