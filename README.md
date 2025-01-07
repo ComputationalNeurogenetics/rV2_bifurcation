@@ -39,7 +39,7 @@ This is code and metadata repository for manuscript "Gene regulatory mechanisms 
 
 ### Downstream analysis of intensities of fluorescence channels in ROIs
 1. ROIs of each image were read into R with intensities per channel per image as per /code/RNAscope/SegmentationAnalysis_v2.Rmd
-2. Futher downstream analysis to calculate intensity changes of each channel as a function of cell migration alogn radial axis (away from ventricular zone) were calculated as per /code/RNAscope/SegmentationAnalysis_v2.Rmd
+2. Futher downstream analysis to calculate intensity changes of each channel as a function of cell migration along radial axis (away from ventricular zone) were calculated as per /code/RNAscope/SegmentationAnalysis_v2.Rmd
 
 ## Cut & Run data processing
 1. nf-core/cutandrun pipeline with run report (code/CT/pipeline_report.txt), including launch parameters
