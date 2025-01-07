@@ -56,3 +56,8 @@ Most of the figures do have own code files in code/
 ## Metadata
 metadata/ contains most of the metadata files/URLs
 
+## AuxFunctions
+Many R code files source functions from additional files
+    1. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/AuxFunctions.R
+    2. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/TOBIAS_tools.R
+    3. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/TargetAnalysis.R
