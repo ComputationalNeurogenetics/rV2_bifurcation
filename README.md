@@ -62,3 +62,6 @@ Many R code files source functions from additional files
 1. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/AuxFunctions.R
 2. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/TOBIAS_tools.R
 3. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/TargetAnalysis.R
+
+## Seq quality reports
+1. Seq quality reports for all sequencing data used are in seq_quality_reports/   
