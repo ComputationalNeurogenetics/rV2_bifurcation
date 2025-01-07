@@ -8,7 +8,7 @@ This is code and metadata repository for manuscript "Regulation of Tal1 dependen
 
 ## Processing scATACseq
 1. code/E12R1_clade_peaks_joint_space_271021.Rmd
-    - Featurespace is stored in analysis/JointFeatureSpace.271021.Rds
+    - Used featurespace from analysis/JointFeatureSpace.271021.Rds
 2. code/e12r_counts_to_downstream.240322.Rmd
     - Results in (scATAC_data/E12_R1_DownstreamReady_nmm_.240322.Rds, but not in Github)
 
