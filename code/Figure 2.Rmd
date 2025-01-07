@@ -10,7 +10,7 @@ library(Signac)
 library(qs)
 library(rtracklayer)
 library(gUtils)
-source("AuxFunctions.R")
+source("local_settings.R")
 ```
 
 ```{r Set parameters}
@@ -52,6 +52,7 @@ cons.gr <- import.bw(con="../metadata/mm10.60way.phastCons.bw",as="GRanges")
 cons.filt.gr <- cons.gr[(elementMetadata(cons.gr)[, "score"]>=0.5)]
 qsave(cons.filt.gr, file="metadata/cons.filt.gr.qs", nthreads = cores)
 ```
+
 ```{r Read conservation data}
 cons.gr <- qread("../metadata/cons.filt.gr.qs", nthreads = cores)
 cons.gr.reduced <- GenomicRanges::reduce(cons.gr)
@@ -71,12 +72,16 @@ gene_track <- AnnotationPlot(
 ```
 
 ```{r Linkpeaks track}
+links <- fetchGRangesLinks(paste(db.path,dbname.rV2,sep=""), zscore_threshold = 2, pvalue_threshold = 0.05, coordinate_filter=region.of.interest)
+
+# Update fetched links to the rV2.data object
+Links(rV2.data) <- links
+
 link_track <- LinkPlot(
   object = rV2.data,
   region = region.of.interest
 )
 ```
-
 
 ```{r}
 # Coloring for Gata2 features in the poster

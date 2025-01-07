@@ -171,7 +171,7 @@ desired_order <- c("PRO1", "PRO2", "CO1", "CO2",
 heatmap_motifs_data <- heatmap_motifs_data[desired_order, , drop = FALSE]
 
 
-pdf(width = 12, height = 5, file=paste(plot_loc,"Figure5_TF_motifs_2.pdf",sep=""))
+pdf(width = 12, height = 5, file=paste(plot_loc,"Figure5_TF_motifs.pdf",sep=""))
 # Step 4: Draw the heatmap with selected motifs on the x-axis and cell groups on the y-axis
 Heatmap(heatmap_motifs_data,
         name = "chromvar (z-score)",
@@ -189,11 +189,8 @@ dev.off()
 # Assume motif_to_tf is a mapping from motif names to TF names, as in previous steps
 motif_to_tf <- setNames(result_df$gene_symbol, result_df$name)
 
-# Apply log1p transformation to the chromvar matrix
-log1p_chromvar_matrix <- log1p(chromvar_data)
-
 # Step 1: Filter selected motifs from chromvar data
-selected_motifs_data <- log1p_chromvar_matrix[rownames(log1p_chromvar_matrix) %in% selected.motifs, , drop = FALSE]
+selected_motifs_data <- chromvar_data[rownames(chromvar_data) %in% selected.motifs, , drop = FALSE]
 
 # Step 2: Map the selected motifs to their corresponding TFs
 selected_tfs <- motif_to_tf[selected.motifs]
@@ -234,7 +231,7 @@ pdf(width = 12, height = 5, file = paste(plot_loc, "Figure5_TF.pdf", sep = ""))
 
 # Step 8: Draw the heatmap with **TFs on the x-axis** and **cell groups on the y-axis**
 Heatmap(heatmap_tf_data,
-        name = "chromvar (log1p, TFs)",
+        name = "chromvar (z-score, TFs)",
         column_names_gp = gpar(fontsize = 10),  # Adjust TF (now columns) font size
         row_names_gp = gpar(fontsize = 10),  # Adjust cell group (now rows) font size
         show_column_names = TRUE,
