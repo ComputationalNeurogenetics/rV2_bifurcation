@@ -27,11 +27,12 @@ This is code and metadata repository for manuscript "Gene regulatory mechanisms 
 2. code/rV2_VIA_pseudotime.ipynb
 
 ## TF-footprinting
+1. Parameters for TF footprinting run are in code/TOBIAS/config.yaml
 
 ## RNAscope image segmentation and analysis
 ### StarDist based segmentation
 1.Creation of training images for StarDist model building
-- 10 images covering majority of cell shapes and sizes in the dissections of E12.5 R1 were manually painted based on DAPI channel information to identify each cell. 
+    - 10 images covering majority of cell shapes and sizes in the dissections of E12.5 R1 were manually painted based on DAPI channel information to identify each cell. 
 2. Training images were used to train Startdist model as per /code/RNAscope/Stardist_training.ipynb
 3. DAPI channel of each actual analysis images was then used to segment images and discover cell boundaries as per /code/RNAscope/Prediction.ipynb
 4. ROIs of each image were exported as ImageJ ROIS.zip files
@@ -56,3 +57,8 @@ Most of the figures do have own code files in code/
 ## Metadata
 metadata/ contains most of the metadata files/URLs
 
+## AuxFunctions
+Many R code files source functions from additional files
+1. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/AuxFunctions.R
+2. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/TOBIAS_tools.R
+3. https://github.com/ComputationalNeurogenetics/AuxCode/blob/master/TargetAnalysis.R
