@@ -49,3 +49,6 @@ This is code and metadata repository for manuscript "Gene regulatory mechanisms 
 ## Figures
 Most of the figures do have own code files in code/
 
+## Metadata
+metadata/ contains most of the metadata files/URLs
+
