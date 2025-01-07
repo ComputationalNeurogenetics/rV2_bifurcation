@@ -46,6 +46,10 @@ This is code and metadata repository for manuscript "Gene regulatory mechanisms 
 ## SQLite db construction and calculation of various metadata
 1. code/TOBIAS_table_operation.Rmd
 
+## Target & common regulator analyses
+1. code/TargetAnalysis_rV2.Rmd
+2. code/common_regulator.Rmd
+
 ## Figures
 Most of the figures do have own code files in code/
 
