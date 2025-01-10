@@ -19,7 +19,6 @@ library(BSgenome.Mmusculus.UCSC.mm10)
 library(ChIPpeakAnno)
 cores <-10
 source("local_settings.R")
-library(rtracklayer)
 library(plyranges)
 library(data.table)
 ```
