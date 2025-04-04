@@ -1,0 +1,152 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# Load required libraries
+library(DBI)
+library(RSQLite)
+library(tidyverse)
+library(Signac)
+library(writexl)
+```
+
+```{r}
+con <- dbConnect(SQLite(), dbname = "../../TOBIAS.dr.h12_191124.sqlite")
+```
+
+```{r}
+# Create a composite index on CT_data for (chr, start, end) if it doesn't already exist
+dbExecute(con, "
+  CREATE INDEX IF NOT EXISTS idx_CT_data_chr_start_end 
+  ON CT_data(chr, start, end);
+")
+
+dbExecute(con, "
+  CREATE INDEX IF NOT EXISTS idx_tobias_upper_TF_gene_name ON tobias(UPPER(TF_gene_name));
+")
+
+dbExecute(con, "
+  CREATE INDEX IF NOT EXISTS idx_ct_data_upper_target_gene_name ON ct_data(UPPER(target_gene_name));
+")
+```
+
+```{r}
+set1.feat <- dbGetQuery(con, "
+SELECT DISTINCT t.features, t.TF_gene_name
+FROM tobias t
+JOIN acc a ON t.features = a.features
+WHERE UPPER(t.TF_gene_name) IN (SELECT UPPER(ct.target_gene_name) FROM ct_data ct GROUP BY ct.target_gene_name UNION SELECT 'COE1') AND (
+    (t.PRO1_2_bound = 1 AND a.PRO1_2 > 0.5) OR
+    (t.GL3_4_bound = 1 AND a.GL3_4 > 0.5) OR
+    (t.GA5_6_bound = 1 AND a.GA5_6 > 0.5) OR
+    (t.GL5_bound   = 1 AND a.GL5   > 0.5) OR
+    (t.CO1_2_bound = 1 AND a.CO1_2 > 0.5) OR
+    (t.GA1_2_bound = 1 AND a.GA1_2 > 0.5) OR
+    (t.GA3_4_bound = 1 AND a.GA3_4 > 0.5) OR
+    (t.GL1_2_bound = 1 AND a.GL1_2 > 0.5)
+  );
+")
+```
+
+```{r}
+set2.feat <- dbGetQuery(con, "
+SELECT DISTINCT t.features, t.TF_gene_name
+FROM tobias t
+JOIN acc a ON t.features = a.features
+WHERE UPPER(t.TF_gene_name) IN (SELECT UPPER(ct.target_gene_name) FROM ct_data ct GROUP BY ct.target_gene_name UNION SELECT 'COE1') AND (
+    (t.PRO1_2_bound = 0 AND a.PRO1_2 < 0.5) AND
+    (t.GL3_4_bound = 0 AND a.GL3_4 < 0.5) AND
+    (t.GA5_6_bound = 0 AND a.GA5_6 < 0.5) AND
+    (t.GL5_bound   = 0 AND a.GL5   < 0.5) AND
+    (t.CO1_2_bound = 0 AND a.CO1_2 < 0.5) AND
+    (t.GA1_2_bound = 0 AND a.GA1_2 < 0.5) AND
+    (t.GA3_4_bound = 0 AND a.GA3_4 < 0.5) AND
+    (t.GL1_2_bound = 0 AND a.GL1_2 < 0.5)
+  );
+  ")
+```
+
+```{r}
+ct.feat <- dbGetQuery(con, "
+SELECT DISTINCT ct.feature
+FROM ct_data ct
+WHERE UPPER(ct.target_gene_name)=UPPER('Tal1');
+  ")
+
+ct.gr <- StringToGRanges(ct.feat$feature)
+```
+
+```{r TAL1}
+gene <- "TAL1"
+set1.gr <- StringToGRanges(filter(set1.feat, TF_gene_name==gene) %>% pull(features))
+set2.gr <- StringToGRanges(filter(set2.feat, TF_gene_name==gene) %>% pull(features))
+over.1 <-length(findOverlaps(set1.gr, ct.gr))
+over.2 <-length(findOverlaps(set2.gr, ct.gr))
+
+# Create a data frame with the two values
+results <- data.frame(
+  Set = c("Bound & Open Set", "Unbound and Closed Set"),
+  Footprint_CT_overlap_Count = c(over.1, over.2)
+)
+
+# Print the table using knitr::kable with a caption and row names
+knitr::kable(results, caption = paste0(gene), row.names = TRUE)
+```
+
+```{r}
+# Example gene vector; replace with your genes
+genes <- c("TAL1", "GATA2", "GATA3","VSX2","EBF1","INSM1")
+
+# Create an initial data frame with row names for the sets
+results_df <- data.frame(
+  Set = c("Bound & Open Features", "Unbound & Closed Features"),
+  stringsAsFactors = FALSE
+)
+
+# Loop over each gene to get CT features and compute overlaps
+for(gene in genes) {
+  
+  # Query the database for CT features corresponding to the current gene.
+  # The query uses UPPER() to force a case-insensitive match.
+  query <- sprintf("
+    SELECT DISTINCT ct.feature
+    FROM ct_data ct
+    WHERE UPPER(ct.target_gene_name) = UPPER('%s');
+  ", gene)
+  ct.feat <- dbGetQuery(con, query)
+  
+  # Convert the CT features into GRanges
+  ct.gr <- StringToGRanges(ct.feat$feature)
+  
+  # Get GRanges for the features from set1 and set2 for this gene
+  set1.gr <- StringToGRanges(filter(set1.feat, TF_gene_name == ifelse(gene=="EBF1","COE1",gene)) %>% pull(features))
+  set2.gr <- StringToGRanges(filter(set2.feat, TF_gene_name == ifelse(gene=="EBF1","COE1",gene)) %>% pull(features))
+  
+  # Count the overlaps between the CT regions and the two sets
+  over1 <- length(findOverlaps(set1.gr, ct.gr))
+  over2 <- length(findOverlaps(set2.gr, ct.gr))
+  
+  # Add a new column to the results data frame named after the gene,
+  # with the two overlap counts as rows.
+  results_df[[gene]] <- c(over1, over2)
+}
+
+# Print the final table using knitr::kable with a caption
+knitr::kable(results_df, caption = "Footprint - C&T Overlap Counts per Gene", row.names = FALSE)
+write_xlsx(results_df, path = "../analysis/Footprint_CT_Overlap_Counts_per_Gene.xlsx")
+```
+
+
+
+
+```{r}
+# Disconnect from the database
+dbDisconnect(con)
+```
+
+```{r}
+sessionInfo()
+```
+
