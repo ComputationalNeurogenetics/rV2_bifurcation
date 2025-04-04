@@ -954,7 +954,17 @@ DBI::dbDisconnect(con)
 consensus.beds.path <- list.files(path="/Volumes/MyBookDuo/Data/Cut_Tag/out_030524/03_peak_calling/05_consensus_peaks/", pattern = "*.awk.bed", full.names = T)
 
 consensus.beds <- lapply(consensus.beds.path, function(path){
-  tmp.1 <- read_delim(file = path, col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_names","consensus_replicate_count"))
+  tmp.1 <- read_delim(file = path, col_names = c("chr","start","end","start_merged","end_merged","total_signals","max_signals","max_signal_regions","sample_names","consensus_replicate_count"),col_types = cols(
+      chr = col_character(),
+      start = col_integer(),
+      end = col_integer(),
+      start_merged = col_character(),  # Force as integer
+      end_merged = col_character(),    # Force as integer
+      total_signals = col_character(),
+      max_signals = col_character(),
+      max_signal_regions = col_character(),
+      sample_names = col_character(),
+      consensus_replicate_count = col_integer()))
   if (nrow(tmp.1)>0){
   tmp.1$target_gene_name <- str_extract(string=tmp.1$sample_names, pattern = "(?<=_)[^_]+(?=_)")
   return(tmp.1)
@@ -970,7 +980,11 @@ consensus.beds.tb <- consensus.beds.tb %>% mutate(row_id = row_number())
 normalized_data <- consensus.beds.tb %>%
   # Create an index to keep track of the original row positions
   # Expand the rows based on the comma-separated values
-  separate_rows(total_signals, max_signals, max_signal_regions,sample_names, sep = ",") %>%
+  separate_rows(start_merged,end_merged, total_signals, max_signals, max_signal_regions,sample_names, sep = ",",convert = TRUE) %>%
+    mutate(
+    start_merged = as.integer(start_merged),
+    end_merged = as.integer(end_merged)
+  ) %>%
   # Group by the original row index to ensure correct order
   group_by(row_id) %>%
   # Create a new ID to ensure uniqueness
