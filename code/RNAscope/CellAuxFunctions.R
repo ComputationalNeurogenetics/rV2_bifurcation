@@ -382,7 +382,127 @@ plot_sliding_mean <- function(count.per.cell.channel.filt, window_size = 8) {
   return(p)
 }
 
-plot_sliding_mean_replicates <- function(data, window_size = 8, use_cell_normalized = FALSE, normalize_per_channel = FALSE, normalize_total_counts = TRUE, align_channels_across_replicates = FALSE) {
+plot_sliding_mean_replicates <- function(data, 
+                                         window_size = 8, 
+                                         use_cell_normalized = FALSE, 
+                                         normalize_per_channel = FALSE, 
+                                         normalize_total_counts = TRUE, 
+                                         align_channels_across_replicates = FALSE, 
+                                         exclude_channels = NULL) {
+  # Enforce exclusivity of `use_cell_normalized` and `normalize_per_channel`
+  if (use_cell_normalized && normalize_per_channel) {
+    stop("Both `use_cell_normalized` and `normalize_per_channel` cannot be TRUE at the same time. Choose one.")
+  }
+  
+  # Exclude selected channels from the analysis if provided
+  if (!is.null(exclude_channels)) {
+    data <- data %>% filter(!(ch %in% exclude_channels))
+  }
+  
+  # Step 1: Normalize within each channel per replicate if requested
+  if (normalize_per_channel) {
+    data <- data %>%
+      group_by(ch, replicate) %>%
+      mutate(count.dots = count.dots / mean(count.dots)) %>%
+      ungroup()
+    column_name <- "count.dots"
+  } else {
+    column_name <- if (use_cell_normalized) "norm_count_dots" else "count.dots"
+  }
+  
+  # Step 2: Normalize total counts across all replicates if requested
+  if (normalize_total_counts) {
+    data <- data %>%
+      group_by(replicate) %>%
+      mutate(count.dots = count.dots / sum(count.dots) * 100) %>%
+      ungroup()
+  }
+  
+  # Step 3: Align channel levels across replicates if requested
+  if (align_channels_across_replicates) {
+    data <- data %>%
+      group_by(ch) %>%
+      mutate(count.dots = count.dots / mean(count.dots) * mean(total_count_dots)) %>%
+      ungroup()
+  }
+  
+  # Function to compute sliding mean for a given channel and replicate
+  compute_sliding_mean <- function(channel, replicate_name, data, window_size, column_name) {
+    filtered_data <- data %>%
+      filter(ch == channel, replicate == replicate_name) %>%
+      arrange(cell.distances)
+    
+    tibble(
+      ch = channel,
+      count.dots = slide_dbl(filtered_data %>% pull({{ column_name }}), ~ mean(.x), .before = window_size),
+      cell.distances = filtered_data %>% pull(cell.distances),
+      replicate = replicate_name,
+      channel_label = filtered_data$channel_label[1] # Use channel label from data
+    )
+  }
+  
+  # Get the unique replicates and channels from the filtered dataset
+  replicates <- unique(data$replicate)
+  channels <- unique(data$ch)
+  
+  # Compute sliding means for each channel and replicate
+  sliding_means <- bind_rows(
+    lapply(channels, function(ch) {
+      bind_rows(lapply(replicates, function(rep) compute_sliding_mean(ch, rep, data, window_size, column_name)))
+    })
+  )
+  
+  # Define hard-coded color mapping based on channel labels
+  color_mapping <- c("Ebf1" = "forestgreen", 
+                     "Insm1" = "forestgreen", 
+                     "Sox4" = "dodgerblue", 
+                     "Tead2" = "dodgerblue", 
+                     "E2f1" = "forestgreen", 
+                     "Tal1" = "red")
+  
+  # Create the ggplot with different symbols for each replicate and a fitted line per channel
+  p <- ggplot(sliding_means, aes(x = cell.distances, y = count.dots, 
+                                 shape = replicate, colour = factor(channel_label))) + 
+    geom_point(size = 1.25) +  # Increase dot size
+    scale_shape_manual(values = c(16, 17, 18)) +  # Set different symbols for each replicate
+    scale_color_manual(values = color_mapping) +  # Use hard-coded colors for each channel label
+    labs(color = "Channel", shape = "Replicate") + 
+    theme_minimal() + 
+    ggtitle(paste("Sliding mean (", window_size, ") values across replicates", sep = "")) + 
+    geom_smooth(
+      aes(x = cell.distances, y = count.dots, colour = factor(channel_label)),  
+      method = "loess", se = TRUE, level = 0.95,  # Add confidence interval with 95% level
+      inherit.aes = FALSE, 
+      data = sliding_means %>% reframe(cell.distances = cell.distances, count.dots = count.dots, channel_label = channel_label),
+      fill = "grey", alpha = 0.8  # Grey area for confidence interval
+    ) + 
+    xlab("Average cell diameters from VZ") + 
+    ylab(ifelse(use_cell_normalized, 
+                "Mean of Cell-Normalized Intensity", 
+                ifelse(normalize_per_channel & !normalize_total_counts, 
+                       "Mean of Channel-Normalized Intensity", 
+                       ifelse(normalize_total_counts, 
+                              "Normalized mean intensity", 
+                              "Mean of Intensity")))) + 
+    theme(
+      axis.text.x = element_text(size = 14, angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 14),
+      axis.title.x = element_text(size = 14),
+      axis.title.y = element_text(size = 14)
+    ) + 
+    scale_x_continuous(breaks = seq(0, max(sliding_means$cell.distances), by = 1)) + 
+    ylim(0, NA)
+  
+  # Remove any remaining NAs after the sliding window process
+  sliding_means <- na.omit(sliding_means)
+  sliding_means$replicate <- as.factor(sliding_means$replicate)
+  
+  # Return both the plot and the processed tibble as a list
+  return(list(plot = p, data = sliding_means))
+}
+
+
+plot_sliding_mean_replicates_old <- function(data, window_size = 8, use_cell_normalized = FALSE, normalize_per_channel = FALSE, normalize_total_counts = TRUE, align_channels_across_replicates = FALSE) {
   # Enforce exclusivity of `use_cell_normalized` and `normalize_per_channel`
   if (use_cell_normalized && normalize_per_channel) {
     stop("Both `use_cell_normalized` and `normalize_per_channel` cannot be TRUE at the same time. Choose one.")
