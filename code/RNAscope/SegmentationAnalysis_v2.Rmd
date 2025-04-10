@@ -349,7 +349,7 @@ combined_replicates <- rbind(count.per.cell.channel.filt.e3_1a_sb510,
 
 combined_replicates <- filter_by_max_distance(combined_replicates)
 
-p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE)
+p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE,draw_points = FALSE)
 
 p1[[1]]
 pdf(file=paste(plot_loc,"e3.aggregated.pdf",sep=""), width = 8, height = 6)
@@ -718,7 +718,7 @@ combined_replicates <- rbind(count.per.cell.channel.filt.e3b_1b_sb514,
 
 combined_replicates <- filter_by_max_distance(combined_replicates)
 
-p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE, exclude_channels=2)
+p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE, exclude_channels=2,draw_points = FALSE)
 
 p1[[1]]
 pdf(file=paste(plot_loc,"e3b.aggregated.pdf",sep=""), width = 8, height = 6)
@@ -1375,7 +1375,7 @@ combined_replicates <- rbind(count.per.cell.channel.filt.e4_4c_sb0479,
 
 combined_replicates <- filter_by_max_distance(combined_replicates, extend.factor = 1.5)
 
-p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE)
+p1 <- plot_sliding_mean_replicates(combined_replicates, window_size = 12, use_cell_normalized = FALSE, normalize_per_channel=TRUE, align_channels_across_replicates = TRUE,draw_points = FALSE)
 
 p1[[1]]
 pdf(file=paste(plot_loc,"e4.aggregated.pdf",sep=""), width = 8, height = 6)
@@ -1446,7 +1446,7 @@ dev.off()
 ```
 
 ```{r}
-save_image(file="SegmentationAnalysisImage121124.RData")
+save.image(file="SegmentationAnalysisImage121124.RData")
 ```
 
 ```{r}
