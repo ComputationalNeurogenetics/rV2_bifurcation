@@ -46,10 +46,10 @@ links <- fetchGRangesLinks(
   coordinate_filter = region.of.interest,
   target.gene_name ="Lmo1"
 )
-Links(rV2.data) <- links
 
 # Export Link Track
-export(links, con = file.path(igv_output_dir, "Link_Lmo1_track.bed"), format = "BED")
+export(StringToGRanges(links$peak), con = file.path(igv_output_dir, "Link_Lmo1_track.bed"), format = "BED")
+write.table(as_tibble(links), file = file.path(igv_output_dir, "Link_Lmo1_track_num.csv"), sep = ",")
 
 # Fetch links Ebf2
 region.of.interest <- "chr14-67183957-67478090"
@@ -60,10 +60,10 @@ links <- fetchGRangesLinks(
   coordinate_filter = region.of.interest,
   target.gene_name ="Ebf2"
 )
-Links(rV2.data) <- links
 
 # Export Link Track
-export(links, con = file.path(igv_output_dir, "Link_Ebf2_track.bed"), format = "BED")
+export(StringToGRanges(links$peak), con = file.path(igv_output_dir, "Link_Ebf2_track.bed"), format = "BED")
+write.table(as_tibble(links), file = file.path(igv_output_dir, "Link_Ebf2_track_num.csv"), sep = ",")
 
 # Fetch links Plekha1
 region.of.interest <- "chr7-130815984-130960831"
@@ -74,33 +74,35 @@ links <- fetchGRangesLinks(
   coordinate_filter = region.of.interest,
   target.gene_name ="Plekha1"
 )
-Links(rV2.data) <- links
 
 # Export Link Track
-export(links, con = file.path(igv_output_dir, "Link_Plekha1_track.bed"), format = "BED")
-
+export(StringToGRanges(links$peak), con = file.path(igv_output_dir, "Link_Plekha1_track.bed"), format = "BED")
+write.table(as_tibble(links), file = file.path(igv_output_dir, "Link_Plekha1_track_num.csv"), sep = ",")
 
 # Export Features Track
 features <- rownames(rV2.data[["peaks"]])
 export(StringToGRanges(features), con = file.path(igv_output_dir, "Features_track.bed"), format = "BED")
 
 # Export footprints Tal1
-query <- "SELECT t.seqnames,t.start,t.end FROM tobias as t WHERE t.TF_gene_name='TAL1' AND t.GA1_2_bound = 1"
+query <- "SELECT t.seqnames,t.start,t.end, t.GA1_2_score FROM tobias as t WHERE t.TF_gene_name='TAL1' AND t.GA1_2_bound = 1"
 Tal1.fp <- dbGetQuery(con, query)
-Tal1.fp.gr <- makeGRangesFromDataFrame(fp)
+Tal1.fp.gr <- makeGRangesFromDataFrame(Tal1.fp, keep.extra.columns = T)
 export(Tal1.fp.gr, con = file.path(igv_output_dir, "Tal1.fp.bed"), format = "BED")
+write.table(as_tibble(Tal1.fp.gr), file = file.path(igv_output_dir, "FP_Tal1_track_num.csv"), sep = ",")
 
 # Export footprints Gata2
-query <- "SELECT t.seqnames,t.start,t.end FROM tobias as t WHERE t.TF_gene_name='GATA2' AND t.GA1_2_bound = 1"
+query <- "SELECT t.seqnames,t.start,t.end, t.GA1_2_score FROM tobias as t WHERE t.TF_gene_name='GATA2' AND t.GA1_2_bound = 1"
 Gata2.fp <- dbGetQuery(con, query)
-Gata2.fp.gr <- makeGRangesFromDataFrame(fp)
+Gata2.fp.gr <- makeGRangesFromDataFrame(Gata2.fp, keep.extra.columns = T)
 export(Gata2.fp.gr, con = file.path(igv_output_dir, "Gata2.fp.bed"), format = "BED")
+write.table(as_tibble(Gata2.fp.gr), file = file.path(igv_output_dir, "FP_Gata2_track_num.csv"), sep = ",")
 
 # Export footprints Gata3
-query <- "SELECT t.seqnames,t.start,t.end FROM tobias as t WHERE t.TF_gene_name='GATA3' AND t.GA1_2_bound = 1"
+query <- "SELECT t.seqnames,t.start,t.end, t.GA1_2_score FROM tobias as t WHERE t.TF_gene_name='GATA3' AND t.GA1_2_bound = 1"
 Gata3.fp <- dbGetQuery(con, query)
-Gata3.fp.gr <- makeGRangesFromDataFrame(fp)
+Gata3.fp.gr <- makeGRangesFromDataFrame(Gata3.fp, keep.extra.columns = T)
 export(Gata3.fp.gr, con = file.path(igv_output_dir, "Gata3.fp.bed"), format = "BED")
+write.table(as_tibble(Gata3.fp.gr), file = file.path(igv_output_dir, "FP_Gata3_track_num.csv"), sep = ",")
 
 # Print success message
 cat("All tracks have been exported to IGV-compatible formats in:", igv_output_dir, "\n")
