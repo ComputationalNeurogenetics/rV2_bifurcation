@@ -25,7 +25,8 @@ source("local_settings.R")
 ```
 
 ```{r Connection to SQLite}
-con <- DBI::dbConnect(RSQLite::SQLite(), dbname = paste(db.path,dbname.rV2,sep=""))
+dbname <- "../../TOBIAS.dr.h12_191124.sqlite"
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbname)
 
 tobias.table <- tbl(con, "tobias")
 exp.table <- tbl(con, "exp")
@@ -87,6 +88,22 @@ for (i in 1:nrow(Tal1.features)){
 rm(igv)
 ```
 
+
+```{r Replot all Tal1 features dotplot v3 for Tal 1 0.7, echo=FALSE}
+maxes <- find.maxes(features=Tal1.features, dbname=dbname)
+
+igv<-igvR()
+for (i in 93){
+  p <- plotHorizDotplot_v3(feature.coords = as.character(Tal1.features[i,1]), igv=igv, cons.filt=cons.gr, max.acc=maxes$max.acc, max.exp = maxes$max.exp, max.fp=maxes$max.fp,acc.thr=acc.thr, dbname=dbname)
+  if(is.list(p)){
+  pdf(file=paste(plot_loc_tal1,paste("Tal1f",i,"_dotplot_v3.pdf",sep=""),sep=""), width = 20, height = 12)
+    plot.to.plot <- p$p3 + plot_spacer() + p$p1 + p$p2 + plot_layout(ncol=2,nrow = 2,byrow = TRUE, widths = c(10,.5), heights = c(3,1))
+  print(plot.to.plot)
+  dev.off()
+  }
+}
+rm(igv)
+```
 
 ```{r}
 plot_loc_vsx2 <- "~/OneDrive - University of Helsinki/E12R1 project/Manuscript I - Regulation of Tal1 dependent rV2 lineage bifurcation/Figures/plots/Fig3/Vsx2/"
