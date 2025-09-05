@@ -1,6 +1,8 @@
 # rV2_bifurcation
 
-This is code and metadata repository for manuscript "Gene regulatory mechanisms guiding bifurcation of inhibitory and excitatory neuron lineages in the anterior brainstem".
+This is code and metadata repository for manuscript "Gene regulatory mechanisms guiding bifurcation of inhibitory and excitatory neuron lineages in the mouse anterior brainstem" (Kilpinen Sami, Virtanen Lassi, Bodington-Celma Silvana, Bonsdorff Amos, Heliölä Heidi, Achim Kaia, Partanen Juha (2025) Gene regulatory mechanisms guiding bifurcation of inhibitory and excitatory neuron lineages in the anterior brainstem eLife 14:RP105867)
+
+https://doi.org/10.7554/eLife.105867.2).
 
 ## Processing scRNAseq
 1. code/e_all_refilter_rescale_complete.Rmd 
